@@ -1,8 +1,16 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
-import { Card, Button, Input, Select, Toggle, Modal, StatusBadge, Badge, EmptyState, Spinner } from "@/components/ui";
-import { Megaphone, Plus, Edit, Trash2, ListOrdered, ArrowDown } from "lucide-react";
+import { Card, Button, Input, Select, Toggle, Modal, StatusBadge, Badge, EmptyState, Spinner, ConfirmDialog } from "@/components/ui";
+import { useToast } from "@/components/Toast";
+import { Megaphone, Plus, Edit, Trash2, ListOrdered, ArrowDown, Copy } from "lucide-react";
+
+interface CampaignMetrics {
+  sent: number;
+  opened: number;
+  openRate: number;
+  replies: number;
+}
 
 interface Campaign {
   id: number;
@@ -14,6 +22,7 @@ interface Campaign {
   defaultTone: string;
   status: string;
   createdAt: string;
+  metrics?: CampaignMetrics;
 }
 
 interface SequenceStep {
@@ -30,10 +39,12 @@ interface SequenceData {
 }
 
 export default function CampaignsPage() {
+  const { toast } = useToast();
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [editing, setEditing] = useState<Campaign | null>(null);
+  const [confirmDelete, setConfirmDelete] = useState<{ id: number; name: string } | null>(null);
   const [form, setForm] = useState({
     name: "",
     description: "",
@@ -104,8 +115,8 @@ export default function CampaignsPage() {
   };
 
   const remove = async (id: number) => {
-    if (!confirm("Eliminar esta campana?")) return;
     await fetch(`/api/campaigns?id=${id}`, { method: "DELETE" });
+    toast("Campana eliminada", "success");
     fetchCampaigns();
   };
 
@@ -125,6 +136,23 @@ export default function CampaignsPage() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ id: c.id, status: next }),
     });
+    fetchCampaigns();
+  };
+
+  const cloneCampaign = async (c: Campaign) => {
+    await fetch("/api/campaigns", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        name: `${c.name} (Copia)`,
+        description: c.description || "",
+        dailyLimit: c.dailyLimit,
+        qualityThreshold: c.qualityThreshold,
+        autopilot: c.autopilot,
+        defaultTone: c.defaultTone,
+      }),
+    });
+    toast("Campana clonada", "success");
     fetchCampaigns();
   };
 
@@ -200,6 +228,7 @@ export default function CampaignsPage() {
           icon={<Megaphone className="h-10 w-10" strokeWidth={1.5} />}
           title="Sin campanas"
           description="Crea tu primera campana para empezar a organizar tus leads"
+          action={<Button size="sm" onClick={() => { setEditing(null); setShowModal(true); }}><Plus className="h-3.5 w-3.5" strokeWidth={1.5} /> Nueva campana</Button>}
         />
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
@@ -252,6 +281,15 @@ export default function CampaignsPage() {
                   </div>
                 </div>
 
+                {/* Metrics */}
+                {c.metrics && c.metrics.sent > 0 && (
+                  <div className="flex items-center gap-2 mt-3 flex-wrap">
+                    <Badge>{c.metrics.sent} enviados</Badge>
+                    <Badge color="info">{c.metrics.openRate}% apertura</Badge>
+                    <Badge color="success">{c.metrics.replies} respuestas</Badge>
+                  </div>
+                )}
+
                 {/* Actions */}
                 <div className="flex items-center gap-2 mt-5 pt-4 border-t border-border">
                   <Button size="sm" variant="ghost" onClick={() => toggleStatus(c)}>
@@ -263,7 +301,10 @@ export default function CampaignsPage() {
                   <Button size="sm" variant="ghost" onClick={() => openEdit(c)}>
                     <Edit className="h-3 w-3" strokeWidth={1.5} />
                   </Button>
-                  <Button size="sm" variant="ghost" onClick={() => remove(c.id)}>
+                  <Button size="sm" variant="ghost" onClick={() => cloneCampaign(c)} title="Clonar campana">
+                    <Copy className="h-3 w-3" strokeWidth={1.5} />
+                  </Button>
+                  <Button size="sm" variant="ghost" onClick={() => setConfirmDelete({ id: c.id, name: c.name })}>
                     <Trash2 className="h-3 w-3 text-accent" strokeWidth={1.5} />
                   </Button>
                 </div>
@@ -396,6 +437,16 @@ export default function CampaignsPage() {
           </div>
         </div>
       </Modal>
+
+      <ConfirmDialog
+        open={!!confirmDelete}
+        onClose={() => setConfirmDelete(null)}
+        onConfirm={() => confirmDelete && remove(confirmDelete.id)}
+        title="Eliminar campana"
+        message={`Se eliminara la campana "${confirmDelete?.name ?? ""}". Esta accion no se puede deshacer.`}
+        confirmLabel="Eliminar"
+        variant="danger"
+      />
     </div>
   );
 }

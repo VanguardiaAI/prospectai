@@ -1,12 +1,49 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/db";
-import { campaigns } from "@/db/schema";
-import { eq } from "drizzle-orm";
+import { campaigns, emails, replies } from "@/db/schema";
+import { eq, and, sql, isNotNull } from "drizzle-orm";
 import { logActivity } from "@/lib/activity";
 
 export async function GET() {
   const all = db.select().from(campaigns).orderBy(campaigns.createdAt).all();
-  return NextResponse.json(all);
+
+  // Gather per-campaign email metrics in a single query each
+  const sentCounts = db.select({
+    campaignId: emails.campaignId,
+    count: sql<number>`count(*)`,
+  }).from(emails)
+    .where(eq(emails.status, "sent"))
+    .groupBy(emails.campaignId)
+    .all();
+
+  const openedCounts = db.select({
+    campaignId: emails.campaignId,
+    count: sql<number>`count(*)`,
+  }).from(emails)
+    .where(and(eq(emails.status, "sent"), isNotNull(emails.openedAt)))
+    .groupBy(emails.campaignId)
+    .all();
+
+  const replyCounts = db.select({
+    campaignId: replies.campaignId,
+    count: sql<number>`count(*)`,
+  }).from(replies)
+    .groupBy(replies.campaignId)
+    .all();
+
+  const sentMap = Object.fromEntries(sentCounts.map((r) => [r.campaignId, r.count]));
+  const openedMap = Object.fromEntries(openedCounts.map((r) => [r.campaignId, r.count]));
+  const replyMap = Object.fromEntries(replyCounts.map((r) => [r.campaignId, r.count]));
+
+  const enriched = all.map((c) => {
+    const sent = sentMap[c.id] ?? 0;
+    const opened = openedMap[c.id] ?? 0;
+    const repliesCount = replyMap[c.id] ?? 0;
+    const openRate = sent > 0 ? Math.round((opened / sent) * 100) : 0;
+    return { ...c, metrics: { sent, opened, openRate, replies: repliesCount } };
+  });
+
+  return NextResponse.json(enriched);
 }
 
 export async function POST(req: NextRequest) {

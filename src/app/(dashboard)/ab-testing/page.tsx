@@ -1,8 +1,10 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
-import { Card, Button, Input, Select, Modal, Badge, EmptyState, Spinner } from "@/components/ui";
-import { FlaskConical, Plus, Trash2, Trophy, Crown } from "lucide-react";
+import { Card, Button, Input, Select, Modal, Badge, EmptyState, Spinner, ConfirmDialog, Tooltip } from "@/components/ui";
+import { useToast } from "@/components/Toast";
+import { FlaskConical, Plus, Trash2, Trophy, Crown, BarChart3, Mail, MessageCircle } from "lucide-react";
+import { clsx } from "clsx";
 
 interface VariantConfig {
   tone: string;
@@ -16,6 +18,11 @@ interface VariantResults {
   replies: number;
 }
 
+interface WaVariantResults {
+  total: number;
+  replies: number;
+}
+
 interface ABTest {
   id: number;
   campaignId: number | null;
@@ -23,10 +30,13 @@ interface ABTest {
   status: "active" | "completed";
   createdAt: string;
   campaignName: string | null;
+  channel: "email" | "whatsapp" | "both";
   variantAConfig: VariantConfig;
   variantBConfig: VariantConfig;
   resultsA: VariantResults;
   resultsB: VariantResults;
+  waResultsA: WaVariantResults;
+  waResultsB: WaVariantResults;
 }
 
 interface Campaign {
@@ -47,15 +57,71 @@ function rate(num: number, den: number): string {
   return ((num / den) * 100).toFixed(1);
 }
 
+function zTestProportions(p1: number, p2: number, n1: number, n2: number): number {
+  if (n1 === 0 || n2 === 0) return 0;
+  const p = (p1 * n1 + p2 * n2) / (n1 + n2);
+  const se = Math.sqrt(p * (1 - p) * (1 / n1 + 1 / n2));
+  if (se === 0) return 0;
+  return Math.abs((p1 - p2) / se);
+}
+
+const MIN_SAMPLE_SIZE = 30;
+
+type SignificanceLevel = "significant" | "trend" | "insufficient";
+
+function getSignificance(test: ABTest): { level: SignificanceLevel; label: string; color: "success" | "warning" | "default" } {
+  // For WA-only tests, use WA reply rate instead of email open rate
+  if (test.channel === "whatsapp") {
+    const n1 = test.waResultsA?.total ?? 0;
+    const n2 = test.waResultsB?.total ?? 0;
+    if (n1 < MIN_SAMPLE_SIZE || n2 < MIN_SAMPLE_SIZE) {
+      return { level: "insufficient", label: "DATOS INSUFICIENTES", color: "default" };
+    }
+    const p1 = n1 > 0 ? (test.waResultsA?.replies ?? 0) / n1 : 0;
+    const p2 = n2 > 0 ? (test.waResultsB?.replies ?? 0) / n2 : 0;
+    const z = zTestProportions(p1, p2, n1, n2);
+    if (z >= 1.96) {
+      return { level: "significant", label: "SIGNIFICATIVO", color: "success" };
+    }
+    if (z >= 1.645) {
+      return { level: "trend", label: "TENDENCIA", color: "warning" };
+    }
+    return { level: "insufficient", label: "DATOS INSUFICIENTES", color: "default" };
+  }
+
+  const n1 = test.resultsA.total;
+  const n2 = test.resultsB.total;
+
+  if (n1 < MIN_SAMPLE_SIZE || n2 < MIN_SAMPLE_SIZE) {
+    return { level: "insufficient", label: "DATOS INSUFICIENTES", color: "default" };
+  }
+
+  const p1 = n1 > 0 ? test.resultsA.opens / n1 : 0;
+  const p2 = n2 > 0 ? test.resultsB.opens / n2 : 0;
+  const z = zTestProportions(p1, p2, n1, n2);
+
+  // Z >= 1.96 => p < 0.05, Z >= 1.645 => p < 0.10
+  if (z >= 1.96) {
+    return { level: "significant", label: "SIGNIFICATIVO", color: "success" };
+  }
+  if (z >= 1.645) {
+    return { level: "trend", label: "TENDENCIA", color: "warning" };
+  }
+  return { level: "insufficient", label: "DATOS INSUFICIENTES", color: "default" };
+}
+
 export default function ABTestingPage() {
+  const { toast } = useToast();
   const [tests, setTests] = useState<ABTest[]>([]);
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
+  const [confirmAction, setConfirmAction] = useState<{ title: string; message: string; action: () => void } | null>(null);
   const [saving, setSaving] = useState(false);
   const [form, setForm] = useState({
     name: "",
     campaignId: "",
+    channel: "email" as string,
     variantA: { tone: "profesional", instructions: "" },
     variantB: { tone: "directo", instructions: "" },
   });
@@ -82,6 +148,7 @@ export default function ABTestingPage() {
     setForm({
       name: "",
       campaignId: "",
+      channel: "email",
       variantA: { tone: "profesional", instructions: "" },
       variantB: { tone: "directo", instructions: "" },
     });
@@ -96,6 +163,7 @@ export default function ABTestingPage() {
       body: JSON.stringify({
         campaignId: form.campaignId ? Number(form.campaignId) : null,
         name: form.name,
+        channel: form.channel,
         variantA: {
           tone: form.variantA.tone,
           instructions: form.variantA.instructions || undefined,
@@ -112,19 +180,31 @@ export default function ABTestingPage() {
   };
 
   const declareWinner = async (test: ABTest, winner: "A" | "B") => {
-    if (!confirm(`Declarar Variante ${winner} como ganadora?`)) return;
-    await fetch("/api/ab-testing", {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ id: test.id, status: "completed", winnerId: winner }),
+    setConfirmAction({
+      title: `Declarar ganadora`,
+      message: `Se declarara la Variante ${winner} como ganadora de "${test.name}". Esto finalizara el test.`,
+      action: async () => {
+        await fetch("/api/ab-testing", {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ id: test.id, status: "completed", winnerId: winner }),
+        });
+        toast(`Variante ${winner} declarada ganadora`, "success");
+        fetchTests();
+      },
     });
-    fetchTests();
   };
 
   const remove = async (id: number) => {
-    if (!confirm("Eliminar este test A/B?")) return;
-    await fetch(`/api/ab-testing?id=${id}`, { method: "DELETE" });
-    fetchTests();
+    setConfirmAction({
+      title: "Eliminar test A/B",
+      message: "Se eliminara este test y sus resultados. Esta accion no se puede deshacer.",
+      action: async () => {
+        await fetch(`/api/ab-testing?id=${id}`, { method: "DELETE" });
+        toast("Test eliminado", "success");
+        fetchTests();
+      },
+    });
   };
 
   const getWinningVariant = (test: ABTest): "A" | "B" | "tie" => {
@@ -155,11 +235,13 @@ export default function ABTestingPage() {
           icon={<FlaskConical className="h-10 w-10" strokeWidth={1.5} />}
           title="Sin tests A/B"
           description="Crea tu primer test para comparar variantes de mensajes"
+          action={<Button size="sm" onClick={() => setShowModal(true)}><Plus className="h-3.5 w-3.5" strokeWidth={1.5} /> Nuevo test</Button>}
         />
       ) : (
         <div className="space-y-4">
           {tests.map((test) => {
             const winning = getWinningVariant(test);
+            const significance = test.status === "active" ? getSignificance(test) : null;
 
             return (
               <Card key={test.id}>
@@ -177,6 +259,20 @@ export default function ABTestingPage() {
                     </div>
                   </div>
                   <div className="flex items-center gap-2">
+                    <span className={clsx(
+                      "text-[9px] font-mono uppercase px-1.5 py-0.5 rounded border",
+                      test.channel === "whatsapp" ? "text-green-500 border-green-500/30 bg-green-500/10" :
+                      test.channel === "both" ? "text-interactive border-interactive/30 bg-interactive/10" :
+                      "text-accent border-accent/30 bg-accent/10"
+                    )}>
+                      {test.channel === "email" ? "EMAIL" : test.channel === "whatsapp" ? "WHATSAPP" : "EMAIL + WA"}
+                    </span>
+                    {significance && (
+                      <Badge color={significance.color}>
+                        <BarChart3 className="h-3 w-3" strokeWidth={1.5} />
+                        {significance.label}
+                      </Badge>
+                    )}
                     <Badge color={test.status === "active" ? "success" : "default"}>
                       {test.status === "active" ? "ACTIVO" : "COMPLETADO"}
                     </Badge>
@@ -218,72 +314,112 @@ export default function ABTestingPage() {
                     <div className="px-3 py-2 text-center">Variante A</div>
                     <div className="px-3 py-2 text-center">Variante B</div>
                   </div>
-                  {/* Emails sent */}
-                  <div className="grid grid-cols-3 border-t border-border">
-                    <div className="px-3 py-2 nd-label">Emails enviados</div>
-                    <div className="px-3 py-2 text-center text-sm text-text-display font-mono">{test.resultsA.total}</div>
-                    <div className="px-3 py-2 text-center text-sm text-text-display font-mono">{test.resultsB.total}</div>
-                  </div>
-                  {/* Open rate */}
-                  {(() => {
-                    const openRateA = test.resultsA.total > 0 ? test.resultsA.opens / test.resultsA.total : 0;
-                    const openRateB = test.resultsB.total > 0 ? test.resultsB.opens / test.resultsB.total : 0;
-                    return (
+                  {/* Email metrics (shown for email and both channels) */}
+                  {(test.channel === "email" || test.channel === "both") && (
+                    <>
+                      {/* Emails sent */}
                       <div className="grid grid-cols-3 border-t border-border">
-                        <div className="px-3 py-2 nd-label">Tasa apertura</div>
-                        <div className={`px-3 py-2 text-center text-sm font-mono ${openRateA > openRateB ? "text-green-400" : "text-text-display"}`}>
-                          {rate(test.resultsA.opens, test.resultsA.total)}%
+                        <div className="px-3 py-2 nd-label">Emails enviados</div>
+                        <div className="px-3 py-2 text-center text-sm text-text-display font-mono">{test.resultsA.total}</div>
+                        <div className="px-3 py-2 text-center text-sm text-text-display font-mono">{test.resultsB.total}</div>
+                      </div>
+                      {/* Open rate */}
+                      {(() => {
+                        const openRateA = test.resultsA.total > 0 ? test.resultsA.opens / test.resultsA.total : 0;
+                        const openRateB = test.resultsB.total > 0 ? test.resultsB.opens / test.resultsB.total : 0;
+                        return (
+                          <div className="grid grid-cols-3 border-t border-border">
+                            <div className="px-3 py-2 nd-label">Tasa apertura</div>
+                            <div className={`px-3 py-2 text-center text-sm font-mono ${openRateA > openRateB ? "text-green-400" : "text-text-display"}`}>
+                              {rate(test.resultsA.opens, test.resultsA.total)}%
+                            </div>
+                            <div className={`px-3 py-2 text-center text-sm font-mono ${openRateB > openRateA ? "text-green-400" : "text-text-display"}`}>
+                              {rate(test.resultsB.opens, test.resultsB.total)}%
+                            </div>
+                          </div>
+                        );
+                      })()}
+                      {/* Click rate */}
+                      {(() => {
+                        const clickRateA = test.resultsA.total > 0 ? test.resultsA.clicks / test.resultsA.total : 0;
+                        const clickRateB = test.resultsB.total > 0 ? test.resultsB.clicks / test.resultsB.total : 0;
+                        return (
+                          <div className="grid grid-cols-3 border-t border-border">
+                            <div className="px-3 py-2 nd-label">Tasa clicks</div>
+                            <div className={`px-3 py-2 text-center text-sm font-mono ${clickRateA > clickRateB ? "text-green-400" : "text-text-display"}`}>
+                              {rate(test.resultsA.clicks, test.resultsA.total)}%
+                            </div>
+                            <div className={`px-3 py-2 text-center text-sm font-mono ${clickRateB > clickRateA ? "text-green-400" : "text-text-display"}`}>
+                              {rate(test.resultsB.clicks, test.resultsB.total)}%
+                            </div>
+                          </div>
+                        );
+                      })()}
+                      {/* Reply rate */}
+                      {(() => {
+                        const replyRateA = test.resultsA.total > 0 ? test.resultsA.replies / test.resultsA.total : 0;
+                        const replyRateB = test.resultsB.total > 0 ? test.resultsB.replies / test.resultsB.total : 0;
+                        return (
+                          <div className="grid grid-cols-3 border-t border-border">
+                            <div className="px-3 py-2 nd-label">Tasa respuestas</div>
+                            <div className={`px-3 py-2 text-center text-sm font-mono font-medium ${replyRateA > replyRateB ? "text-green-400" : "text-text-display"}`}>
+                              {rate(test.resultsA.replies, test.resultsA.total)}%
+                            </div>
+                            <div className={`px-3 py-2 text-center text-sm font-mono font-medium ${replyRateB > replyRateA ? "text-green-400" : "text-text-display"}`}>
+                              {rate(test.resultsB.replies, test.resultsB.total)}%
+                            </div>
+                          </div>
+                        );
+                      })()}
+                    </>
+                  )}
+                  {/* WA metrics (shown for whatsapp and both channels) */}
+                  {(test.channel === "whatsapp" || test.channel === "both") && (
+                    <>
+                      <div className="grid grid-cols-3 gap-0 border-t border-border">
+                        <div className="px-3 py-2 nd-label">WA enviados</div>
+                        <div className="px-3 py-2 text-center text-sm text-text-display font-mono">{test.waResultsA?.total ?? 0}</div>
+                        <div className="px-3 py-2 text-center text-sm text-text-display font-mono">{test.waResultsB?.total ?? 0}</div>
+                      </div>
+                      <div className="grid grid-cols-3 gap-0 border-t border-border">
+                        <div className="px-3 py-2 nd-label">WA respuestas</div>
+                        <div className="px-3 py-2 text-center text-sm font-mono font-medium">
+                          {test.waResultsA?.total > 0 ? Math.round((test.waResultsA.replies / test.waResultsA.total) * 100) : 0}%
                         </div>
-                        <div className={`px-3 py-2 text-center text-sm font-mono ${openRateB > openRateA ? "text-green-400" : "text-text-display"}`}>
-                          {rate(test.resultsB.opens, test.resultsB.total)}%
+                        <div className="px-3 py-2 text-center text-sm font-mono font-medium">
+                          {test.waResultsB?.total > 0 ? Math.round((test.waResultsB.replies / test.waResultsB.total) * 100) : 0}%
                         </div>
                       </div>
-                    );
-                  })()}
-                  {/* Click rate */}
-                  {(() => {
-                    const clickRateA = test.resultsA.total > 0 ? test.resultsA.clicks / test.resultsA.total : 0;
-                    const clickRateB = test.resultsB.total > 0 ? test.resultsB.clicks / test.resultsB.total : 0;
-                    return (
-                      <div className="grid grid-cols-3 border-t border-border">
-                        <div className="px-3 py-2 nd-label">Tasa clicks</div>
-                        <div className={`px-3 py-2 text-center text-sm font-mono ${clickRateA > clickRateB ? "text-green-400" : "text-text-display"}`}>
-                          {rate(test.resultsA.clicks, test.resultsA.total)}%
-                        </div>
-                        <div className={`px-3 py-2 text-center text-sm font-mono ${clickRateB > clickRateA ? "text-green-400" : "text-text-display"}`}>
-                          {rate(test.resultsB.clicks, test.resultsB.total)}%
-                        </div>
-                      </div>
-                    );
-                  })()}
-                  {/* Reply rate */}
-                  {(() => {
-                    const replyRateA = test.resultsA.total > 0 ? test.resultsA.replies / test.resultsA.total : 0;
-                    const replyRateB = test.resultsB.total > 0 ? test.resultsB.replies / test.resultsB.total : 0;
-                    return (
-                      <div className="grid grid-cols-3 border-t border-border">
-                        <div className="px-3 py-2 nd-label">Tasa respuestas</div>
-                        <div className={`px-3 py-2 text-center text-sm font-mono font-medium ${replyRateA > replyRateB ? "text-green-400" : "text-text-display"}`}>
-                          {rate(test.resultsA.replies, test.resultsA.total)}%
-                        </div>
-                        <div className={`px-3 py-2 text-center text-sm font-mono font-medium ${replyRateB > replyRateA ? "text-green-400" : "text-text-display"}`}>
-                          {rate(test.resultsB.replies, test.resultsB.total)}%
-                        </div>
-                      </div>
-                    );
-                  })()}
+                    </>
+                  )}
                 </div>
 
                 {/* Actions */}
                 <div className="flex items-center gap-2 pt-4 border-t border-border">
                   {test.status === "active" ? (
                     <>
-                      <Button size="sm" variant="secondary" onClick={() => declareWinner(test, "A")}>
-                        <Trophy className="h-3 w-3" strokeWidth={1.5} /> Declarar ganador A
-                      </Button>
-                      <Button size="sm" variant="secondary" onClick={() => declareWinner(test, "B")}>
-                        <Trophy className="h-3 w-3" strokeWidth={1.5} /> Declarar ganador B
-                      </Button>
+                      {significance?.level === "insufficient" ? (
+                        <Tooltip text={`Se necesitan al menos ${MIN_SAMPLE_SIZE} emails enviados en cada variante para declarar un ganador con confianza estadistica.`}>
+                          <Button size="sm" variant="secondary" disabled>
+                            <Trophy className="h-3 w-3" strokeWidth={1.5} /> Declarar ganador A
+                          </Button>
+                        </Tooltip>
+                      ) : (
+                        <Button size="sm" variant="secondary" onClick={() => declareWinner(test, "A")}>
+                          <Trophy className="h-3 w-3" strokeWidth={1.5} /> Declarar ganador A
+                        </Button>
+                      )}
+                      {significance?.level === "insufficient" ? (
+                        <Tooltip text={`Se necesitan al menos ${MIN_SAMPLE_SIZE} emails enviados en cada variante para declarar un ganador con confianza estadistica.`}>
+                          <Button size="sm" variant="secondary" disabled>
+                            <Trophy className="h-3 w-3" strokeWidth={1.5} /> Declarar ganador B
+                          </Button>
+                        </Tooltip>
+                      ) : (
+                        <Button size="sm" variant="secondary" onClick={() => declareWinner(test, "B")}>
+                          <Trophy className="h-3 w-3" strokeWidth={1.5} /> Declarar ganador B
+                        </Button>
+                      )}
                     </>
                   ) : (
                     <Badge color="success">
@@ -323,6 +459,18 @@ export default function ABTestingPage() {
               {campaigns.map((c) => (
                 <option key={c.id} value={c.id}>{c.name}</option>
               ))}
+            </Select>
+          </div>
+
+          <div>
+            <label className="nd-label block mb-2">Canal</label>
+            <Select
+              value={form.channel || "email"}
+              onChange={(e) => setForm({ ...form, channel: e.target.value })}
+            >
+              <option value="email">Solo Email</option>
+              <option value="whatsapp">Solo WhatsApp</option>
+              <option value="both">Ambos canales</option>
             </Select>
           </div>
 
@@ -390,6 +538,16 @@ export default function ABTestingPage() {
           </div>
         </div>
       </Modal>
+
+      <ConfirmDialog
+        open={!!confirmAction}
+        onClose={() => setConfirmAction(null)}
+        onConfirm={() => confirmAction?.action()}
+        title={confirmAction?.title ?? ""}
+        message={confirmAction?.message ?? ""}
+        confirmLabel="Confirmar"
+        variant="warning"
+      />
     </div>
   );
 }

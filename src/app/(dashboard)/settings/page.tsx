@@ -2,7 +2,8 @@
 
 import { useEffect, useState, useCallback, useRef } from "react";
 import { Card, Button, Input, Select, Toggle, Spinner, Badge, ProgressBar } from "@/components/ui";
-import { Zap, TestTube, CheckCircle, XCircle, RefreshCw, MessageCircle, Wifi, WifiOff, Globe, Building, Shield, Clock, Link2, Webhook, Settings2 } from "lucide-react";
+import { useToast } from "@/components/Toast";
+import { Zap, TestTube, CheckCircle, XCircle, RefreshCw, MessageCircle, Wifi, WifiOff, Globe, Building, Shield, Clock, Link2, Webhook, Settings2, Play, Square } from "lucide-react";
 
 interface ConnectionTest {
   ok: boolean;
@@ -45,6 +46,50 @@ const COUNTRY_OPTIONS = [
   { code: "NL", label: "Países Bajos", phoneCode: "31", phoneDigits: "9" },
 ];
 
+// ─── Validation helpers ────────────────────────────────────────────
+function validateEmail(value: string): string | null {
+  if (!value) return null; // empty is OK (optional)
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value) ? null : "Email no valido";
+}
+
+function validateUrl(value: string): string | null {
+  if (!value) return null;
+  try {
+    const withProto = /^https?:\/\//.test(value) ? value : `https://${value}`;
+    new URL(withProto);
+    return null;
+  } catch {
+    return "URL no valida";
+  }
+}
+
+function validatePositiveInt(value: string): string | null {
+  if (!value) return null;
+  const n = Number(value);
+  return Number.isInteger(n) && n > 0 ? null : "Debe ser un entero positivo";
+}
+
+type Validator = (v: string) => string | null;
+const FIELD_VALIDATORS: Record<string, Validator> = {
+  from_email: validateEmail,
+  reply_to_email: validateEmail,
+  agency_url: validateUrl,
+  tracking_base_url: validateUrl,
+  gmaps_scraper_url: validateUrl,
+  crm_webhook_url: validateUrl,
+  unsubscribe_url: validateUrl,
+  global_daily_limit: validatePositiveInt,
+  warmup_start_limit: validatePositiveInt,
+  warmup_increment: validatePositiveInt,
+  warmup_max_limit: validatePositiveInt,
+  warmup_day: validatePositiveInt,
+  send_window_start: validatePositiveInt,
+  send_window_end: validatePositiveInt,
+  scrape_concurrency: validatePositiveInt,
+  scrape_delay_ms: validatePositiveInt,
+  wa_daily_limit: validatePositiveInt,
+};
+
 export default function SettingsPage() {
   const [settings, setSettings] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
@@ -56,7 +101,29 @@ export default function SettingsPage() {
   const [processResult, setProcessResult] = useState<string | null>(null);
   const [waStatus, setWaStatus] = useState<WAStatus>({ status: "disconnected", qrDataUrl: null, error: null, phone: null });
   const [waConnecting, setWaConnecting] = useState(false);
+  const [schedulerRunning, setSchedulerRunning] = useState(false);
+  const [touched, setTouched] = useState<Record<string, boolean>>({});
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const { toast } = useToast();
+
+  // Per-field validation: only shows errors for fields the user has interacted with
+  const getError = (key: string): string | null => {
+    if (!touched[key]) return null;
+    const validator = FIELD_VALIDATORS[key];
+    return validator ? validator(settings[key] || "") : null;
+  };
+
+  const markTouched = (key: string) => {
+    if (!touched[key]) setTouched(prev => ({ ...prev, [key]: true }));
+  };
+
+  const fieldProps = (key: string) => {
+    const error = getError(key);
+    return {
+      onBlur: () => markTouched(key),
+      className: error ? "border-red-500 focus:ring-red-500" : "",
+    };
+  };
 
   const fetchSettings = useCallback(async () => {
     const res = await fetch("/api/settings");
@@ -64,7 +131,15 @@ export default function SettingsPage() {
     setLoading(false);
   }, []);
 
-  useEffect(() => { fetchSettings(); }, [fetchSettings]);
+  const fetchSchedulerStatus = useCallback(async () => {
+    try {
+      const res = await fetch("/api/scheduler");
+      const data = await res.json();
+      setSchedulerRunning(data.running);
+    } catch { /* ignore */ }
+  }, []);
+
+  useEffect(() => { fetchSettings(); fetchSchedulerStatus(); }, [fetchSettings, fetchSchedulerStatus]);
 
   const pollWAStatus = useCallback(async () => {
     try {
@@ -102,6 +177,23 @@ export default function SettingsPage() {
   };
 
   const save = async () => {
+    // Validate all fields before saving
+    const errors: string[] = [];
+    for (const [key, validator] of Object.entries(FIELD_VALIDATORS)) {
+      const err = validator(settings[key] || "");
+      if (err) errors.push(key);
+    }
+    if (errors.length > 0) {
+      // Mark all invalid fields as touched so errors show
+      setTouched(prev => {
+        const next = { ...prev };
+        for (const k of errors) next[k] = true;
+        return next;
+      });
+      toast("Corrige los campos con errores antes de guardar", "error");
+      return;
+    }
+
     setSaving(true);
     await fetch("/api/settings", {
       method: "PUT",
@@ -193,7 +285,8 @@ export default function SettingsPage() {
             </div>
             <div>
               <label className="nd-label block mb-2">URL de la agencia</label>
-              <Input value={settings.agency_url || ""} onChange={(e) => setSettings({ ...settings, agency_url: e.target.value })} placeholder="tuagencia.com" />
+              <Input value={settings.agency_url || ""} onChange={(e) => setSettings({ ...settings, agency_url: e.target.value })} placeholder="tuagencia.com" {...fieldProps("agency_url")} />
+              {getError("agency_url") && <p className="text-[11px] text-red-500 mt-1">{getError("agency_url")}</p>}
             </div>
             <div className="md:col-span-2">
               <label className="nd-label block mb-2">Descripcion</label>
@@ -270,7 +363,8 @@ export default function SettingsPage() {
           <div className="space-y-5">
             <div>
               <label className="nd-label block mb-2">Email remitente</label>
-              <Input value={settings.from_email || ""} onChange={(e) => setSettings({ ...settings, from_email: e.target.value })} />
+              <Input value={settings.from_email || ""} onChange={(e) => setSettings({ ...settings, from_email: e.target.value })} {...fieldProps("from_email")} />
+              {getError("from_email") && <p className="text-[11px] text-red-500 mt-1">{getError("from_email")}</p>}
             </div>
             <div>
               <label className="nd-label block mb-2">Nombre remitente</label>
@@ -278,7 +372,8 @@ export default function SettingsPage() {
             </div>
             <div>
               <label className="nd-label block mb-2">Limite diario</label>
-              <Input type="number" value={settings.global_daily_limit || ""} onChange={(e) => setSettings({ ...settings, global_daily_limit: e.target.value })} />
+              <Input type="number" value={settings.global_daily_limit || ""} onChange={(e) => setSettings({ ...settings, global_daily_limit: e.target.value })} {...fieldProps("global_daily_limit")} />
+              {getError("global_daily_limit") && <p className="text-[11px] text-red-500 mt-1">{getError("global_daily_limit")}</p>}
             </div>
             <div>
               <label className="nd-label block mb-2">Tono por defecto</label>
@@ -313,21 +408,24 @@ export default function SettingsPage() {
                 <div className="flex items-center gap-3">
                   <div>
                     <label className="nd-label block mb-1">Dia</label>
-                    <Input type="number" value={settings.warmup_day || "1"} onChange={(e) => setSettings({ ...settings, warmup_day: e.target.value })} className="w-16" />
+                    <Input type="number" value={settings.warmup_day || "1"} onChange={(e) => setSettings({ ...settings, warmup_day: e.target.value })} className={`w-16 ${getError("warmup_day") ? "border-red-500" : ""}`} onBlur={() => markTouched("warmup_day")} />
                   </div>
                   <div>
                     <label className="nd-label block mb-1">Inicio</label>
-                    <Input type="number" value={settings.warmup_start_limit || "5"} onChange={(e) => setSettings({ ...settings, warmup_start_limit: e.target.value })} className="w-16" />
+                    <Input type="number" value={settings.warmup_start_limit || "5"} onChange={(e) => setSettings({ ...settings, warmup_start_limit: e.target.value })} className={`w-16 ${getError("warmup_start_limit") ? "border-red-500" : ""}`} onBlur={() => markTouched("warmup_start_limit")} />
                   </div>
                   <div>
                     <label className="nd-label block mb-1">+/dia</label>
-                    <Input type="number" value={settings.warmup_increment || "5"} onChange={(e) => setSettings({ ...settings, warmup_increment: e.target.value })} className="w-16" />
+                    <Input type="number" value={settings.warmup_increment || "5"} onChange={(e) => setSettings({ ...settings, warmup_increment: e.target.value })} className={`w-16 ${getError("warmup_increment") ? "border-red-500" : ""}`} onBlur={() => markTouched("warmup_increment")} />
                   </div>
                   <div>
                     <label className="nd-label block mb-1">Max</label>
-                    <Input type="number" value={settings.warmup_max_limit || "50"} onChange={(e) => setSettings({ ...settings, warmup_max_limit: e.target.value })} className="w-16" />
+                    <Input type="number" value={settings.warmup_max_limit || "50"} onChange={(e) => setSettings({ ...settings, warmup_max_limit: e.target.value })} className={`w-16 ${getError("warmup_max_limit") ? "border-red-500" : ""}`} onBlur={() => markTouched("warmup_max_limit")} />
                   </div>
                 </div>
+                {(getError("warmup_day") || getError("warmup_start_limit") || getError("warmup_increment") || getError("warmup_max_limit")) && (
+                  <p className="text-[11px] text-red-500">Los valores de warmup deben ser enteros positivos</p>
+                )}
                 <ProgressBar
                   value={warmupPct}
                   label={`Dia ${settings.warmup_day || "1"}: ${warmupEffective} emails/dia`}
@@ -340,15 +438,18 @@ export default function SettingsPage() {
             <div className="flex items-center gap-3">
               <div>
                 <label className="nd-label block mb-1">Desde</label>
-                <Input type="number" value={settings.send_window_start || "9"} onChange={(e) => setSettings({ ...settings, send_window_start: e.target.value })} className="w-16" />
+                <Input type="number" value={settings.send_window_start || "9"} onChange={(e) => setSettings({ ...settings, send_window_start: e.target.value })} className={`w-16 ${getError("send_window_start") ? "border-red-500" : ""}`} onBlur={() => markTouched("send_window_start")} />
               </div>
-              <span className="text-text-muted mt-5">—</span>
+              <span className="text-text-muted mt-5">--</span>
               <div>
                 <label className="nd-label block mb-1">Hasta</label>
-                <Input type="number" value={settings.send_window_end || "18"} onChange={(e) => setSettings({ ...settings, send_window_end: e.target.value })} className="w-16" />
+                <Input type="number" value={settings.send_window_end || "18"} onChange={(e) => setSettings({ ...settings, send_window_end: e.target.value })} className={`w-16 ${getError("send_window_end") ? "border-red-500" : ""}`} onBlur={() => markTouched("send_window_end")} />
               </div>
               <span className="text-[11px] text-text-muted mt-5">hrs</span>
             </div>
+            {(getError("send_window_start") || getError("send_window_end")) && (
+              <p className="text-[11px] text-red-500">Las horas deben ser enteros positivos</p>
+            )}
           </div>
         </Card>
 
@@ -360,11 +461,13 @@ export default function SettingsPage() {
           <div className="space-y-5">
             <div>
               <label className="nd-label block mb-2">Concurrencia</label>
-              <Input type="number" value={settings.scrape_concurrency || ""} onChange={(e) => setSettings({ ...settings, scrape_concurrency: e.target.value })} />
+              <Input type="number" value={settings.scrape_concurrency || ""} onChange={(e) => setSettings({ ...settings, scrape_concurrency: e.target.value })} {...fieldProps("scrape_concurrency")} />
+              {getError("scrape_concurrency") && <p className="text-[11px] text-red-500 mt-1">{getError("scrape_concurrency")}</p>}
             </div>
             <div>
               <label className="nd-label block mb-2">Delay (ms)</label>
-              <Input type="number" value={settings.scrape_delay_ms || ""} onChange={(e) => setSettings({ ...settings, scrape_delay_ms: e.target.value })} />
+              <Input type="number" value={settings.scrape_delay_ms || ""} onChange={(e) => setSettings({ ...settings, scrape_delay_ms: e.target.value })} {...fieldProps("scrape_delay_ms")} />
+              {getError("scrape_delay_ms") && <p className="text-[11px] text-red-500 mt-1">{getError("scrape_delay_ms")}</p>}
             </div>
             <div className="pt-2">
               <Toggle
@@ -437,6 +540,18 @@ export default function SettingsPage() {
                 </Button>
               ) : null}
             </div>
+
+            <div className="mt-4 pt-4 border-t border-border">
+              <label className="nd-label block mb-2">Limite diario WA</label>
+              <Input
+                type="number"
+                value={settings.wa_daily_limit || "20"}
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setSettings({ ...settings, wa_daily_limit: e.target.value })}
+                {...fieldProps("wa_daily_limit")}
+              />
+              {getError("wa_daily_limit") && <p className="text-[11px] text-accent mt-1 font-mono">{getError("wa_daily_limit")}</p>}
+              <p className="text-[11px] text-text-muted mt-1 font-mono">Maximo de WhatsApps enviados por dia</p>
+            </div>
           </div>
         </Card>
 
@@ -460,8 +575,9 @@ export default function SettingsPage() {
                 value={settings.unsubscribe_url || ""}
                 onChange={(e) => setSettings({ ...settings, unsubscribe_url: e.target.value })}
                 placeholder="/api/unsubscribe"
+                {...fieldProps("unsubscribe_url")}
               />
-              <p className="text-[11px] text-text-muted mt-1">Se anaden auto al blacklist.</p>
+              {getError("unsubscribe_url") ? <p className="text-[11px] text-red-500 mt-1">{getError("unsubscribe_url")}</p> : <p className="text-[11px] text-text-muted mt-1">Se anaden auto al blacklist.</p>}
             </div>
             <div>
               <label className="nd-label block mb-2">Reply-To (opcional)</label>
@@ -470,8 +586,9 @@ export default function SettingsPage() {
                 onChange={(e) => setSettings({ ...settings, reply_to_email: e.target.value })}
                 placeholder="respuestas@tudominio.com"
                 type="email"
+                {...fieldProps("reply_to_email")}
               />
-              <p className="text-[11px] text-text-muted mt-1">Respuestas llegan aqui.</p>
+              {getError("reply_to_email") ? <p className="text-[11px] text-red-500 mt-1">{getError("reply_to_email")}</p> : <p className="text-[11px] text-text-muted mt-1">Respuestas llegan aqui.</p>}
             </div>
           </div>
         </Card>
@@ -490,8 +607,9 @@ export default function SettingsPage() {
               value={settings.tracking_base_url || ""}
               onChange={(e) => setSettings({ ...settings, tracking_base_url: e.target.value })}
               placeholder="https://tudominio.com"
+              {...fieldProps("tracking_base_url")}
             />
-            <p className="text-[11px] text-text-muted mt-1">Pixel apertura y clicks. Debe ser publica.</p>
+            {getError("tracking_base_url") ? <p className="text-[11px] text-red-500 mt-1">{getError("tracking_base_url")}</p> : <p className="text-[11px] text-text-muted mt-1">Pixel apertura y clicks. Debe ser publica.</p>}
           </div>
         </Card>
 
@@ -507,7 +625,9 @@ export default function SettingsPage() {
                 value={settings.crm_webhook_url || ""}
                 onChange={(e) => setSettings({ ...settings, crm_webhook_url: e.target.value })}
                 placeholder="https://hooks.zapier.com/..."
+                {...fieldProps("crm_webhook_url")}
               />
+              {getError("crm_webhook_url") && <p className="text-[11px] text-red-500 mt-1">{getError("crm_webhook_url")}</p>}
             </div>
             <div>
               <label className="nd-label block mb-2">Disparar cuando</label>
@@ -532,7 +652,9 @@ export default function SettingsPage() {
                 value={settings.gmaps_scraper_url || ""}
                 onChange={(e) => setSettings({ ...settings, gmaps_scraper_url: e.target.value })}
                 placeholder="http://localhost:8080"
+                {...fieldProps("gmaps_scraper_url")}
               />
+              {getError("gmaps_scraper_url") && <p className="text-[11px] text-red-500 mt-1">{getError("gmaps_scraper_url")}</p>}
             </div>
             <div>
               <label className="nd-label block mb-2">API Key (opcional)</label>
@@ -583,6 +705,40 @@ export default function SettingsPage() {
               )}
             </div>
           )}
+        </Card>
+
+        {/* Scheduler */}
+        <Card className="col-span-12 lg:col-span-5">
+          <h3 className="nd-heading mb-2">
+            <Clock className="h-4 w-4 inline mr-2 text-accent" strokeWidth={1.5} />
+            Scheduler automatico
+          </h3>
+          <p className="nd-label text-text-muted mb-4">Ejecuta scraping, generacion y envio cada 5 minutos</p>
+          <div className="flex items-center gap-4">
+            <Badge color={schedulerRunning ? "success" : "default"}>
+              {schedulerRunning ? "ACTIVO" : "INACTIVO"}
+            </Badge>
+            <Button
+              size="sm"
+              variant={schedulerRunning ? "danger" : "success"}
+              onClick={async () => {
+                const action = schedulerRunning ? "stop" : "start";
+                await fetch("/api/scheduler", {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({ action }),
+                });
+                setSchedulerRunning(!schedulerRunning);
+                toast(schedulerRunning ? "Scheduler detenido" : "Scheduler iniciado", schedulerRunning ? "warning" : "success");
+              }}
+            >
+              {schedulerRunning ? (
+                <><Square className="h-3 w-3" strokeWidth={1.5} /> Detener</>
+              ) : (
+                <><Play className="h-3 w-3" strokeWidth={1.5} /> Iniciar</>
+              )}
+            </Button>
+          </div>
         </Card>
 
         <Card className="col-span-12 lg:col-span-7" texture>

@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
-import { Card, Button, Badge, Modal, Input, Textarea, Select, EmptyState, Spinner } from "@/components/ui";
+import { Card, Button, Badge, Modal, Input, Textarea, Select, EmptyState, Spinner, ConfirmDialog } from "@/components/ui";
+import { useToast } from "@/components/Toast";
 import { FileText, Plus, Edit, Trash2, Mail, Eye, Sparkles, MessageCircle, Copy } from "lucide-react";
 
 interface Template {
@@ -62,9 +63,11 @@ const INDUSTRIES = [
 ];
 
 export default function TemplatesPage() {
+  const { toast } = useToast();
   const [templates, setTemplates] = useState<Template[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<"email" | "whatsapp">("email");
+  const [confirmDelete, setConfirmDelete] = useState<{ id: number; name: string } | null>(null);
 
   // Manual create/edit modal
   const [showModal, setShowModal] = useState(false);
@@ -183,8 +186,8 @@ export default function TemplatesPage() {
   };
 
   const remove = async (id: number) => {
-    if (!confirm("Eliminar este template?")) return;
     await fetch(`/api/templates?id=${id}`, { method: "DELETE" });
+    toast("Template eliminado", "success");
     fetchTemplates();
   };
 
@@ -328,6 +331,12 @@ export default function TemplatesPage() {
           }
           title={`Sin templates de ${activeTab === "email" ? "email" : "WhatsApp"}`}
           description={`Crea tu primer template de ${activeTab === "email" ? "email" : "WhatsApp"} manualmente o genera uno con IA`}
+          action={
+            <div className="flex gap-3">
+              <Button size="sm" onClick={openCreate}><Plus className="h-3.5 w-3.5" strokeWidth={1.5} /> Crear manual</Button>
+              <Button size="sm" variant="secondary" onClick={() => setShowAiModal(true)}><Sparkles className="h-3.5 w-3.5" strokeWidth={1.5} /> Generar con IA</Button>
+            </div>
+          }
         />
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
@@ -439,7 +448,7 @@ export default function TemplatesPage() {
                   >
                     <Copy className="h-3 w-3" strokeWidth={1.5} /> Copiar
                   </Button>
-                  <Button size="sm" variant="ghost" onClick={() => remove(t.id)}>
+                  <Button size="sm" variant="ghost" onClick={() => setConfirmDelete({ id: t.id, name: t.name })}>
                     <Trash2 className="h-3 w-3 text-accent" strokeWidth={1.5} /> Eliminar
                   </Button>
                 </div>
@@ -892,6 +901,16 @@ export default function TemplatesPage() {
           </div>
         )}
       </Modal>
+
+      <ConfirmDialog
+        open={!!confirmDelete}
+        onClose={() => setConfirmDelete(null)}
+        onConfirm={() => confirmDelete && remove(confirmDelete.id)}
+        title="Eliminar template"
+        message={`Se eliminara el template "${confirmDelete?.name ?? ""}". Esta accion no se puede deshacer.`}
+        confirmLabel="Eliminar"
+        variant="danger"
+      />
     </div>
   );
 }

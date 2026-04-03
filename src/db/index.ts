@@ -257,6 +257,16 @@ sqlite.exec(`
   );
 
   CREATE INDEX IF NOT EXISTS idx_replies_lead ON replies(lead_id);
+
+  CREATE TABLE IF NOT EXISTS rate_limits (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    key TEXT NOT NULL,
+    attempts INTEGER NOT NULL DEFAULT 0,
+    locked_until TEXT,
+    window_start TEXT NOT NULL
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_rate_limits_key ON rate_limits(key);
 `);
 
 // Add wa_sent_at column to leads if missing (migration for existing DBs)
@@ -284,6 +294,15 @@ try {
 } catch {
   // Column already exists
 }
+
+// Add A/B testing WA columns (migration for existing DBs)
+try {
+  sqlite.exec(`ALTER TABLE ab_variants ADD COLUMN channel TEXT NOT NULL DEFAULT 'email'`);
+} catch { /* column exists */ }
+
+try {
+  sqlite.exec(`ALTER TABLE ab_results ADD COLUMN whatsapp_message_id INTEGER`);
+} catch { /* column exists */ }
 
 // Add per-domain warmup columns (migration for existing DBs)
 try {

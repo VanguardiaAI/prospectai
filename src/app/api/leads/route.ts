@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/db";
 import { leads } from "@/db/schema";
-import { eq, like, and, lte, sql, desc } from "drizzle-orm";
+import { eq, like, and, lte, sql, desc, inArray } from "drizzle-orm";
 
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
@@ -37,6 +37,20 @@ export async function GET(req: NextRequest) {
 
 export async function PUT(req: NextRequest) {
   const body = await req.json();
+
+  // Bulk update: { bulkIds: number[], status?: string, campaignId?: number }
+  if (body.bulkIds && Array.isArray(body.bulkIds) && body.bulkIds.length > 0) {
+    const updates: Record<string, unknown> = {};
+    if (body.status !== undefined) updates.status = body.status;
+    if (body.campaignId !== undefined) updates.campaignId = body.campaignId;
+    if (Object.keys(updates).length === 0) {
+      return NextResponse.json({ error: "No updates provided" }, { status: 400 });
+    }
+    db.update(leads).set(updates).where(inArray(leads.id, body.bulkIds)).run();
+    return NextResponse.json({ success: true, updated: body.bulkIds.length });
+  }
+
+  // Single update
   if (!body.id) return NextResponse.json({ error: "ID required" }, { status: 400 });
 
   const updates: Record<string, unknown> = {};
@@ -47,4 +61,20 @@ export async function PUT(req: NextRequest) {
 
   const result = db.update(leads).set(updates).where(eq(leads.id, body.id)).returning().get();
   return NextResponse.json(result);
+}
+
+export async function DELETE(req: NextRequest) {
+  const body = await req.json();
+
+  if (body.bulkIds && Array.isArray(body.bulkIds) && body.bulkIds.length > 0) {
+    db.delete(leads).where(inArray(leads.id, body.bulkIds)).run();
+    return NextResponse.json({ success: true, deleted: body.bulkIds.length });
+  }
+
+  if (body.id) {
+    db.delete(leads).where(eq(leads.id, body.id)).run();
+    return NextResponse.json({ success: true, deleted: 1 });
+  }
+
+  return NextResponse.json({ error: "ID or bulkIds required" }, { status: 400 });
 }

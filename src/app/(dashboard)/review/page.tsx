@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback } from "react";
 import { Card, Button, Select, Badge, StatusBadge, QualityBar, EmptyState, Spinner, Textarea, Input } from "@/components/ui";
+import { useToast } from "@/components/Toast";
 import { Mail, Check, X, RefreshCw, ChevronLeft, ChevronRight, CheckCheck, Globe, MapPin, MessageCircle, Send, FileText } from "lucide-react";
 
 type ReviewTab = "emails" | "whatsapp";
@@ -51,6 +52,7 @@ interface WARow {
 }
 
 export default function ReviewPage() {
+  const { toast } = useToast();
   const [tab, setTab] = useState<ReviewTab>("emails");
   // Email state
   const [emails, setEmails] = useState<EmailRow[]>([]);
@@ -67,6 +69,7 @@ export default function ReviewPage() {
   const [bulkMode, setBulkMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
   const [saving, setSaving] = useState(false);
+  const [sendingTest, setSendingTest] = useState(false);
   // WhatsApp state
   const [waMessages, setWaMessages] = useState<WARow[]>([]);
   const [waLoading, setWaLoading] = useState(true);
@@ -112,6 +115,7 @@ export default function ReviewPage() {
     setSaving(true);
     await fetch("/api/emails", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id, status: "approved" }) });
     setSaving(false);
+    toast("Email aprobado", "success");
     fetchEmails();
   };
 
@@ -119,7 +123,28 @@ export default function ReviewPage() {
     setSaving(true);
     await fetch("/api/emails", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id, status: "rejected" }) });
     setSaving(false);
+    toast("Email rechazado", "warning");
     fetchEmails();
+  };
+
+  const sendTestEmail = async (emailId: number) => {
+    setSendingTest(true);
+    try {
+      const res = await fetch("/api/emails/test", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ emailId }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        toast(`Email de prueba enviado a ${data.sentTo}`, "success");
+      } else {
+        toast(`Error: ${data.error}`, "error");
+      }
+    } catch {
+      toast("Error al enviar prueba", "error");
+    }
+    setSendingTest(false);
   };
 
   const saveEmailEdit = async () => {
@@ -173,7 +198,7 @@ export default function ReviewPage() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ fromEmailId: current.email.id, name, category: category || null }),
     });
-    alert("Template guardado");
+    toast("Template guardado", "success");
   };
 
   // WhatsApp actions
@@ -181,6 +206,7 @@ export default function ReviewPage() {
     setWaSaving(true);
     await fetch("/api/whatsapp", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id, status: "approved" }) });
     setWaSaving(false);
+    toast("WhatsApp aprobado", "success");
     fetchWA();
   };
 
@@ -188,6 +214,7 @@ export default function ReviewPage() {
     setWaSaving(true);
     await fetch("/api/whatsapp", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id, status: "rejected" }) });
     setWaSaving(false);
+    toast("WhatsApp rechazado", "warning");
     fetchWA();
   };
 
@@ -408,6 +435,9 @@ export default function ReviewPage() {
                       </Button>
                       <Button variant="ghost" size="sm" onClick={saveAsTemplate}>
                         <FileText className="h-3.5 w-3.5" strokeWidth={1.5} /> Guardar Template
+                      </Button>
+                      <Button variant="ghost" size="sm" onClick={() => sendTestEmail(current.email.id)} disabled={sendingTest}>
+                        <Send className="h-3.5 w-3.5" strokeWidth={1.5} /> {sendingTest ? "Enviando..." : "Enviar prueba"}
                       </Button>
                     </div>
                   )}

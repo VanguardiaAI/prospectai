@@ -4,6 +4,7 @@ import { db } from "@/db";
 import { emails, leads, sequenceEnrollments, replies, abResults } from "@/db/schema";
 import { eq, and } from "drizzle-orm";
 import { logActivity } from "@/lib/activity";
+import { prioritizeLeadOnReply } from "@/lib/lead-prioritization";
 
 export async function POST(req: NextRequest) {
   try {
@@ -101,11 +102,8 @@ export async function POST(req: NextRequest) {
           ))
           .run();
 
-        // Update lead status
-        db.update(leads)
-          .set({ status: "contacted" })
-          .where(eq(leads.id, email.leadId))
-          .run();
+        // Prioritize lead: set status to "replied", boost opportunityScore
+        prioritizeLeadOnReply(email.leadId);
 
         logActivity("email_sent", `Respuesta recibida de ${email.toEmail}`, {
           leadId: email.leadId,

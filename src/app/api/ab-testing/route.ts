@@ -35,9 +35,31 @@ export async function GET() {
       .where(and(eq(abResults.variantId, test.id), eq(abResults.variantGroup, "B")))
       .get();
 
+    // WA results per variant
+    const waResultsA = db.select({
+      total: sql<number>`count(*)`,
+      replies: sql<number>`coalesce(sum(${abResults.replied}), 0)`,
+    }).from(abResults)
+      .where(and(
+        eq(abResults.variantId, test.id),
+        eq(abResults.variantGroup, "A"),
+        sql`${abResults.whatsappMessageId} IS NOT NULL`
+      )).get();
+
+    const waResultsB = db.select({
+      total: sql<number>`count(*)`,
+      replies: sql<number>`coalesce(sum(${abResults.replied}), 0)`,
+    }).from(abResults)
+      .where(and(
+        eq(abResults.variantId, test.id),
+        eq(abResults.variantGroup, "B"),
+        sql`${abResults.whatsappMessageId} IS NOT NULL`
+      )).get();
+
     return {
       ...test,
       campaignName,
+      channel: test.channel,
       variantAConfig: JSON.parse(test.variantA),
       variantBConfig: JSON.parse(test.variantB),
       resultsA: {
@@ -52,6 +74,14 @@ export async function GET() {
         clicks: resultsB?.clicks ?? 0,
         replies: resultsB?.replies ?? 0,
       },
+      waResultsA: {
+        total: waResultsA?.total ?? 0,
+        replies: waResultsA?.replies ?? 0,
+      },
+      waResultsB: {
+        total: waResultsB?.total ?? 0,
+        replies: waResultsB?.replies ?? 0,
+      },
     };
   });
 
@@ -61,7 +91,7 @@ export async function GET() {
 // POST: Create new A/B test
 export async function POST(req: NextRequest) {
   const body = await req.json();
-  const { campaignId, name, variantA, variantB } = body;
+  const { campaignId, name, variantA, variantB, channel } = body;
 
   if (!name || !variantA || !variantB) {
     return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
@@ -72,6 +102,7 @@ export async function POST(req: NextRequest) {
     name,
     variantA: JSON.stringify(variantA),
     variantB: JSON.stringify(variantB),
+    channel: channel || "email",
   }).run();
 
   return NextResponse.json({ id: result.lastInsertRowid });

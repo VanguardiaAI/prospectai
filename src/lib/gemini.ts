@@ -3,6 +3,14 @@ import { getSetting } from "@/db";
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || "");
 
+function safeParseJSON<T>(jsonStr: string, label: string): T {
+  try {
+    return JSON.parse(jsonStr) as T;
+  } catch (e) {
+    throw new Error(`Failed to parse Gemini ${label} response: ${(e as Error).message}. Raw: ${jsonStr.slice(0, 200)}`);
+  }
+}
+
 // --- Service definitions ---
 
 export const SERVICE_DEFINITIONS: Record<string, { label: string; description: string }> = {
@@ -265,7 +273,7 @@ Evalúa el sitio web Y la presencia digital general del negocio. Responde en ${l
 
   // Parse JSON - handle potential markdown wrapping
   const jsonStr = text.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
-  const parsed = JSON.parse(jsonStr) as WebAnalysis;
+  const parsed = safeParseJSON<WebAnalysis>(jsonStr, "analysis");
 
   // Ensure backwards compatibility with defaults for new fields
   return {
@@ -383,7 +391,7 @@ Responde SOLO con JSON válido (sin markdown, sin backticks):
   const result = await model.generateContent(prompt);
   const text = result.response.text().trim();
   const jsonStr = text.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
-  return JSON.parse(jsonStr) as EmailGeneration;
+  return safeParseJSON<EmailGeneration>(jsonStr, "email");
 }
 
 // --- Email regeneration ---
@@ -446,7 +454,7 @@ Genera una versión diferente del email. Responde SOLO con JSON válido (sin mar
   const result = await model.generateContent(prompt);
   const text = result.response.text().trim();
   const jsonStr = text.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
-  return JSON.parse(jsonStr) as EmailGeneration;
+  return safeParseJSON<EmailGeneration>(jsonStr, "email-regen");
 }
 
 // --- WhatsApp generation ---
@@ -554,7 +562,7 @@ Responde SOLO con JSON válido (sin markdown, sin backticks):
   const result = await model.generateContent(prompt);
   const text = result.response.text().trim();
   const jsonStr = text.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
-  return JSON.parse(jsonStr) as WhatsAppGeneration;
+  return safeParseJSON<WhatsAppGeneration>(jsonStr, "whatsapp");
 }
 
 // --- Template generation ---
@@ -663,7 +671,7 @@ Responde SOLO con JSON válido (sin markdown, sin backticks):
   const result = await model.generateContent(prompt);
   const text = result.response.text().trim();
   const jsonStr = text.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
-  return JSON.parse(jsonStr) as TemplateGeneration;
+  return safeParseJSON<TemplateGeneration>(jsonStr, "template");
 }
 
 export async function generateWhatsAppTemplate(
@@ -723,7 +731,7 @@ REGLAS PARA WHATSAPP B2B (2026):
 18. NO incluyas URLs, links ni dominios en el mensaje. Favorecen detección de spam y bloqueo del número.
 
 ADAPTACIÓN REGIONAL (CRÍTICO):
-El negocio está en ${city || "ubicación no especificada"}. DEBES adaptar tu lenguaje al país de ESA ciudad, NO al país de la agencia. Si la ciudad está en México, escribe en español mexicano. Si está en Argentina, en argentino. Si está en España, en español de España. Esto es OBLIGATORIO.
+El template usará la variable {{city}} para personalizar. Adapta el lenguaje al locale: ${localeLabel}. Escribe de forma natural para ese mercado.
 ${writingRules}
 
 VARIABLES DISPONIBLES:
@@ -744,7 +752,7 @@ Responde SOLO con JSON válido (sin markdown, sin backticks):
   const result = await model.generateContent(prompt);
   const text = result.response.text().trim();
   const jsonStr = text.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
-  return JSON.parse(jsonStr) as WhatsAppTemplateGeneration;
+  return safeParseJSON<WhatsAppTemplateGeneration>(jsonStr, "wa-template");
 }
 
 // --- WhatsApp regeneration ---
@@ -797,5 +805,5 @@ Responde SOLO con JSON válido (sin markdown, sin backticks):
   const result = await model.generateContent(prompt);
   const text = result.response.text().trim();
   const jsonStr = text.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
-  return JSON.parse(jsonStr) as WhatsAppGeneration;
+  return safeParseJSON<WhatsAppGeneration>(jsonStr, "wa-regen");
 }

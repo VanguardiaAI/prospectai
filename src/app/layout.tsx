@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Space_Grotesk, Space_Mono } from "next/font/google";
+import { ToastProvider } from "@/components/Toast";
 import "./globals.css";
 
 const spaceGrotesk = Space_Grotesk({
@@ -32,7 +33,9 @@ export default function RootLayout({
         <link href="https://fonts.googleapis.com/css2?family=Doto:wght@400;500;700&display=swap" rel="stylesheet" />
       </head>
       <body className="min-h-full bg-bg-primary text-text-primary">
-        {children}
+        <ToastProvider>
+          {children}
+        </ToastProvider>
       </body>
     </html>
   );

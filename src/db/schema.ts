@@ -39,7 +39,7 @@ export const leads = sqliteTable("leads", {
   analysisSummary: text("analysis_summary"),
   // Status
   status: text("status", {
-    enum: ["imported", "queued", "scraping", "scraped", "analyzing", "analyzed", "email_generated", "email_approved", "email_sent", "wa_generated", "wa_approved", "wa_sent", "contacted", "rejected", "blacklisted", "error"],
+    enum: ["imported", "queued", "scraping", "scraped", "analyzing", "analyzed", "email_generated", "email_approved", "email_sent", "wa_generated", "wa_approved", "wa_sent", "contacted", "replied", "rejected", "blacklisted", "error"],
   }).notNull().default("imported"),
   errorMessage: text("error_message"),
   notes: text("notes"),
@@ -103,7 +103,7 @@ export const whatsappMessages = sqliteTable("whatsapp_messages", {
 export const activityLog = sqliteTable("activity_log", {
   id: integer("id").primaryKey({ autoIncrement: true }),
   type: text("type", {
-    enum: ["import", "scrape", "analyze", "email_generated", "email_approved", "email_rejected", "email_sent", "email_failed", "wa_generated", "wa_approved", "wa_rejected", "wa_sent", "wa_failed", "blacklist", "setting_change", "campaign_change", "error"],
+    enum: ["import", "scrape", "analyze", "email_generated", "email_approved", "email_rejected", "email_sent", "email_failed", "wa_generated", "wa_approved", "wa_rejected", "wa_sent", "wa_failed", "blacklist", "setting_change", "campaign_change", "lead_prioritized", "error"],
   }).notNull(),
   message: text("message").notNull(),
   leadId: integer("lead_id"),
@@ -186,6 +186,7 @@ export const abVariants = sqliteTable("ab_variants", {
   name: text("name").notNull(),
   variantA: text("variant_a").notNull(), // JSON: { tone, instructions }
   variantB: text("variant_b").notNull(), // JSON: { tone, instructions }
+  channel: text("channel", { enum: ["email", "whatsapp", "both"] }).notNull().default("email"),
   status: text("status", { enum: ["active", "completed"] }).notNull().default("active"),
   createdAt: text("created_at").notNull().default(sql`(datetime('now'))`),
 });
@@ -194,6 +195,7 @@ export const abResults = sqliteTable("ab_results", {
   id: integer("id").primaryKey({ autoIncrement: true }),
   variantId: integer("variant_id").notNull().references(() => abVariants.id),
   emailId: integer("email_id").references(() => emails.id),
+  whatsappMessageId: integer("whatsapp_message_id"),
   variantGroup: text("variant_group", { enum: ["A", "B"] }).notNull(),
   opened: integer("opened", { mode: "boolean" }).notNull().default(false),
   clicked: integer("clicked", { mode: "boolean" }).notNull().default(false),
@@ -234,6 +236,14 @@ export const emailTemplates = sqliteTable("email_templates", {
 });
 
 // --- Replies ---
+
+export const rateLimits = sqliteTable("rate_limits", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  key: text("key").notNull(), // e.g. "login:192.168.1.1"
+  attempts: integer("attempts").notNull().default(0),
+  lockedUntil: text("locked_until"), // ISO timestamp
+  windowStart: text("window_start").notNull(), // ISO timestamp
+});
 
 export const replies = sqliteTable("replies", {
   id: integer("id").primaryKey({ autoIncrement: true }),

@@ -1,8 +1,9 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
+import { useRouter } from "next/navigation";
 import { Card, Badge, Spinner, ProgressBar, MetricRing, ListRow } from "@/components/ui";
-import { Users, BarChart3, Mail, Send, Clock, TrendingUp, Zap, Activity } from "lucide-react";
+import { Users, BarChart3, Mail, Send, Clock, TrendingUp, Zap, Activity, ArrowUpRight, MessageCircle } from "lucide-react";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, AreaChart, Area } from "recharts";
 
 interface DashboardData {
@@ -29,9 +30,32 @@ interface DashboardData {
   bouncedToday: number;
   bounceRate7d: number;
   serviceStats: Record<string, { recommended: number; contacted: number }>;
+  waSentToday: number;
+  waTotalSent: number;
+  waPendingReview: number;
+  waDailyLimit: number;
+  waReplies: number;
+  waReplyRate: number;
+  waSentByDay: { date: string; count: number }[];
+}
+
+function ClickableCard({ href, children, className, texture }: { href: string; children: React.ReactNode; className?: string; texture?: boolean }) {
+  const router = useRouter();
+  return (
+    <Card
+      className={`${className ?? ""} cursor-pointer transition-all duration-200 hover:border-accent/40 group`}
+      texture={texture}
+    >
+      <div onClick={() => router.push(href)}>
+        {children}
+      </div>
+      <ArrowUpRight className="absolute top-3 right-3 h-3.5 w-3.5 text-text-muted opacity-0 group-hover:opacity-100 transition-opacity" strokeWidth={1.5} />
+    </Card>
+  );
 }
 
 export default function Dashboard() {
+  const router = useRouter();
   const [data, setData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -112,7 +136,7 @@ export default function Dashboard() {
       {/* ─── Bento Row 1: Key Metrics ─── */}
       <div className="grid grid-cols-12 gap-4 nd-section">
         {/* Total Leads — tall card */}
-        <Card className="col-span-12 md:col-span-3" texture>
+        <ClickableCard href="/leads" className="col-span-12 md:col-span-3" texture>
           <div className="flex items-start justify-between">
             <div>
               <p className="nd-label mb-3">Total Leads</p>
@@ -133,10 +157,10 @@ export default function Dashboard() {
               size="sm"
             />
           </div>
-        </Card>
+        </ClickableCard>
 
-        {/* Emails Hoy — wider card with bar */}
-        <Card className="col-span-12 md:col-span-5" texture>
+        {/* Emails Hoy */}
+        <ClickableCard href="/today" className="col-span-12 md:col-span-3" texture>
           <div className="flex items-start justify-between">
             <div>
               <p className="nd-label mb-3">Emails Hoy</p>
@@ -165,16 +189,58 @@ export default function Dashboard() {
               />
             </div>
           </div>
-        </Card>
+        </ClickableCard>
+
+        {/* WA Hoy */}
+        <ClickableCard href="/review" className="col-span-12 md:col-span-3" texture>
+          <div className="flex items-start justify-between">
+            <div>
+              <p className="nd-label mb-3">WA Hoy</p>
+              <div className="flex items-baseline gap-2">
+                <span className="text-[36px] font-light font-mono tracking-tight leading-none text-text-display">
+                  {data.waSentToday}
+                </span>
+                <span className="text-[14px] font-mono text-text-muted">/ {data.waDailyLimit}</span>
+              </div>
+            </div>
+            <div className={data.waSentToday >= data.waDailyLimit ? "text-warning" : "text-green-500 opacity-50"}>
+              <MessageCircle className="h-5 w-5" strokeWidth={1.5} />
+            </div>
+          </div>
+          <div className="mt-5">
+            {(() => {
+              const waPct = data.waDailyLimit > 0 ? Math.round((data.waSentToday / data.waDailyLimit) * 100) : 0;
+              return (
+                <>
+                  <div className="flex items-center justify-between mb-1.5">
+                    <span className="text-[10px] text-text-muted font-mono">
+                      {data.waSentToday >= data.waDailyLimit ? "LIMITE ALCANZADO" : `${data.waDailyLimit - data.waSentToday} RESTANTES`}
+                    </span>
+                    <span className="text-[11px] text-text-display font-mono tabular-nums">{waPct}%</span>
+                  </div>
+                  <div className="w-full h-[5px] bg-border rounded-full overflow-hidden">
+                    <div
+                      className={`h-full rounded-full transition-all duration-500 ${waPct >= 100 ? "bg-warning" : "bg-green-500"}`}
+                      style={{ width: `${Math.min(waPct, 100)}%` }}
+                    />
+                  </div>
+                </>
+              );
+            })()}
+          </div>
+        </ClickableCard>
 
         {/* Right column: two stacked small cards */}
-        <div className="col-span-12 md:col-span-4 grid grid-rows-2 gap-4">
-          <Card>
+        <div className="col-span-12 md:col-span-3 grid grid-rows-2 gap-4">
+          <ClickableCard href="/review">
             <div className="flex items-center justify-between">
               <div>
                 <p className="nd-label mb-1.5">Por Revisar</p>
                 <p className="text-[24px] font-light font-mono tracking-tight leading-none text-text-display">
-                  {data.pendingReview}
+                  {data.pendingReview + data.waPendingReview}
+                </p>
+                <p className="text-[10px] text-text-muted font-mono mt-1">
+                  {data.pendingReview} email · {data.waPendingReview} WA
                 </p>
               </div>
               <div className="flex items-center gap-2">
@@ -182,8 +248,8 @@ export default function Dashboard() {
                 <Mail className="h-4 w-4 text-text-muted" strokeWidth={1.5} />
               </div>
             </div>
-          </Card>
-          <Card>
+          </ClickableCard>
+          <ClickableCard href="/campaigns">
             <div className="flex items-center justify-between">
               <div>
                 <p className="nd-label mb-1.5">Campañas Activas</p>
@@ -196,7 +262,7 @@ export default function Dashboard() {
                 <BarChart3 className="h-4 w-4 text-text-muted" strokeWidth={1.5} />
               </div>
             </div>
-          </Card>
+          </ClickableCard>
         </div>
       </div>
 
@@ -206,7 +272,7 @@ export default function Dashboard() {
           <TrendingUp className="h-4 w-4 text-accent" strokeWidth={1.5} />
           <h3 className="nd-label">Funnel de Conversion</h3>
         </div>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-6 md:gap-4">
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-6 md:gap-4">
           <div className="flex flex-col items-center relative">
             <MetricRing
               value={data.openRate}
@@ -234,6 +300,15 @@ export default function Dashboard() {
             />
             <div className="hidden md:block absolute right-0 top-1/3 w-[1px] h-8 bg-border" />
           </div>
+          <div className="flex flex-col items-center relative">
+            <MetricRing
+              value={data.waReplyRate}
+              label="WA Respuesta"
+              sub={`${data.waReplies} respuestas`}
+              color={data.waReplyRate > 3 ? "success" : "muted"}
+            />
+            <div className="hidden md:block absolute right-0 top-1/3 w-[1px] h-8 bg-border" />
+          </div>
           <div className="flex flex-col items-center">
             <MetricRing
               value={data.bounceRate7d}
@@ -252,66 +327,94 @@ export default function Dashboard() {
           <div className="flex items-center justify-between mb-6">
             <div className="flex items-center gap-2">
               <Activity className="h-4 w-4 text-accent" strokeWidth={1.5} />
-              <h3 className="nd-label">Emails enviados · ultimos 7 dias</h3>
+              <h3 className="nd-label">Envios · ultimos 7 dias</h3>
             </div>
             {data.emailsByDay.length > 0 && (
               <span className="text-[20px] font-mono font-light text-text-display tabular-nums">
-                {data.emailsByDay.reduce((s, d) => s + d.count, 0)}
+                {data.emailsByDay.reduce((s, d) => s + d.count, 0) + (data.waSentByDay || []).reduce((s, d) => s + d.count, 0)}
               </span>
             )}
           </div>
-          {data.emailsByDay.length > 0 ? (
-            <ResponsiveContainer width="100%" height={200}>
-              <AreaChart data={data.emailsByDay}>
-                <defs>
-                  <linearGradient id="emailGradient" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor="#E8632B" stopOpacity={0.15} />
-                    <stop offset="100%" stopColor="#E8632B" stopOpacity={0.01} />
-                  </linearGradient>
-                </defs>
-                <XAxis
-                  dataKey="date"
-                  tick={{ fill: "#999999", fontSize: 10, fontFamily: "Space Mono" }}
-                  tickFormatter={(v) => v.slice(5)}
-                  axisLine={{ stroke: "#E0E0E0" }}
-                  tickLine={false}
-                />
-                <YAxis
-                  tick={{ fill: "#999999", fontSize: 10, fontFamily: "Space Mono" }}
-                  axisLine={false}
-                  tickLine={false}
-                  width={30}
-                />
-                <Tooltip
-                  contentStyle={{
-                    background: "#FFFFFF",
-                    border: "1px solid #E0E0E0",
-                    borderRadius: 8,
-                    fontSize: 11,
-                    fontFamily: "Space Mono",
-                    color: "#333333",
-                    padding: "8px 12px",
-                    boxShadow: "none",
-                  }}
-                  cursor={{ stroke: "#E8632B", strokeWidth: 1, strokeDasharray: "4 4" }}
-                />
-                <Area
-                  type="monotone"
-                  dataKey="count"
-                  stroke="#E8632B"
-                  strokeWidth={2}
-                  fill="url(#emailGradient)"
-                  name="Enviados"
-                  dot={{ fill: "#E8632B", r: 3, strokeWidth: 0 }}
-                  activeDot={{ fill: "#E8632B", r: 5, strokeWidth: 2, stroke: "#FFFFFF" }}
-                />
-              </AreaChart>
-            </ResponsiveContainer>
-          ) : (
-            <div className="flex items-center justify-center h-[200px]">
-              <span className="nd-label text-text-muted">[SIN DATOS]</span>
-            </div>
-          )}
+          {(() => {
+            const chartData = (data?.emailsByDay || []).map(d => {
+              const waDay = data?.waSentByDay?.find(w => w.date === d.date);
+              return { ...d, waCount: waDay?.count || 0 };
+            });
+            // Add WA-only days not in email data
+            for (const w of (data?.waSentByDay || [])) {
+              if (!chartData.find(c => c.date === w.date)) {
+                chartData.push({ date: w.date, count: 0, waCount: w.count });
+              }
+            }
+            chartData.sort((a, b) => a.date.localeCompare(b.date));
+
+            return chartData.length > 0 ? (
+              <ResponsiveContainer width="100%" height={200}>
+                <AreaChart data={chartData}>
+                  <defs>
+                    <linearGradient id="emailGradient" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor="#E8632B" stopOpacity={0.15} />
+                      <stop offset="100%" stopColor="#E8632B" stopOpacity={0.01} />
+                    </linearGradient>
+                    <linearGradient id="waGradient" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor="#22c55e" stopOpacity={0.15} />
+                      <stop offset="100%" stopColor="#22c55e" stopOpacity={0.01} />
+                    </linearGradient>
+                  </defs>
+                  <XAxis
+                    dataKey="date"
+                    tick={{ fill: "#999999", fontSize: 10, fontFamily: "Space Mono" }}
+                    tickFormatter={(v) => v.slice(5)}
+                    axisLine={{ stroke: "#E0E0E0" }}
+                    tickLine={false}
+                  />
+                  <YAxis
+                    tick={{ fill: "#999999", fontSize: 10, fontFamily: "Space Mono" }}
+                    axisLine={false}
+                    tickLine={false}
+                    width={30}
+                  />
+                  <Tooltip
+                    contentStyle={{
+                      background: "#FFFFFF",
+                      border: "1px solid #E0E0E0",
+                      borderRadius: 8,
+                      fontSize: 11,
+                      fontFamily: "Space Mono",
+                      color: "#333333",
+                      padding: "8px 12px",
+                      boxShadow: "none",
+                    }}
+                    cursor={{ stroke: "#E8632B", strokeWidth: 1, strokeDasharray: "4 4" }}
+                  />
+                  <Area
+                    type="monotone"
+                    dataKey="count"
+                    stroke="#E8632B"
+                    strokeWidth={2}
+                    fill="url(#emailGradient)"
+                    name="Emails"
+                    dot={{ fill: "#E8632B", r: 3, strokeWidth: 0 }}
+                    activeDot={{ fill: "#E8632B", r: 5, strokeWidth: 2, stroke: "#FFFFFF" }}
+                  />
+                  <Area
+                    type="monotone"
+                    dataKey="waCount"
+                    stroke="#22c55e"
+                    strokeWidth={2}
+                    fill="url(#waGradient)"
+                    name="WhatsApp"
+                    dot={{ fill: "#22c55e", r: 3, strokeWidth: 0 }}
+                    activeDot={{ fill: "#22c55e", r: 5, strokeWidth: 2, stroke: "#FFFFFF" }}
+                  />
+                </AreaChart>
+              </ResponsiveContainer>
+            ) : (
+              <div className="flex items-center justify-center h-[200px]">
+                <span className="nd-label text-text-muted">[SIN DATOS]</span>
+              </div>
+            );
+          })()}
         </Card>
 
         {/* Quality distribution — narrower bar chart */}
@@ -369,14 +472,15 @@ export default function Dashboard() {
           {data.topCities.length > 0 ? (
             <div>
               {data.topCities.map((c) => (
-                <ListRow
-                  key={c.city}
-                  label={c.city}
-                  value={c.count}
-                  bar={c.count}
-                  barMax={maxCityCount}
-                  barColor="accent"
-                />
+                <div key={c.city} className="cursor-pointer hover:opacity-80 transition-opacity" onClick={() => router.push(`/leads?city=${encodeURIComponent(c.city)}`)}>
+                  <ListRow
+                    label={c.city}
+                    value={c.count}
+                    bar={c.count}
+                    barMax={maxCityCount}
+                    barColor="accent"
+                  />
+                </div>
               ))}
             </div>
           ) : (
@@ -390,14 +494,15 @@ export default function Dashboard() {
           {data.statusCounts.length > 0 ? (
             <div>
               {data.statusCounts.map((s) => (
-                <ListRow
-                  key={s.status}
-                  label={s.status.replace(/_/g, " ")}
-                  value={s.count}
-                  bar={s.count}
-                  barMax={maxStatusCount}
-                  barColor="muted"
-                />
+                <div key={s.status} className="cursor-pointer hover:opacity-80 transition-opacity" onClick={() => router.push(`/leads?status=${encodeURIComponent(s.status)}`)}>
+                  <ListRow
+                    label={s.status.replace(/_/g, " ")}
+                    value={s.count}
+                    bar={s.count}
+                    barMax={maxStatusCount}
+                    barColor="muted"
+                  />
+                </div>
               ))}
             </div>
           ) : (

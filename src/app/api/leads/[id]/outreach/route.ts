@@ -7,6 +7,7 @@ import { analyzeWebsite, generateEmail, generateWhatsApp, detectCountryFromPhone
 import type { WebAnalysis } from "@/lib/gemini";
 import { calculateOpportunityScore } from "@/lib/scorer";
 import { logActivity } from "@/lib/activity";
+import { isBlacklisted } from "@/lib/blacklist";
 
 // POST: trigger individual outreach flow for a lead
 // Actions: "analyze" | "generate_email" | "generate_wa" | "create_email" | "create_wa"
@@ -118,10 +119,16 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
 
   // Generate email with AI
   if (action === "generate_email") {
+    if (isBlacklisted(lead.contactEmail || lead.extractedEmail || lead.email, lead.website, lead.name)) {
+      return NextResponse.json({ error: "Lead en blacklist" }, { status: 403 });
+    }
     const toEmail = lead.contactEmail || lead.extractedEmail || lead.email;
     if (!toEmail) return NextResponse.json({ error: "No email available" }, { status: 400 });
 
-    const analysis: WebAnalysis | null = lead.analysisJson ? JSON.parse(lead.analysisJson) : null;
+    let analysis: WebAnalysis | null = null;
+    try {
+      analysis = lead.analysisJson ? JSON.parse(lead.analysisJson) : null;
+    } catch { analysis = null; }
     if (!analysis) return NextResponse.json({ error: "Lead not analyzed yet" }, { status: 400 });
 
     const campaign = lead.campaignId
@@ -153,9 +160,15 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
 
   // Generate WhatsApp with AI
   if (action === "generate_wa") {
+    if (isBlacklisted(lead.email, lead.website, lead.name)) {
+      return NextResponse.json({ error: "Lead en blacklist" }, { status: 403 });
+    }
     if (!lead.phone) return NextResponse.json({ error: "No phone available" }, { status: 400 });
 
-    const analysis: WebAnalysis | null = lead.analysisJson ? JSON.parse(lead.analysisJson) : null;
+    let waAnalysis: WebAnalysis | null = null;
+    try {
+      waAnalysis = lead.analysisJson ? JSON.parse(lead.analysisJson) : null;
+    } catch { waAnalysis = null; }
     const campaign = lead.campaignId
       ? db.select().from(campaigns).where(eq(campaigns.id, lead.campaignId)).get()
       : null;
@@ -163,7 +176,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     const tone = body.tone || campaign?.defaultTone || getSetting("default_tone") || "profesional";
     const fromName = getSetting("from_name") || "VanguardIA";
 
-    const generated = await generateWhatsApp(lead.name, lead.category, lead.city, lead.website, analysis, tone, fromName, undefined, undefined, detectCountryFromPhone(lead.phone) || undefined);
+    const generated = await generateWhatsApp(lead.name, lead.category, lead.city, lead.website, waAnalysis, tone, fromName, undefined, undefined, detectCountryFromPhone(lead.phone) || undefined);
 
     db.insert(whatsappMessages).values({
       leadId: lead.id,

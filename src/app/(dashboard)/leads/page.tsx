@@ -1,8 +1,10 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
-import { Card, Button, Input, Select, StatusBadge, QualityBar, EmptyState, Spinner, Modal, Textarea, Badge } from "@/components/ui";
-import { Users, Upload, Download, Search, ChevronLeft, ChevronRight, ExternalLink, MapPin, Star, Phone, Mail, Globe, FileText, MessageCircle, Zap, Send, RefreshCw } from "lucide-react";
+import { useEffect, useState, useCallback, Suspense } from "react";
+import { useSearchParams } from "next/navigation";
+import { Card, Button, Input, Select, StatusBadge, QualityBar, EmptyState, Spinner, Modal, Textarea, Badge, Tooltip, ConfirmDialog } from "@/components/ui";
+import { useToast } from "@/components/Toast";
+import { Users, Upload, Download, Search, ChevronLeft, ChevronRight, ExternalLink, MapPin, Star, Phone, Mail, Globe, FileText, MessageCircle, Zap, Send, RefreshCw, Info, Activity, Trash2, ChevronDown, X } from "lucide-react";
 
 interface Lead {
   id: number;
@@ -37,27 +39,101 @@ interface Campaign {
   name: string;
 }
 
+interface EmailRecord {
+  id: number;
+  subject: string;
+  status: string;
+  sentAt: string | null;
+  openedAt: string | null;
+  clickedAt: string | null;
+  createdAt: string;
+}
+
+interface WhatsappRecord {
+  id: number;
+  body: string;
+  status: string;
+  sentAt: string | null;
+  createdAt: string;
+}
+
+interface ActivityRecord {
+  id: number;
+  type: string;
+  message: string;
+  createdAt: string;
+}
+
+interface TimelineEvent {
+  id: string;
+  icon: "mail" | "whatsapp" | "activity";
+  description: string;
+  timestamp: string;
+}
+
+function buildTimeline(
+  emails: EmailRecord[],
+  whatsapps: WhatsappRecord[],
+  activity: ActivityRecord[],
+): TimelineEvent[] {
+  const events: TimelineEvent[] = [];
+
+  for (const e of emails) {
+    events.push({ id: `email-created-${e.id}`, icon: "mail", description: `Email creado: "${e.subject}" (${e.status})`, timestamp: e.createdAt });
+    if (e.sentAt) events.push({ id: `email-sent-${e.id}`, icon: "mail", description: `Email enviado: "${e.subject}"`, timestamp: e.sentAt });
+    if (e.openedAt) events.push({ id: `email-opened-${e.id}`, icon: "mail", description: `Email abierto: "${e.subject}"`, timestamp: e.openedAt });
+    if (e.clickedAt) events.push({ id: `email-clicked-${e.id}`, icon: "mail", description: `Click en email: "${e.subject}"`, timestamp: e.clickedAt });
+  }
+
+  for (const w of whatsapps) {
+    events.push({ id: `wa-created-${w.id}`, icon: "whatsapp", description: `WhatsApp creado (${w.status})`, timestamp: w.createdAt });
+    if (w.sentAt) events.push({ id: `wa-sent-${w.id}`, icon: "whatsapp", description: "WhatsApp enviado", timestamp: w.sentAt });
+  }
+
+  for (const a of activity) {
+    events.push({ id: `activity-${a.id}`, icon: "activity", description: a.message, timestamp: a.createdAt });
+  }
+
+  events.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+  return events;
+}
+
 function hasEmail(lead: Lead) { return !!(lead.contactEmail || lead.extractedEmail || lead.email); }
 function hasPhone(lead: Lead) { return !!lead.phone; }
 function isAnalyzed(lead: Lead) {
-  return lead.analyzedAt !== null || ["analyzed", "email_generated", "email_approved", "email_sent", "wa_generated", "wa_approved", "wa_sent", "contacted"].includes(lead.status);
+  return lead.analyzedAt !== null || ["analyzed", "email_generated", "email_approved", "email_sent", "wa_generated", "wa_approved", "wa_sent", "contacted", "replied"].includes(lead.status);
 }
 
 export default function LeadsPage() {
+  return (
+    <Suspense fallback={<div className="flex items-center justify-center h-96"><Spinner size="lg" /></div>}>
+      <LeadsPageInner />
+    </Suspense>
+  );
+}
+
+function LeadsPageInner() {
+  const searchParams = useSearchParams();
+  const { toast } = useToast();
   const [leads, setLeads] = useState<Lead[]>([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(true);
   const [cities, setCities] = useState<string[]>([]);
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
-  const [filters, setFilters] = useState({ campaignId: "", city: "", status: "", search: "" });
+  const [filters, setFilters] = useState({
+    campaignId: "",
+    city: searchParams.get("city") ?? "",
+    status: searchParams.get("status") ?? "",
+    search: searchParams.get("search") ?? "",
+  });
   const [showImport, setShowImport] = useState(false);
   const [importFile, setImportFile] = useState<File | null>(null);
   const [importCampaign, setImportCampaign] = useState("");
   const [importing, setImporting] = useState(false);
   const [importResult, setImportResult] = useState<string | null>(null);
   const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
-  const [leadDetail, setLeadDetail] = useState<{ lead: Lead; emails: unknown[]; whatsapps: unknown[]; activity: unknown[] } | null>(null);
+  const [leadDetail, setLeadDetail] = useState<{ lead: Lead; emails: EmailRecord[]; whatsapps: WhatsappRecord[]; activity: ActivityRecord[] } | null>(null);
   const [notes, setNotes] = useState("");
   // Outreach state
   const [analyzing, setAnalyzing] = useState(false);
@@ -71,6 +147,11 @@ export default function LeadsPage() {
   const [analyzingIds, setAnalyzingIds] = useState<Set<number>>(new Set());
   const [bulkAnalyzing, setBulkAnalyzing] = useState(false);
   const [bulkProgress, setBulkProgress] = useState({ done: 0, total: 0 });
+  // Bulk selection state
+  const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
+  const [showStatusDropdown, setShowStatusDropdown] = useState(false);
+  const [showCampaignDropdown, setShowCampaignDropdown] = useState(false);
+  const [confirmBulkDelete, setConfirmBulkDelete] = useState(false);
   const limit = 50;
 
   const fetchLeads = useCallback(async () => {
@@ -107,10 +188,12 @@ export default function LeadsPage() {
     setImporting(false);
 
     if (data.success) {
-      setImportResult(`Importados: ${data.imported} | Omitidos: ${data.skipped} | Blacklist: ${data.blacklisted}`);
+      setImportResult(`Importados: ${data.imported} | Omitidos: ${data.skipped} | Blacklist: ${data.blacklisted} | Duplicados: ${data.duplicates ?? 0}`);
+      toast(`${data.imported} leads importados${data.duplicates ? ` (${data.duplicates} duplicados omitidos)` : ""}`, "success");
       fetchLeads();
     } else {
       setImportResult(`Error: ${data.error}`);
+      toast(`Error al importar: ${data.error}`, "error");
     }
   };
 
@@ -156,6 +239,7 @@ export default function LeadsPage() {
       const data = await res.json();
       if (data.success) {
         setLeads(prev => prev.map(l => l.id === leadId ? data.lead : l));
+        toast("Analisis completado", "success");
         if (isModalLead) {
           setSelectedLead(data.lead);
           setOutreachResult("Analisis completado");
@@ -163,9 +247,11 @@ export default function LeadsPage() {
           setLeadDetail(await detailRes.json());
         }
       } else {
+        toast(`Error al analizar: ${data.error}`, "error");
         if (isModalLead) setOutreachResult(`Error: ${data.error}`);
       }
     } catch {
+      toast("Error al analizar", "error");
       if (isModalLead) setOutreachResult("Error al analizar");
     }
     setAnalyzingIds(prev => { const s = new Set(prev); s.delete(leadId); return s; });
@@ -197,6 +283,73 @@ export default function LeadsPage() {
     setBulkAnalyzing(false);
     setBulkProgress({ done: 0, total: 0 });
     fetchLeads();
+  };
+
+  // Bulk operations
+  const toggleSelect = (id: number) => {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  };
+
+  const toggleSelectAll = () => {
+    if (selectedIds.size === leads.length) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(leads.map(l => l.id)));
+    }
+  };
+
+  const bulkChangeStatus = async (status: string) => {
+    const ids = Array.from(selectedIds);
+    try {
+      await fetch("/api/leads", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ bulkIds: ids, status }),
+      });
+      toast(`${ids.length} leads actualizados a "${status}"`, "success");
+      setSelectedIds(new Set());
+      setShowStatusDropdown(false);
+      fetchLeads();
+    } catch {
+      toast("Error al actualizar leads", "error");
+    }
+  };
+
+  const bulkAssignCampaign = async (campaignId: number) => {
+    const ids = Array.from(selectedIds);
+    try {
+      await fetch("/api/leads", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ bulkIds: ids, campaignId }),
+      });
+      toast(`${ids.length} leads asignados a campana`, "success");
+      setSelectedIds(new Set());
+      setShowCampaignDropdown(false);
+      fetchLeads();
+    } catch {
+      toast("Error al asignar campana", "error");
+    }
+  };
+
+  const bulkDelete = async () => {
+    const ids = Array.from(selectedIds);
+    try {
+      await fetch("/api/leads", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ bulkIds: ids }),
+      });
+      toast(`${ids.length} leads eliminados`, "success");
+      setSelectedIds(new Set());
+      fetchLeads();
+    } catch {
+      toast("Error al eliminar leads", "error");
+    }
   };
 
   // Outreach: generate or create message
@@ -324,6 +477,7 @@ export default function LeadsPage() {
                 <option value="wa_approved">WA aprobado</option>
                 <option value="wa_sent">WA enviado</option>
                 <option value="contacted">Contactado</option>
+                <option value="replied">Respondio</option>
                 <option value="error">Error</option>
               </Select>
             </div>
@@ -335,17 +489,35 @@ export default function LeadsPage() {
       {loading ? (
         <div className="flex justify-center py-20"><Spinner /></div>
       ) : leads.length === 0 ? (
-        <EmptyState icon={<Users className="h-10 w-10" strokeWidth={1.5} />} title="Sin leads" description="Importa un CSV desde Google Maps para empezar" />
+        <EmptyState
+          icon={<Users className="h-10 w-10" strokeWidth={1.5} />}
+          title="Sin leads"
+          description="Importa un CSV desde Google Maps para empezar"
+          action={
+            <div className="flex gap-3">
+              <Button size="sm" onClick={() => setShowImport(true)}><Upload className="h-3.5 w-3.5" strokeWidth={1.5} /> Importar CSV</Button>
+              <Button size="sm" variant="secondary" onClick={() => window.location.href = "/search"}><Search className="h-3.5 w-3.5" strokeWidth={1.5} /> Buscar en Maps</Button>
+            </div>
+          }
+        />
       ) : (
         <>
           <div className="overflow-x-auto">
             <table className="nd-table">
               <thead>
                 <tr>
+                  <th style={{ width: 40 }}>
+                    <input
+                      type="checkbox"
+                      checked={leads.length > 0 && selectedIds.size === leads.length}
+                      onChange={toggleSelectAll}
+                      className="accent-[var(--color-accent)] cursor-pointer"
+                    />
+                  </th>
                   <th>Negocio</th>
                   <th>Ciudad</th>
-                  <th>Calidad</th>
-                  <th>Oportunidad</th>
+                  <th><span className="inline-flex items-center gap-1">Calidad <Tooltip text="Calidad web: puntuacion de 0-100 basada en diseno, contenido y funcionalidad del sitio"><Info className="h-3 w-3 text-text-muted" strokeWidth={1.5} /></Tooltip></span></th>
+                  <th><span className="inline-flex items-center gap-1">Oportunidad <Tooltip text="Oportunidad: puntuacion de 0-100 basada en calidad web, SEO, reviews, email disponible y servicios recomendados"><Info className="h-3 w-3 text-text-muted" strokeWidth={1.5} /></Tooltip></span></th>
                   <th>Estado</th>
                   <th>Contacto</th>
                   <th style={{ width: 60 }}></th>
@@ -359,12 +531,21 @@ export default function LeadsPage() {
                     onClick={() => openDetail(lead)}
                   >
                     <td>
+                      <input
+                        type="checkbox"
+                        checked={selectedIds.has(lead.id)}
+                        onChange={() => toggleSelect(lead.id)}
+                        onClick={(e) => e.stopPropagation()}
+                        className="accent-[var(--color-accent)] cursor-pointer"
+                      />
+                    </td>
+                    <td>
                       <div className="text-sm text-text-primary">{lead.name}</div>
                       <div className="text-[10px] text-text-muted font-mono uppercase tracking-wider mt-0.5">{lead.category}</div>
                     </td>
                     <td className="text-sm text-text-secondary">{lead.city || "—"}</td>
-                    <td><QualityBar score={lead.webQualityScore} size="sm" /></td>
-                    <td><QualityBar score={lead.opportunityScore} size="sm" /></td>
+                    <td><Tooltip text="Calidad web: puntuacion de 0-100 basada en diseno, contenido y funcionalidad del sitio"><QualityBar score={lead.webQualityScore} size="sm" /></Tooltip></td>
+                    <td><Tooltip text="Oportunidad: puntuacion de 0-100 basada en calidad web, SEO, reviews, email disponible y servicios recomendados"><QualityBar score={lead.opportunityScore} size="sm" /></Tooltip></td>
                     <td><StatusBadge status={lead.status} /></td>
                     <td>
                       <div className="flex items-center gap-2">
@@ -415,6 +596,71 @@ export default function LeadsPage() {
           </div>
         </>
       )}
+
+      {/* Bulk Action Bar */}
+      {selectedIds.size > 0 && (
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[100] bg-bg-secondary border border-border-light rounded-[12px] shadow-lg px-5 py-3 flex items-center gap-4">
+          <span className="text-sm text-text-primary font-medium whitespace-nowrap">{selectedIds.size} seleccionados</span>
+          <div className="w-px h-6 bg-border" />
+
+          {/* Cambiar estado */}
+          <div className="relative">
+            <Button size="sm" variant="secondary" onClick={() => { setShowStatusDropdown(v => !v); setShowCampaignDropdown(false); }}>
+              Cambiar estado <ChevronDown className="h-3 w-3 ml-1" strokeWidth={1.5} />
+            </Button>
+            {showStatusDropdown && (
+              <div className="absolute bottom-full mb-2 left-0 bg-bg-secondary border border-border-light rounded-lg shadow-lg py-1 min-w-[160px] z-10">
+                {["imported", "analyzed", "contacted"].map(s => (
+                  <button key={s} onClick={() => bulkChangeStatus(s)} className="w-full text-left px-3 py-2 text-sm text-text-secondary hover:bg-bg-primary hover:text-text-primary transition-colors">
+                    {s === "imported" ? "Importado" : s === "analyzed" ? "Analizado" : "Contactado"}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Asignar campana */}
+          <div className="relative">
+            <Button size="sm" variant="secondary" onClick={() => { setShowCampaignDropdown(v => !v); setShowStatusDropdown(false); }}>
+              Asignar campana <ChevronDown className="h-3 w-3 ml-1" strokeWidth={1.5} />
+            </Button>
+            {showCampaignDropdown && (
+              <div className="absolute bottom-full mb-2 left-0 bg-bg-secondary border border-border-light rounded-lg shadow-lg py-1 min-w-[180px] z-10 max-h-48 overflow-y-auto">
+                {campaigns.length === 0 ? (
+                  <p className="px-3 py-2 text-sm text-text-muted">Sin campanas</p>
+                ) : (
+                  campaigns.map(c => (
+                    <button key={c.id} onClick={() => bulkAssignCampaign(c.id)} className="w-full text-left px-3 py-2 text-sm text-text-secondary hover:bg-bg-primary hover:text-text-primary transition-colors">
+                      {c.name}
+                    </button>
+                  ))
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* Eliminar */}
+          <Button size="sm" variant="danger" onClick={() => { setConfirmBulkDelete(true); setShowStatusDropdown(false); setShowCampaignDropdown(false); }}>
+            <Trash2 className="h-3.5 w-3.5" strokeWidth={1.5} /> Eliminar
+          </Button>
+
+          <div className="w-px h-6 bg-border" />
+          <button onClick={() => setSelectedIds(new Set())} className="text-text-muted hover:text-text-primary transition-colors" title="Deseleccionar todo">
+            <X className="h-4 w-4" strokeWidth={1.5} />
+          </button>
+        </div>
+      )}
+
+      {/* Bulk Delete Confirmation */}
+      <ConfirmDialog
+        open={confirmBulkDelete}
+        onClose={() => setConfirmBulkDelete(false)}
+        onConfirm={bulkDelete}
+        title="Eliminar leads"
+        message={`Vas a eliminar ${selectedIds.size} lead${selectedIds.size > 1 ? "s" : ""} permanentemente. Esta accion no se puede deshacer.`}
+        confirmLabel="Eliminar"
+        variant="danger"
+      />
 
       {/* Import Modal */}
       <Modal open={showImport} onClose={() => setShowImport(false)} title="Importar CSV">
@@ -480,12 +726,12 @@ export default function LeadsPage() {
             {/* Scores */}
             <div className="grid grid-cols-2 gap-4">
               <div className="border border-border rounded-lg px-4 py-3">
-                <span className="nd-label block mb-2">Calidad Web</span>
-                <QualityBar score={selectedLead.webQualityScore} />
+                <span className="nd-label mb-2 inline-flex items-center gap-1">Calidad Web <Tooltip text="Calidad web: puntuacion de 0-100 basada en diseno, contenido y funcionalidad del sitio"><Info className="h-3 w-3 text-text-muted" strokeWidth={1.5} /></Tooltip></span>
+                <Tooltip text="Calidad web: puntuacion de 0-100 basada en diseno, contenido y funcionalidad del sitio"><QualityBar score={selectedLead.webQualityScore} /></Tooltip>
               </div>
               <div className="border border-border rounded-lg px-4 py-3">
-                <span className="nd-label block mb-2">Oportunidad</span>
-                <QualityBar score={selectedLead.opportunityScore} />
+                <span className="nd-label mb-2 inline-flex items-center gap-1">Oportunidad <Tooltip text="Oportunidad: puntuacion de 0-100 basada en calidad web, SEO, reviews, email disponible y servicios recomendados"><Info className="h-3 w-3 text-text-muted" strokeWidth={1.5} /></Tooltip></span>
+                <Tooltip text="Oportunidad: puntuacion de 0-100 basada en calidad web, SEO, reviews, email disponible y servicios recomendados"><QualityBar score={selectedLead.opportunityScore} /></Tooltip>
               </div>
             </div>
 
@@ -637,6 +883,36 @@ export default function LeadsPage() {
                 </p>
               )}
             </div>
+
+            {/* Timeline */}
+            {leadDetail && (() => {
+              const timelineEvents = buildTimeline(leadDetail.emails, leadDetail.whatsapps, leadDetail.activity);
+              if (timelineEvents.length === 0) return null;
+              return (
+                <div className="border border-border rounded-lg px-4 py-4">
+                  <h3 className="nd-label mb-4">Timeline</h3>
+                  <div className="relative">
+                    {/* Vertical line */}
+                    <div className="absolute left-[11px] top-2 bottom-2 w-px bg-border" />
+                    <div className="space-y-4">
+                      {timelineEvents.map((evt) => (
+                        <div key={evt.id} className="flex items-start gap-3 relative">
+                          <div className="relative z-10 flex-shrink-0 w-[23px] h-[23px] rounded-full bg-bg-secondary border border-border flex items-center justify-center">
+                            {evt.icon === "mail" && <Mail className="h-3 w-3 text-text-muted" strokeWidth={1.5} />}
+                            {evt.icon === "whatsapp" && <MessageCircle className="h-3 w-3 text-text-muted" strokeWidth={1.5} />}
+                            {evt.icon === "activity" && <Activity className="h-3 w-3 text-text-muted" strokeWidth={1.5} />}
+                          </div>
+                          <div className="min-w-0 flex-1 pt-0.5">
+                            <p className="text-sm text-text-primary leading-snug truncate">{evt.description}</p>
+                            <p className="text-[10px] font-mono text-text-muted mt-0.5">{evt.timestamp}</p>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              );
+            })()}
 
             {/* Notes */}
             <div>

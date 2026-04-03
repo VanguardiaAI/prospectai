@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/db";
 import { leads, blacklist, jobQueue } from "@/db/schema";
-import { eq } from "drizzle-orm";
+import { eq, and, or, sql } from "drizzle-orm";
 import Papa from "papaparse";
 import { logActivity } from "@/lib/activity";
 
@@ -80,9 +80,22 @@ export async function POST(req: NextRequest) {
     const blacklisted = db.select().from(blacklist).all();
     const blacklistSet = new Set(blacklisted.map((b) => b.value.toLowerCase()));
 
+    // Build existing leads lookup for deduplication
+    const existingLeads = db.select({
+      name: sql<string>`lower(${leads.name})`,
+      city: sql<string>`lower(coalesce(${leads.city}, ''))`,
+      phone: leads.phone,
+      website: sql<string>`lower(coalesce(${leads.website}, ''))`,
+    }).from(leads).all();
+
+    const dupeNameCity = new Set(existingLeads.map(l => `${l.name}||${l.city}`));
+    const dupePhone = new Set(existingLeads.filter(l => l.phone).map(l => l.phone!));
+    const dupeWebsite = new Set(existingLeads.filter(l => l.website).map(l => l.website));
+
     let imported = 0;
     let skipped = 0;
     let blacklistedCount = 0;
+    let duplicates = 0;
 
     for (const row of data) {
       const mapped = mapColumns(row);
@@ -107,6 +120,26 @@ export async function POST(req: NextRequest) {
         blacklistedCount++;
         continue;
       }
+
+      // Check duplicates
+      const nameLower = (mapped.name as string).toLowerCase();
+      const cityLower = ((mapped.city as string) || "").toLowerCase();
+      const phoneTrim = (mapped.phone as string) || "";
+      const websiteLower = ((mapped.website as string) || "").toLowerCase();
+
+      const isDupeNameCity = dupeNameCity.has(`${nameLower}||${cityLower}`);
+      const isDupePhone = phoneTrim && dupePhone.has(phoneTrim);
+      const isDupeWebsite = websiteLower && dupeWebsite.has(websiteLower);
+
+      if (isDupeNameCity || isDupePhone || isDupeWebsite) {
+        duplicates++;
+        continue;
+      }
+
+      // Mark as seen for subsequent rows in same import
+      dupeNameCity.add(`${nameLower}||${cityLower}`);
+      if (phoneTrim) dupePhone.add(phoneTrim);
+      if (websiteLower) dupeWebsite.add(websiteLower);
 
       // Insert lead
       const lead = db.insert(leads).values({
@@ -137,9 +170,9 @@ export async function POST(req: NextRequest) {
       imported++;
     }
 
-    logActivity("import", `Importados ${imported} negocios (${skipped} omitidos, ${blacklistedCount} en blacklist)`, {
+    logActivity("import", `Importados ${imported} negocios (${skipped} omitidos, ${blacklistedCount} en blacklist, ${duplicates} duplicados)`, {
       campaignId: campaignId ? Number(campaignId) : undefined,
-      metadata: { imported, skipped, blacklisted: blacklistedCount, total: data.length },
+      metadata: { imported, skipped, blacklisted: blacklistedCount, duplicates, total: data.length },
     });
 
     return NextResponse.json({
@@ -147,6 +180,7 @@ export async function POST(req: NextRequest) {
       imported,
       skipped,
       blacklisted: blacklistedCount,
+      duplicates,
       total: data.length,
     });
   } catch (err) {

@@ -1,4 +1,6 @@
 import { Sidebar } from "@/components/Sidebar";
+import { CommandPalette } from "@/components/CommandPalette";
+import { ErrorBoundary } from "@/components/ErrorBoundary";
 
 export default function DashboardLayout({
   children,
@@ -8,8 +10,11 @@ export default function DashboardLayout({
   return (
     <>
       <Sidebar />
-      <main className="ml-60 min-h-screen">
-        <div className="px-10 py-8 max-w-[1440px]">{children}</div>
+      <CommandPalette />
+      <main className="lg:ml-60 min-h-screen">
+        <div className="px-4 pt-16 pb-8 lg:px-10 lg:py-8 max-w-[1440px]">
+          <ErrorBoundary>{children}</ErrorBoundary>
+        </div>
       </main>
     </>
   );

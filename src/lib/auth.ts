@@ -1,6 +1,9 @@
 import { SignJWT, jwtVerify } from "jose";
 import { cookies } from "next/headers";
 import bcrypt from "bcryptjs";
+import { db } from "@/db";
+import { rateLimits } from "@/db/schema";
+import { eq } from "drizzle-orm";
 
 // ─── Constants ──────────────────────────────────────────────────────
 
@@ -106,12 +109,7 @@ export async function validateCredentials(
   return verifyPassword(password, envHash);
 }
 
-// ─── Rate limiter (in-memory, per-IP) ───────────────────────────────
-
-const loginAttempts = new Map<
-  string,
-  { count: number; firstAttempt: number; lockedUntil: number }
->();
+// ─── Rate limiter (DB-persisted, per-IP) ────────────────────────────
 
 const RATE_LIMIT = {
   maxAttempts: 5, // max attempts before lockout
@@ -119,55 +117,70 @@ const RATE_LIMIT = {
   lockoutMs: 15 * 60 * 1000, // 15 minute lockout
 };
 
-// Clean old entries every 30 minutes
-setInterval(() => {
-  const now = Date.now();
-  for (const [ip, data] of loginAttempts) {
-    if (now - data.firstAttempt > RATE_LIMIT.windowMs * 2) {
-      loginAttempts.delete(ip);
-    }
-  }
-}, 30 * 60 * 1000);
-
-export function checkRateLimit(ip: string): {
+export function checkRateLimit(key: string): {
   allowed: boolean;
   retryAfter?: number;
 } {
   const now = Date.now();
-  const entry = loginAttempts.get(ip);
+  const nowISO = new Date(now).toISOString();
+
+  const entry = db
+    .select()
+    .from(rateLimits)
+    .where(eq(rateLimits.key, key))
+    .get();
 
   if (!entry) {
-    loginAttempts.set(ip, { count: 1, firstAttempt: now, lockedUntil: 0 });
+    // First attempt — create record
+    db.insert(rateLimits)
+      .values({ key, attempts: 1, windowStart: nowISO })
+      .run();
     return { allowed: true };
   }
 
   // Check if locked out
-  if (entry.lockedUntil > now) {
-    return {
-      allowed: false,
-      retryAfter: Math.ceil((entry.lockedUntil - now) / 1000),
-    };
+  if (entry.lockedUntil) {
+    const lockedUntilMs = new Date(entry.lockedUntil).getTime();
+    if (lockedUntilMs > now) {
+      return {
+        allowed: false,
+        retryAfter: Math.ceil((lockedUntilMs - now) / 1000),
+      };
+    }
   }
 
   // Reset window if expired
-  if (now - entry.firstAttempt > RATE_LIMIT.windowMs) {
-    loginAttempts.set(ip, { count: 1, firstAttempt: now, lockedUntil: 0 });
+  const windowStartMs = new Date(entry.windowStart).getTime();
+  if (now - windowStartMs > RATE_LIMIT.windowMs) {
+    db.update(rateLimits)
+      .set({ attempts: 1, windowStart: nowISO, lockedUntil: null })
+      .where(eq(rateLimits.key, key))
+      .run();
     return { allowed: true };
   }
 
-  entry.count++;
+  // Increment attempts
+  const newAttempts = entry.attempts + 1;
 
-  if (entry.count > RATE_LIMIT.maxAttempts) {
-    entry.lockedUntil = now + RATE_LIMIT.lockoutMs;
+  if (newAttempts > RATE_LIMIT.maxAttempts) {
+    const lockedUntilISO = new Date(now + RATE_LIMIT.lockoutMs).toISOString();
+    db.update(rateLimits)
+      .set({ attempts: newAttempts, lockedUntil: lockedUntilISO })
+      .where(eq(rateLimits.key, key))
+      .run();
     return {
       allowed: false,
       retryAfter: Math.ceil(RATE_LIMIT.lockoutMs / 1000),
     };
   }
 
+  db.update(rateLimits)
+    .set({ attempts: newAttempts })
+    .where(eq(rateLimits.key, key))
+    .run();
   return { allowed: true };
 }
 
-export function resetRateLimit(ip: string) {
-  loginAttempts.delete(ip);
+export function resetRateLimit(key: string) {
+  db.delete(rateLimits).where(eq(rateLimits.key, key)).run();
 }

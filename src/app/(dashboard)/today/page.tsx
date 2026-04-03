@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useState, useCallback, useRef } from "react";
-import { Card, Button, Badge, EmptyState, Spinner, ProgressBar } from "@/components/ui";
+import { Card, Button, Badge, EmptyState, Spinner, ProgressBar, ConfirmDialog } from "@/components/ui";
+import { useToast } from "@/components/Toast";
 import {
   RefreshCw,
   Send,
@@ -75,10 +76,12 @@ function preview(html: string, max = 150): string {
 /* ─── Component ─────────────────────────────────────────────────────── */
 
 export default function TodayPage() {
+  const { toast } = useToast();
   const [data, setData] = useState<TodayData | null>(null);
   const [loading, setLoading] = useState(true);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [actionLoading, setActionLoading] = useState(false);
+  const [confirmAction, setConfirmAction] = useState<{ title: string; message: string; action: () => void } | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
   /* Fetch data */
@@ -126,6 +129,7 @@ export default function TodayPage() {
       body: JSON.stringify({ id, status: "approved" }),
     });
     setActionLoading(false);
+    toast("Email aprobado", "success");
     fetchData();
   };
 
@@ -137,6 +141,7 @@ export default function TodayPage() {
       body: JSON.stringify({ id, status: "rejected" }),
     });
     setActionLoading(false);
+    toast("Email rechazado", "warning");
     fetchData();
   };
 
@@ -148,6 +153,7 @@ export default function TodayPage() {
       body: JSON.stringify({ id, status: "approved" }),
     });
     setActionLoading(false);
+    toast("WhatsApp aprobado", "success");
     fetchData();
   };
 
@@ -159,6 +165,7 @@ export default function TodayPage() {
       body: JSON.stringify({ id, status: "rejected" }),
     });
     setActionLoading(false);
+    toast("WhatsApp rechazado", "warning");
     fetchData();
   };
 
@@ -172,6 +179,7 @@ export default function TodayPage() {
       body: JSON.stringify({ bulkApprove: true, ids }),
     });
     setActionLoading(false);
+    toast(`${ids.length} emails aprobados`, "success");
     fetchData();
   };
 
@@ -179,6 +187,7 @@ export default function TodayPage() {
     setActionLoading(true);
     await fetch("/api/cron?action=send", { method: "POST" });
     setActionLoading(false);
+    toast("Envio iniciado", "info");
     fetchData();
   };
 
@@ -344,7 +353,11 @@ export default function TodayPage() {
             <Button
               variant="success"
               size="sm"
-              onClick={bulkApproveAll}
+              onClick={() => setConfirmAction({
+                title: "Aprobar todos los emails",
+                message: `Se aprobaran ${data.pendingEmails.length} emails pendientes. Esta accion no se puede deshacer.`,
+                action: bulkApproveAll,
+              })}
               disabled={actionLoading || data.pendingEmails.length === 0}
             >
               <CheckCheck className="h-3.5 w-3.5" strokeWidth={1.5} /> Aprobar Todo
@@ -352,7 +365,11 @@ export default function TodayPage() {
             <Button
               variant="primary"
               size="sm"
-              onClick={sendAll}
+              onClick={() => setConfirmAction({
+                title: "Enviar emails aprobados",
+                message: "Se iniciara el envio de todos los emails aprobados. Continuar?",
+                action: sendAll,
+              })}
               disabled={actionLoading}
             >
               <Send className="h-3.5 w-3.5" strokeWidth={1.5} /> Enviar Todo
@@ -574,6 +591,16 @@ export default function TodayPage() {
           description="No hay mensajes pendientes de revision. Los nuevos emails y WhatsApps aparecen aqui automaticamente."
         />
       )}
+
+      <ConfirmDialog
+        open={!!confirmAction}
+        onClose={() => setConfirmAction(null)}
+        onConfirm={() => confirmAction?.action()}
+        title={confirmAction?.title ?? ""}
+        message={confirmAction?.message ?? ""}
+        confirmLabel="Si, continuar"
+        variant="warning"
+      />
     </div>
   );
 }

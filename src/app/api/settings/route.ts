@@ -30,6 +30,8 @@ export async function PUT(req: NextRequest) {
     // Scraping
     "scrape_concurrency", "scrape_delay_ms", "autopilot_global",
     "gmaps_scraper_url", "gmaps_scraper_api_key",
+    // WhatsApp
+    "wa_daily_limit",
   ];
 
   const updated: string[] = [];

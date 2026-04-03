@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { db, getSetting } from "@/db";
-import { leads, emails, campaigns, jobQueue, replies } from "@/db/schema";
+import { leads, emails, campaigns, jobQueue, replies, whatsappMessages } from "@/db/schema";
 import { eq, sql, and, desc, isNotNull } from "drizzle-orm";
 
 export async function GET() {
@@ -147,7 +147,7 @@ export async function GET() {
       for (const svc of services) {
         if (!serviceStats[svc]) serviceStats[svc] = { recommended: 0, contacted: 0 };
         serviceStats[svc].recommended++;
-        if (["email_sent", "wa_sent", "contacted"].includes(lead.status)) {
+        if (["email_sent", "wa_sent", "contacted", "replied"].includes(lead.status)) {
           serviceStats[svc].contacted++;
         }
       }
@@ -155,6 +155,35 @@ export async function GET() {
       // skip invalid JSON
     }
   }
+
+  // --- WhatsApp metrics ---
+  const waSentToday = db.select({ count: sql<number>`count(*)` }).from(whatsappMessages)
+    .where(and(eq(whatsappMessages.status, "sent"), sql`date(${whatsappMessages.sentAt}) = ${today}`))
+    .get()?.count ?? 0;
+
+  const waTotalSent = db.select({ count: sql<number>`count(*)` }).from(whatsappMessages)
+    .where(eq(whatsappMessages.status, "sent"))
+    .get()?.count ?? 0;
+
+  const waPendingReview = db.select({ count: sql<number>`count(*)` }).from(whatsappMessages)
+    .where(eq(whatsappMessages.status, "draft"))
+    .get()?.count ?? 0;
+
+  const waDailyLimit = parseInt(getSetting("wa_daily_limit") || "20");
+
+  const waReplies = db.select({ count: sql<number>`count(*)` }).from(replies)
+    .where(eq(replies.channel, "whatsapp"))
+    .get()?.count ?? 0;
+
+  const waReplyRate = waTotalSent > 0 ? Math.round((waReplies / waTotalSent) * 100) : 0;
+
+  const waSentByDay = db.select({
+    date: sql<string>`date(${whatsappMessages.sentAt})`,
+    count: sql<number>`count(*)`,
+  }).from(whatsappMessages)
+    .where(and(eq(whatsappMessages.status, "sent"), sql`${whatsappMessages.sentAt} >= datetime('now', '-7 days')`))
+    .groupBy(sql`date(${whatsappMessages.sentAt})`)
+    .all();
 
   return NextResponse.json({
     totalLeads,
@@ -183,5 +212,13 @@ export async function GET() {
     bounceRate7d,
     // Services
     serviceStats,
+    // WhatsApp
+    waSentToday,
+    waTotalSent,
+    waPendingReview,
+    waDailyLimit,
+    waReplies,
+    waReplyRate,
+    waSentByDay,
   });
 }

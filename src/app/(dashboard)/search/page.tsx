@@ -56,6 +56,11 @@ export default function SearchPage() {
   const [importing, setImporting] = useState(false);
   const [importResult, setImportResult] = useState<string | null>(null);
 
+  // Filters for results
+  const [filterRating, setFilterRating] = useState("all");
+  const [filterWebsite, setFilterWebsite] = useState("all");
+  const [filterEmail, setFilterEmail] = useState("all");
+
   // Job history
   const [history, setHistory] = useState<SearchJob[]>([]);
   const [showHistory, setShowHistory] = useState(false);
@@ -159,10 +164,20 @@ export default function SearchPage() {
 
   const toggleSelectAll = () => {
     if (!activeJob?.results) return;
-    if (selected.size === activeJob.results.length) {
-      setSelected(new Set());
+    const filteredIndices = filteredWithIndex.map((f) => f.originalIndex);
+    const allFilteredSelected = filteredIndices.every((i) => selected.has(i));
+    if (allFilteredSelected) {
+      setSelected((prev) => {
+        const next = new Set(prev);
+        filteredIndices.forEach((i) => next.delete(i));
+        return next;
+      });
     } else {
-      setSelected(new Set(activeJob.results.map((_, i) => i)));
+      setSelected((prev) => {
+        const next = new Set(prev);
+        filteredIndices.forEach((i) => next.add(i));
+        return next;
+      });
     }
   };
 
@@ -214,7 +229,36 @@ export default function SearchPage() {
     }
   };
 
-  const results = activeJob?.results || [];
+  const allResults = activeJob?.results || [];
+
+  // Apply client-side filters
+  const filteredResults = allResults.filter((place) => {
+    // Rating filter
+    if (filterRating !== "all") {
+      const rating = parseFloat(place.review_rating || "0");
+      const minRating = parseFloat(filterRating);
+      if (rating < minRating) return false;
+    }
+    // Website filter
+    if (filterWebsite === "with" && !place.website) return false;
+    if (filterWebsite === "without" && place.website) return false;
+    // Email filter
+    if (filterEmail !== "all") {
+      const hasEmailValue = (() => {
+        if (!place.emails || place.emails === "[]") return false;
+        try { const arr = JSON.parse(place.emails); return arr.length > 0 && !!arr[0]; } catch { return place.emails.includes("@"); }
+      })();
+      if (filterEmail === "with" && !hasEmailValue) return false;
+      if (filterEmail === "without" && hasEmailValue) return false;
+    }
+    return true;
+  });
+
+  // Map filtered results back to their original indices for selection tracking
+  const filteredWithIndex = filteredResults.map((place) => ({
+    place,
+    originalIndex: allResults.indexOf(place),
+  }));
 
   return (
     <div>
@@ -339,17 +383,53 @@ export default function SearchPage() {
       )}
 
       {/* Results */}
-      {activeJob?.status === "completed" && results.length > 0 && (
+      {activeJob?.status === "completed" && allResults.length > 0 && (
         <div className="nd-section">
+          {/* Filter controls */}
+          <div className="flex flex-wrap items-end gap-4 mb-4">
+            <div className="w-32">
+              <label className="nd-label block mb-2">Rating min</label>
+              <Select value={filterRating} onChange={(e) => setFilterRating(e.target.value)}>
+                <option value="all">Todas</option>
+                <option value="3">3+</option>
+                <option value="3.5">3.5+</option>
+                <option value="4">4+</option>
+                <option value="4.5">4.5+</option>
+              </Select>
+            </div>
+            <div className="w-32">
+              <label className="nd-label block mb-2">Web</label>
+              <Select value={filterWebsite} onChange={(e) => setFilterWebsite(e.target.value)}>
+                <option value="all">Todos</option>
+                <option value="with">Con web</option>
+                <option value="without">Sin web</option>
+              </Select>
+            </div>
+            <div className="w-32">
+              <label className="nd-label block mb-2">Email</label>
+              <Select value={filterEmail} onChange={(e) => setFilterEmail(e.target.value)}>
+                <option value="all">Todos</option>
+                <option value="with">Con email</option>
+                <option value="without">Sin email</option>
+              </Select>
+            </div>
+          </div>
+
           {/* Results header */}
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-3">
-              <span className="nd-label">{results.length} resultados</span>
+              <span className="nd-label">
+                {filteredResults.length === allResults.length
+                  ? `${allResults.length} resultados`
+                  : `${filteredResults.length} de ${allResults.length} resultados`}
+              </span>
               <button
                 className="text-[10px] font-mono text-accent hover:text-text-display transition-colors uppercase tracking-wider"
                 onClick={toggleSelectAll}
               >
-                {selected.size === results.length ? "Deseleccionar todo" : "Seleccionar todo"}
+                {filteredWithIndex.length > 0 && filteredWithIndex.every((f) => selected.has(f.originalIndex))
+                  ? "Deseleccionar todo"
+                  : "Seleccionar todo"}
               </button>
             </div>
             <div className="flex items-center gap-3">
@@ -382,19 +462,19 @@ export default function SearchPage() {
                 </tr>
               </thead>
               <tbody>
-                {results.map((place, idx) => (
+                {filteredWithIndex.map(({ place, originalIndex }) => (
                   <tr
-                    key={idx}
-                    className={`cursor-pointer ${selected.has(idx) ? "bg-bg-tertiary/30" : ""}`}
-                    onClick={() => toggleSelect(idx)}
+                    key={originalIndex}
+                    className={`cursor-pointer ${selected.has(originalIndex) ? "bg-bg-tertiary/30" : ""}`}
+                    onClick={() => toggleSelect(originalIndex)}
                   >
                     <td>
                       <div className={`w-4 h-4 rounded border flex items-center justify-center transition-colors ${
-                        selected.has(idx)
+                        selected.has(originalIndex)
                           ? "border-accent bg-accent"
                           : "border-border"
                       }`}>
-                        {selected.has(idx) && <Check className="h-3 w-3 text-bg-primary" strokeWidth={2} />}
+                        {selected.has(originalIndex) && <Check className="h-3 w-3 text-bg-primary" strokeWidth={2} />}
                       </div>
                     </td>
                     <td>
@@ -466,7 +546,7 @@ export default function SearchPage() {
       )}
 
       {/* Completed with no results */}
-      {activeJob?.status === "completed" && results.length === 0 && (
+      {activeJob?.status === "completed" && allResults.length === 0 && (
         <EmptyState
           icon={<Search className="h-10 w-10" strokeWidth={1.5} />}
           title="Sin resultados"

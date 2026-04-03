@@ -4,6 +4,20 @@ import { clsx } from "clsx";
 import { X } from "lucide-react";
 import { ReactNode, ButtonHTMLAttributes, InputHTMLAttributes, SelectHTMLAttributes, TextareaHTMLAttributes } from "react";
 
+// ─── Tooltip ───────────────────────────────────────────────────────
+// Nothing Design: pure CSS hover tooltip, no external library.
+
+export function Tooltip({ children, text }: { children: ReactNode; text: string }) {
+  return (
+    <span className="relative group inline-flex">
+      {children}
+      <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-2 rounded-lg bg-text-display text-bg-primary text-[11px] font-mono leading-relaxed whitespace-pre-line opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50 min-w-[200px] max-w-[280px]">
+        {text}
+      </span>
+    </span>
+  );
+}
+
 // ─── Card ───────────────────────────────────────────────────────────
 // Nothing Design: flat surface, 1px border separation, no shadows ever.
 // Radius capped at 16px per spec. Padding 16–24px.
@@ -226,6 +240,7 @@ export function StatusBadge({ status }: { status: string }) {
     wa_approved: { label: "WA OK", color: "success" },
     wa_sent: { label: "WA SENT", color: "success" },
     contacted: { label: "CONTACTADO", color: "success" },
+    replied: { label: "RESPONDIO", color: "accent" },
     rejected: { label: "RECHAZADO", color: "danger" },
     blacklisted: { label: "BLACKLIST", color: "danger" },
     error: { label: "ERROR", color: "danger" },
@@ -364,10 +379,12 @@ export function EmptyState({
   icon,
   title,
   description,
+  action,
 }: {
   icon: ReactNode;
   title: string;
   description?: string;
+  action?: ReactNode;
 }) {
   return (
     <div className="flex flex-col items-center justify-center py-24 text-center">
@@ -376,6 +393,7 @@ export function EmptyState({
       {description && (
         <p className="text-xs text-text-muted max-w-xs leading-relaxed">{description}</p>
       )}
+      {action && <div className="mt-5">{action}</div>}
     </div>
   );
 }
@@ -548,6 +566,44 @@ export function Spinner({ size = "md" }: { size?: "sm" | "md" | "lg" }) {
       <span className="text-[10px] font-mono uppercase tracking-[0.1em] text-text-muted">
         [LOADING]
       </span>
+    </div>
+  );
+}
+
+// ─── ConfirmDialog ──────────────────────────────────────────────────
+// Reusable confirmation dialog for destructive or bulk actions.
+
+export function ConfirmDialog({
+  open,
+  onClose,
+  onConfirm,
+  title,
+  message,
+  confirmLabel = "Confirmar",
+  variant = "danger",
+}: {
+  open: boolean;
+  onClose: () => void;
+  onConfirm: () => void;
+  title: string;
+  message: string;
+  confirmLabel?: string;
+  variant?: "danger" | "warning" | "default";
+}) {
+  if (!open) return null;
+  return (
+    <div className="fixed inset-0 z-[200] flex items-center justify-center">
+      <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={onClose} />
+      <div className="relative bg-bg-secondary border border-border-light rounded-[12px] w-full max-w-sm mx-4 p-6">
+        <h3 className="nd-heading mb-2">{title}</h3>
+        <p className="text-sm text-text-secondary mb-6">{message}</p>
+        <div className="flex items-center justify-end gap-3">
+          <Button size="sm" variant="secondary" onClick={onClose}>Cancelar</Button>
+          <Button size="sm" variant={variant === "danger" ? "danger" : variant === "warning" ? "primary" : "primary"} onClick={() => { onConfirm(); onClose(); }}>
+            {confirmLabel}
+          </Button>
+        </div>
+      </div>
     </div>
   );
 }
