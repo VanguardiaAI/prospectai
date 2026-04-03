@@ -83,6 +83,46 @@ function getLocaleLabel(country: string): string {
   return map[country] || "español";
 }
 
+function getLocaleWritingRules(country: string): string {
+  const formatting = `- NUNCA uses em dash (—) ni guion largo. Usa comas, puntos o guiones cortos (-) para separar ideas.
+- NUNCA uses signo de exclamación de apertura (¡). Solo usa el de cierre (!) cuando sea estrictamente necesario.
+- Preséntate SIEMPRE como una persona real: "Soy [nombre], de [empresa]". NUNCA digas "Soy [empresa]" ni te presentes como si fueras la empresa misma.
+- Escribe de forma natural y humana. Evita construcciones rígidas o que suenen a copy publicitario.`;
+
+  const regional: Record<string, string> = {
+    ES: `- Región: España. Usa "tú" y "vosotros" de forma natural.
+- El registro debe sonar como un profesional español hablando a otro profesional.`,
+    MX: `- Región: México. Usa "tú" y "ustedes". NUNCA uses "vosotros", "habéis", "tenéis", "hacéis", "podéis" ni NINGUNA forma verbal con -éis/-áis.
+- No uses modismos de España: "mola", "tío", "vale" (como afirmación), "quedamos", "currar", "genial" en exceso.
+- El registro debe sonar como un profesional mexicano hablando a otro profesional mexicano.`,
+    AR: `- Región: Argentina. Usa "vos" y "ustedes". NUNCA uses "vosotros" ni "tú".
+- Conjugaciones de voseo: "tenés", "sabés", "podés", "querés".
+- El registro debe sonar como un profesional argentino hablando a otro profesional.`,
+    CO: `- Región: Colombia. Usa "tú" o "usted" y "ustedes". NUNCA uses "vosotros".
+- El registro debe sonar como un profesional colombiano hablando a otro profesional.`,
+    CL: `- Región: Chile. Usa "tú" y "ustedes". NUNCA uses "vosotros".
+- El registro debe sonar como un profesional chileno hablando a otro profesional.`,
+    PE: `- Región: Perú. Usa "tú" o "usted" y "ustedes". NUNCA uses "vosotros".
+- El registro debe sonar como un profesional peruano hablando a otro profesional.`,
+    EC: `- Región: Ecuador. Usa "tú" o "usted" y "ustedes". NUNCA uses "vosotros".
+- El registro debe sonar como un profesional ecuatoriano hablando a otro profesional.`,
+    UY: `- Región: Uruguay. Usa "tú" o "vos" y "ustedes". NUNCA uses "vosotros".
+- El registro debe sonar como un profesional uruguayo hablando a otro profesional.`,
+    US: `- Region: United States. Write in casual professional American English.`,
+    UK: `- Region: United Kingdom. Write in professional British English.`,
+    CA: `- Region: Canada. Write in professional Canadian English.`,
+    AU: `- Region: Australia. Write in professional Australian English.`,
+    BR: `- Região: Brasil. Escreva em português brasileiro profissional. NUNCA use português europeu.`,
+    PT: `- Região: Portugal. Escreva em português europeu profissional.`,
+    FR: `- Région: France. Écrivez en français professionnel.`,
+    DE: `- Region: Deutschland. Schreiben Sie in professionellem Deutsch.`,
+    IT: `- Regione: Italia. Scrivi in italiano professionale.`,
+    NL: `- Regio: Nederland. Schrijf in professioneel Nederlands.`,
+  };
+
+  return `${formatting}\n${regional[country] || ""}`;
+}
+
 // --- Interfaces ---
 
 export interface WebAnalysis {
@@ -204,6 +244,7 @@ export async function generateEmail(
   const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
   const ctx = getAgencyContext();
   const localeLabel = getLocaleLabel(ctx.country);
+  const writingRules = getLocaleWritingRules(ctx.country);
 
   // Build service-specific pitch based on analysis
   const recommendedServices = (analysis.recommendedServices || ["web_development"])
@@ -252,13 +293,16 @@ ${extraInstructions}
 INSTRUCCIONES:
 1. Escribe en ${localeLabel}
 2. El email debe ser breve, directo y personalizado para este negocio específico
-3. Menciona problemas ESPECÍFICOS detectados (no genéricos) — puede ser web, SEO, Google Business, redes sociales o IA
+3. Menciona problemas ESPECÍFICOS detectados (no genéricos), ya sea de web, SEO, Google Business, redes sociales o IA
 4. Ofrece la solución más relevante según los servicios recomendados (NO menciones todos, elige 1-2 máximo)
-5. El remitente es ${fromName} de ${ctx.name}
+5. Preséntate como "${fromName}, de ${ctx.name}". NUNCA digas "Soy ${ctx.name}" ni te presentes como si fueras la empresa
 6. NO uses lenguaje de spam ni promesas exageradas
 7. El email debe sentirse como si lo hubiera escrito una persona real
 8. Incluye un CTA claro pero no presionante
-9. NO añadas ningún footer legal ni texto de baja — el sistema los inyecta automáticamente
+9. NO añadas ningún footer legal ni texto de baja, el sistema los inyecta automáticamente
+
+REGLAS DE ESCRITURA Y ADAPTACIÓN REGIONAL (OBLIGATORIAS):
+${writingRules}
 
 Responde SOLO con JSON válido (sin markdown, sin backticks):
 {
@@ -290,6 +334,7 @@ export async function regenerateEmail(
   const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
   const ctx = getAgencyContext();
   const localeLabel = getLocaleLabel(ctx.country);
+  const writingRules = getLocaleWritingRules(ctx.country);
 
   const prompt = `Eres un copywriter experto. Necesitas REGENERAR un email de prospección para ${ctx.name} (${ctx.url}).
 
@@ -310,9 +355,12 @@ Cuerpo: ${previousBody}
 
 NUEVO TONO: ${tone}
 INSTRUCCIONES ADICIONALES: ${instructions || "Solo cambia el tono"}
-REMITENTE: ${fromName} de ${ctx.name}
+REMITENTE: ${fromName}, de ${ctx.name}. Preséntate SIEMPRE como "${fromName}, de ${ctx.name}". NUNCA digas "Soy ${ctx.name}".
 IDIOMA: ${localeLabel}
-NO añadas ningún footer legal ni texto de baja — el sistema los inyecta automáticamente.
+NO añadas ningún footer legal ni texto de baja, el sistema los inyecta automáticamente.
+
+REGLAS DE ESCRITURA Y ADAPTACIÓN REGIONAL (OBLIGATORIAS):
+${writingRules}
 
 Genera una versión diferente del email. Responde SOLO con JSON válido (sin markdown, sin backticks):
 {
@@ -343,6 +391,7 @@ export async function generateWhatsApp(
   const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
   const ctx = getAgencyContext();
   const localeLabel = getLocaleLabel(ctx.country);
+  const writingRules = getLocaleWritingRules(ctx.country);
 
   const analysisContext = analysis
     ? `\nANÁLISIS DE SU PRESENCIA DIGITAL:
@@ -382,13 +431,18 @@ REGLAS PARA EL MENSAJE DE WHATSAPP:
 3. Saludo breve y natural, como si hablaras con alguien en persona
 4. Ve al punto rápido: menciona algo ESPECÍFICO de su negocio o su presencia digital
 5. Si no tiene web o es de baja calidad, mencionalo como oportunidad, NO como crítica
-6. Ofrece algo concreto (diagnóstico gratis, propuesta sin compromiso)
+6. Ofrece algo concreto (diagnóstico complementario, propuesta personalizada)
 7. Cierra con una pregunta abierta para generar respuesta
 8. NO uses HTML, NO uses formatos de email
 9. NO uses emojis excesivos (máximo 1-2 si el tono lo permite)
 10. Firma solo con el nombre, sin links ni datos adicionales
 11. Debe sonar como un mensaje real de WhatsApp, no un copy publicitario
 12. Puedes hablar de cualquier servicio relevante (web, SEO, IA, Google Business, redes) según lo que más necesite el negocio
+13. Preséntate como "${fromName}, de ${ctx.name}". NUNCA digas "Soy ${ctx.name}" ni te presentes como la empresa
+14. NO incluyas URLs, links ni dominios en el mensaje. Favorecen la detección de spam y el bloqueo del número
+
+REGLAS DE ESCRITURA Y ADAPTACIÓN REGIONAL (OBLIGATORIAS):
+${writingRules}
 
 Responde SOLO con JSON válido (sin markdown, sin backticks):
 {
@@ -426,12 +480,13 @@ export async function generateEmailTemplate(
   const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
   const ctx = getAgencyContext();
   const localeLabel = getLocaleLabel(ctx.country);
+  const writingRules = getLocaleWritingRules(ctx.country);
   const servicesDesc = ctx.services.map((s) => `- ${s.label}: ${s.description}`).join("\n");
 
   const purposeMap = {
-    initial: "Primer contacto — email inicial de prospección fría",
-    follow_up: "Follow-up — segundo o tercer contacto, ángulo diferente, más breve",
-    breakup: "Breakup — último mensaje de la secuencia, despedida cordial",
+    initial: "Primer contacto, email inicial de prospección fría",
+    follow_up: "Follow-up, segundo o tercer contacto, ángulo diferente, más breve",
+    breakup: "Breakup, último mensaje de la secuencia, despedida cordial",
   };
 
   const wordLimits = {
@@ -465,22 +520,25 @@ REGLAS CRÍTICAS DE ANTI-SPAM Y MEJORES PRÁCTICAS (2026):
    - SEÑAL: 1-2 frases conectando un problema detectable con un reto de negocio
    - PROPUESTA DE VALOR: 2-3 frases, específica y cuantificada si es posible
    - CTA: 1 frase, pregunta suave
-9. FIRMA: Solo {{sender_name}} de ${ctx.name}. NO añadas footer legal ni link de baja (el sistema los inyecta).
+9. FIRMA: Solo "{{sender_name}}, de ${ctx.name}". NUNCA "Soy ${ctx.name}". NO añadas footer legal ni link de baja (el sistema los inyecta).
 10. VARIACIÓN: El template debe sonar natural y humano, NO como un copy publicitario.
 11. PARA FOLLOW-UP: Cambia el ángulo. Si el inicial habla de web, el follow-up habla de SEO o IA. Más breve y directo.
 12. PARA BREAKUP: Despedida cordial, deja la puerta abierta, sin culpa ni presión.
-13. CUMPLIMIENTO LEGAL ESPAÑA (LSSI): El email debe poder identificarse como comunicación comercial. Remitente claramente identificado.
-14. NUNCA uses halagos genéricos como "Me encanta lo que hacéis".
-15. NUNCA prometas resultados — usa lenguaje como "ayudamos a", "conseguimos que".
+13. CUMPLIMIENTO LEGAL: El email debe poder identificarse como comunicación comercial. Remitente claramente identificado.
+14. NUNCA uses halagos genéricos como "Me encanta lo que hacéis" o "Me encanta lo que hacen".
+15. NUNCA prometas resultados, usa lenguaje como "ayudamos a", "conseguimos que".
+
+REGLAS DE ESCRITURA Y ADAPTACIÓN REGIONAL (OBLIGATORIAS):
+${writingRules}
 
 VARIABLES DISPONIBLES para usar en el template:
-- {{business_name}} — nombre del negocio
-- {{category}} — categoría/industria del negocio
-- {{city}} — ciudad del negocio
-- {{website}} — sitio web del negocio
-- {{issue}} — problema específico detectado en su presencia digital
-- {{sender_name}} — nombre del remitente
-- {{service}} — servicio recomendado
+- {{business_name}}: nombre del negocio
+- {{category}}: categoría/industria del negocio
+- {{city}}: ciudad del negocio
+- {{website}}: sitio web del negocio
+- {{issue}}: problema específico detectado en su presencia digital
+- {{sender_name}}: nombre del remitente
+- {{service}}: servicio recomendado
 
 Responde SOLO con JSON válido (sin markdown, sin backticks):
 {
@@ -506,12 +564,13 @@ export async function generateWhatsAppTemplate(
   const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
   const ctx = getAgencyContext();
   const localeLabel = getLocaleLabel(ctx.country);
+  const writingRules = getLocaleWritingRules(ctx.country);
   const servicesDesc = ctx.services.map((s) => `- ${s.label}: ${s.description}`).join("\n");
 
   const purposeMap = {
-    initial: "Primer contacto — mensaje inicial de prospección",
-    follow_up: "Follow-up — segundo contacto, ángulo diferente, más breve",
-    breakup: "Breakup — último mensaje, despedida cordial",
+    initial: "Primer contacto, mensaje inicial de prospección",
+    follow_up: "Follow-up, segundo contacto, ángulo diferente, más breve",
+    breakup: "Breakup, último mensaje, despedida cordial",
   };
 
   const prompt = `Eres un experto en ventas B2B por WhatsApp para ${ctx.name} (${ctx.url}).
@@ -528,14 +587,14 @@ ${servicesDesc}
 
 REGLAS PARA WHATSAPP B2B (2026):
 1. MÁXIMO 500 caracteres. WhatsApp es conversacional, no formal.
-2. Saludo breve y natural — como si hablaras con alguien en persona.
+2. Saludo breve y natural, como si hablaras con alguien en persona.
 3. Ve al punto rápido: menciona algo ESPECÍFICO del negocio del prospecto usando variables.
 4. Si el negocio no tiene web o es de baja calidad, mencionalo como OPORTUNIDAD, no como crítica.
 5. Ofrece algo concreto: diagnóstico sin coste, propuesta personalizada, análisis rápido.
 6. Cierra con pregunta abierta para generar respuesta.
 7. SIN HTML, SIN formato de email.
 8. MÁXIMO 1-2 emojis si el tono lo permite. Preferiblemente 0.
-9. Firma solo con {{sender_name}}, sin links ni datos.
+9. Firma: "{{sender_name}}, de ${ctx.name}". NUNCA "Soy ${ctx.name}". Sin links, URLs ni dominios.
 10. Debe sonar como un mensaje real de WhatsApp, NO como copy publicitario.
 11. PROHIBIDO: lenguaje de spam, promesas exageradas, urgencia artificial, "oferta por tiempo limitado".
 12. USA ALTERNATIVAS NATURALES: "te comento" en vez de "te informo", "vi que" en vez de "he observado", "qué te parece" en vez de "le interesaría".
@@ -543,14 +602,18 @@ REGLAS PARA WHATSAPP B2B (2026):
 14. Para BREAKUP: Cordial, sin presión, deja la puerta abierta.
 15. ANTI-BLOQUEO: Los mensajes repetitivos o demasiado comerciales provocan reportes y bloqueo del número. Naturalidad ante todo.
 16. PERSONALIZACIÓN: Usa variables {{variable}} para hacer el mensaje específico al prospecto.
+17. NO incluyas URLs, links ni dominios en el mensaje. Favorecen detección de spam y bloqueo del número.
+
+REGLAS DE ESCRITURA Y ADAPTACIÓN REGIONAL (OBLIGATORIAS):
+${writingRules}
 
 VARIABLES DISPONIBLES:
-- {{business_name}} — nombre del negocio
-- {{category}} — categoría/industria
-- {{city}} — ciudad
-- {{issue}} — problema detectado
-- {{sender_name}} — nombre del remitente
-- {{service}} — servicio recomendado
+- {{business_name}}: nombre del negocio
+- {{category}}: categoría/industria
+- {{city}}: ciudad
+- {{issue}}: problema detectado
+- {{sender_name}}: nombre del remitente
+- {{service}}: servicio recomendado
 
 Responde SOLO con JSON válido (sin markdown, sin backticks):
 {
@@ -581,6 +644,7 @@ export async function regenerateWhatsApp(
   const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
   const ctx = getAgencyContext();
   const localeLabel = getLocaleLabel(ctx.country);
+  const writingRules = getLocaleWritingRules(ctx.country);
 
   const prompt = `Eres un experto en ventas B2B. Necesitas REGENERAR un mensaje de WhatsApp de prospección para ${ctx.name} (${ctx.url}).
 
@@ -595,10 +659,13 @@ ${previousMessage}
 
 NUEVO TONO: ${tone}
 INSTRUCCIONES: ${instructions || "Solo cambia el tono"}
-REMITENTE: ${fromName} de ${ctx.name}
+REMITENTE: ${fromName}, de ${ctx.name}. Preséntate como "${fromName}, de ${ctx.name}". NUNCA digas "Soy ${ctx.name}".
 IDIOMA: ${localeLabel}
 
-REGLAS: Máximo 500 caracteres, conversacional, sin HTML, sin emojis excesivos, que suene como WhatsApp real. Puede hablar de web, SEO, IA, Google Business o redes según lo que sea más relevante.
+REGLAS: Máximo 500 caracteres, conversacional, sin HTML, sin emojis excesivos, que suene como WhatsApp real. Puede hablar de web, SEO, IA, Google Business o redes según lo que sea más relevante. NO incluyas URLs, links ni dominios en el mensaje.
+
+REGLAS DE ESCRITURA Y ADAPTACIÓN REGIONAL (OBLIGATORIAS):
+${writingRules}
 
 Responde SOLO con JSON válido (sin markdown, sin backticks):
 {
