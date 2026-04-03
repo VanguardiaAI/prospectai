@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import { Space_Grotesk, Space_Mono } from "next/font/google";
 import "./globals.css";
-import { Sidebar } from "@/components/Sidebar";
 
 const spaceGrotesk = Space_Grotesk({
   variable: "--font-space-grotesk",
@@ -33,10 +32,7 @@ export default function RootLayout({
         <link href="https://fonts.googleapis.com/css2?family=Doto:wght@400;500;700&display=swap" rel="stylesheet" />
       </head>
       <body className="min-h-full bg-bg-primary text-text-primary">
-        <Sidebar />
-        <main className="ml-60 min-h-screen">
-          <div className="px-10 py-8 max-w-[1440px]">{children}</div>
-        </main>
+        {children}
       </body>
     </html>
   );

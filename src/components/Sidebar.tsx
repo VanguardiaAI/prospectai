@@ -14,6 +14,7 @@ import {
   CalendarCheck,
   FlaskConical,
   FileText,
+  LogOut,
 } from "lucide-react";
 import { clsx } from "clsx";
 
@@ -77,12 +78,22 @@ export function Sidebar() {
       </nav>
 
       {/* Footer */}
-      <div className="px-5 py-4 border-t border-border">
+      <div className="px-5 py-4 border-t border-border space-y-3">
+        <button
+          onClick={async () => {
+            await fetch("/api/auth/logout", { method: "POST" });
+            window.location.href = "/login";
+          }}
+          className="flex items-center gap-2 text-[10px] text-text-muted font-mono uppercase tracking-[0.06em] hover:text-accent transition-colors duration-150 cursor-pointer"
+        >
+          <LogOut className="h-3 w-3" strokeWidth={1.5} />
+          Cerrar sesion
+        </button>
         <a
           href="https://vanguardia.dev"
           target="_blank"
           rel="noopener noreferrer"
-          className="text-[9px] text-text-muted font-mono uppercase tracking-[0.1em] hover:text-text-secondary transition-colors duration-150"
+          className="block text-[9px] text-text-muted font-mono uppercase tracking-[0.1em] hover:text-text-secondary transition-colors duration-150"
         >
           vanguardia.dev
         </a>
