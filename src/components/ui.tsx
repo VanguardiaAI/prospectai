@@ -98,7 +98,7 @@ export function Button({
         "disabled:opacity-30 disabled:cursor-not-allowed",
         // Variants
         {
-          "bg-text-display text-bg-primary rounded-full hover:opacity-85 active:opacity-75": variant === "primary",
+          "bg-accent text-white rounded-full hover:opacity-85 active:opacity-75": variant === "primary",
           "bg-transparent border border-border-light text-text-primary rounded-full hover:border-text-secondary hover:text-text-display": variant === "secondary",
           "bg-transparent border border-accent/40 text-accent rounded-full hover:bg-accent-subtle hover:border-accent": variant === "danger",
           "bg-transparent border border-success/40 text-success rounded-full hover:bg-success-subtle hover:border-success": variant === "success",
@@ -260,7 +260,7 @@ export function Toggle({
         className={clsx(
           "relative w-10 h-[22px] rounded-full transition-colors duration-150",
           checked
-            ? "bg-text-display"
+            ? "bg-accent"
             : "border border-border-light bg-transparent"
         )}
         onClick={() => onChange(!checked)}
@@ -269,7 +269,7 @@ export function Toggle({
           className={clsx(
             "absolute top-[3px] w-4 h-4 rounded-full transition-transform duration-150",
             checked
-              ? "translate-x-[20px] bg-bg-primary"
+              ? "translate-x-[20px] bg-white"
               : "translate-x-[3px] bg-text-muted"
           )}
         />
@@ -303,7 +303,7 @@ export function Modal({
   if (!open) return null;
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center">
-      <div className="absolute inset-0 bg-black/85" onClick={onClose} />
+      <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={onClose} />
       <div
         className={clsx(
           "relative bg-bg-secondary border border-border-light rounded-[12px] w-full mx-4",
@@ -376,6 +376,153 @@ export function EmptyState({
       {description && (
         <p className="text-xs text-text-muted max-w-xs leading-relaxed">{description}</p>
       )}
+    </div>
+  );
+}
+
+// ─── ProgressBar ───────────────────────────────────────────────────
+// Nothing Design: thin, minimal, optional label.
+
+export function ProgressBar({
+  value,
+  max = 100,
+  label,
+  showValue = true,
+  color = "accent",
+  size = "md",
+}: {
+  value: number;
+  max?: number;
+  label?: string;
+  showValue?: boolean;
+  color?: "accent" | "success" | "warning" | "muted";
+  size?: "sm" | "md";
+}) {
+  const pct = max > 0 ? Math.min((value / max) * 100, 100) : 0;
+  const barColors: Record<string, string> = {
+    accent: "bg-accent",
+    success: "bg-success",
+    warning: "bg-warning",
+    muted: "bg-text-muted",
+  };
+  return (
+    <div className="w-full">
+      {label && (
+        <div className="flex items-center justify-between mb-1.5">
+          <span className="text-[11px] text-text-secondary font-mono uppercase tracking-[0.06em]">{label}</span>
+          {showValue && (
+            <span className="text-[11px] text-text-display font-mono tabular-nums">{Math.round(pct)}%</span>
+          )}
+        </div>
+      )}
+      <div className={clsx("w-full bg-border rounded-full overflow-hidden", size === "sm" ? "h-[3px]" : "h-[5px]")}>
+        <div
+          className={clsx("h-full rounded-full transition-all duration-500", barColors[color])}
+          style={{ width: `${pct}%` }}
+        />
+      </div>
+    </div>
+  );
+}
+
+// ─── MetricRing ────────────────────────────────────────────────────
+// Nothing Design: circular progress for funnel metrics.
+
+export function MetricRing({
+  value,
+  label,
+  sub,
+  size = 72,
+  color = "accent",
+}: {
+  value: number;
+  label: string;
+  sub?: string;
+  size?: number;
+  color?: "accent" | "success" | "warning" | "muted";
+}) {
+  const strokeWidth = 3;
+  const radius = (size - strokeWidth * 2) / 2;
+  const circumference = 2 * Math.PI * radius;
+  const offset = circumference - (Math.min(value, 100) / 100) * circumference;
+  const strokeColors: Record<string, string> = {
+    accent: "var(--accent)",
+    success: "var(--success)",
+    warning: "var(--warning)",
+    muted: "var(--text-disabled)",
+  };
+  return (
+    <div className="flex flex-col items-center gap-2">
+      <div className="relative" style={{ width: size, height: size }}>
+        <svg width={size} height={size} className="-rotate-90">
+          <circle
+            cx={size / 2}
+            cy={size / 2}
+            r={radius}
+            fill="none"
+            stroke="var(--border)"
+            strokeWidth={strokeWidth}
+          />
+          <circle
+            cx={size / 2}
+            cy={size / 2}
+            r={radius}
+            fill="none"
+            stroke={strokeColors[color]}
+            strokeWidth={strokeWidth}
+            strokeDasharray={circumference}
+            strokeDashoffset={offset}
+            strokeLinecap="round"
+            className="transition-all duration-700"
+          />
+        </svg>
+        <div className="absolute inset-0 flex items-center justify-center">
+          <span className="text-[15px] font-mono text-text-display font-light tabular-nums">{value}%</span>
+        </div>
+      </div>
+      <span className="nd-label text-center">{label}</span>
+      {sub && <span className="text-[10px] text-text-muted font-mono">{sub}</span>}
+    </div>
+  );
+}
+
+// ─── ListRow ───────────────────────────────────────────────────────
+// Nothing Design: key-value row with optional inline bar.
+
+export function ListRow({
+  label,
+  value,
+  bar,
+  barMax,
+  barColor = "accent",
+}: {
+  label: string;
+  value: string | number;
+  bar?: number;
+  barMax?: number;
+  barColor?: "accent" | "success" | "warning" | "muted";
+}) {
+  const barColors: Record<string, string> = {
+    accent: "bg-accent",
+    success: "bg-success",
+    warning: "bg-warning",
+    muted: "bg-text-muted",
+  };
+  const pct = bar !== undefined && barMax ? Math.min((bar / barMax) * 100, 100) : 0;
+  return (
+    <div className="nd-list-item group">
+      <span className="text-sm text-text-primary truncate">{label}</span>
+      <div className="flex items-center gap-3">
+        {bar !== undefined && barMax && (
+          <div className="w-[60px] h-[3px] bg-border rounded-full overflow-hidden">
+            <div
+              className={clsx("h-full rounded-full transition-all duration-500", barColors[barColor])}
+              style={{ width: `${pct}%` }}
+            />
+          </div>
+        )}
+        <span className="text-[12px] text-text-display font-mono tabular-nums min-w-[28px] text-right">{value}</span>
+      </div>
     </div>
   );
 }

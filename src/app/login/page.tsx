@@ -132,7 +132,7 @@ export default function LoginPage() {
             <button
               type="submit"
               disabled={loading || retryAfter > 0}
-              className="w-full inline-flex items-center justify-center gap-2 font-mono uppercase tracking-[0.06em] transition-all cursor-pointer bg-text-display text-bg-primary rounded-full hover:opacity-85 active:opacity-75 px-5 py-2.5 text-[12px] min-h-[44px] disabled:opacity-30 disabled:cursor-not-allowed"
+              className="w-full inline-flex items-center justify-center gap-2 font-mono uppercase tracking-[0.06em] transition-all cursor-pointer bg-accent text-white rounded-full hover:opacity-85 active:opacity-75 px-5 py-2.5 text-[12px] min-h-[44px] disabled:opacity-30 disabled:cursor-not-allowed"
             >
               {loading ? (
                 <span className="flex items-center gap-2">
@@ -140,7 +140,7 @@ export default function LoginPage() {
                     {[0, 1, 2, 3].map((i) => (
                       <span
                         key={i}
-                        className="w-1.5 h-1.5 bg-bg-primary animate-pulse"
+                        className="w-1.5 h-1.5 bg-white animate-pulse"
                         style={{ animationDelay: `${i * 150}ms` }}
                       />
                     ))}

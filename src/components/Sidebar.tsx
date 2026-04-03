@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useEffect, useState } from "react";
 import {
   LayoutDashboard,
   Users,
@@ -15,6 +16,8 @@ import {
   FlaskConical,
   FileText,
   LogOut,
+  Sun,
+  Moon,
 } from "lucide-react";
 import { clsx } from "clsx";
 
@@ -34,6 +37,21 @@ const nav = [
 
 export function Sidebar() {
   const pathname = usePathname();
+  const [theme, setTheme] = useState<"light" | "dark">("light");
+
+  useEffect(() => {
+    const stored = localStorage.getItem("theme") as "light" | "dark" | null;
+    const initial = stored || "light";
+    setTheme(initial);
+    document.documentElement.setAttribute("data-theme", initial);
+  }, []);
+
+  const toggleTheme = () => {
+    const next = theme === "light" ? "dark" : "light";
+    setTheme(next);
+    document.documentElement.setAttribute("data-theme", next);
+    localStorage.setItem("theme", next);
+  };
 
   return (
     <aside className="fixed left-0 top-0 h-full w-60 bg-bg-secondary border-r border-border flex flex-col z-50">
@@ -79,6 +97,29 @@ export function Sidebar() {
 
       {/* Footer */}
       <div className="px-5 py-4 border-t border-border space-y-3">
+        {/* Theme toggle */}
+        <button
+          onClick={toggleTheme}
+          className="flex items-center gap-2 text-[10px] text-text-muted font-mono uppercase tracking-[0.06em] hover:text-text-secondary transition-colors duration-150 cursor-pointer w-full"
+        >
+          <div className="relative w-9 h-[20px] rounded-full border border-border-light bg-transparent transition-colors duration-150">
+            <div
+              className={clsx(
+                "absolute top-[3px] w-3.5 h-3.5 rounded-full transition-transform duration-200 flex items-center justify-center",
+                theme === "dark"
+                  ? "translate-x-[18px] bg-text-display"
+                  : "translate-x-[3px] bg-text-muted"
+              )}
+            >
+              {theme === "dark" ? (
+                <Moon className="h-2 w-2 text-bg-primary" strokeWidth={2} />
+              ) : (
+                <Sun className="h-2 w-2 text-bg-primary" strokeWidth={2} />
+              )}
+            </div>
+          </div>
+          {theme === "dark" ? "Modo oscuro" : "Modo claro"}
+        </button>
         <button
           onClick={async () => {
             await fetch("/api/auth/logout", { method: "POST" });

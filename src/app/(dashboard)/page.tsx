@@ -1,9 +1,9 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
-import { StatCard, Card, Badge, Spinner } from "@/components/ui";
-import { Users, BarChart3, Mail, Send, Clock, Eye, MousePointerClick, MessageCircle } from "lucide-react";
-import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from "recharts";
+import { Card, Badge, Spinner, ProgressBar, MetricRing, ListRow } from "@/components/ui";
+import { Users, BarChart3, Mail, Send, Clock, TrendingUp, Zap, Activity } from "lucide-react";
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, AreaChart, Area } from "recharts";
 
 interface DashboardData {
   totalLeads: number;
@@ -19,23 +19,17 @@ interface DashboardData {
   emailsByDay: { date: string; count: number }[];
   qualityDist: { range: string; count: number }[];
   topCities: { city: string; count: number }[];
-  // Tracking
   totalOpened: number;
   totalClicked: number;
   totalReplied: number;
   openRate: number;
   clickRate: number;
   replyRate: number;
-  // Bounces
   totalBounced: number;
   bouncedToday: number;
   bounceRate7d: number;
-  // Services
   serviceStats: Record<string, { recommended: number; contacted: number }>;
 }
-
-// Nothing Design: monochrome with opacity, not hue variety
-const PIE_COLORS = ["#FFFFFF", "#999999", "#666666", "#444444", "#333333", "#222222"];
 
 export default function Dashboard() {
   const [data, setData] = useState<DashboardData | null>(null);
@@ -70,6 +64,19 @@ export default function Dashboard() {
 
   if (!data) return null;
 
+  const analysisPct = data.totalLeads > 0 ? Math.round((data.analyzed / data.totalLeads) * 100) : 0;
+  const emailPct = data.globalDailyLimit > 0 ? Math.round((data.sentToday / data.globalDailyLimit) * 100) : 0;
+  const maxCityCount = data.topCities.length > 0 ? data.topCities[0].count : 1;
+  const maxStatusCount = data.statusCounts.length > 0 ? Math.max(...data.statusCounts.map(s => s.count)) : 1;
+
+  const serviceNames: Record<string, string> = {
+    web_development: "Desarrollo Web",
+    seo: "SEO",
+    ai_agents: "AI / Chatbots",
+    google_business: "Google Business",
+    social_media: "Social Media",
+  };
+
   return (
     <div>
       {/* Page Header */}
@@ -92,110 +99,258 @@ export default function Dashboard() {
 
       {/* Bounce rate alerts */}
       {data.bounceRate7d >= 5 && (
-        <div className="mb-4 px-4 py-3 rounded border border-red-500/40 bg-red-500/10 text-red-400 text-sm font-mono">
+        <div className="mb-4 px-4 py-3 rounded-lg border border-red-500/40 bg-red-500/10 text-red-400 text-sm font-mono">
           ENVIOS PAUSADOS — Bounce rate 7d: {data.bounceRate7d}% (umbral: 5%). Limpia la lista antes de reanudar.
         </div>
       )}
       {data.bounceRate7d >= 2 && data.bounceRate7d < 5 && (
-        <div className="mb-4 px-4 py-3 rounded border border-yellow-500/40 bg-yellow-500/10 text-yellow-400 text-sm font-mono">
+        <div className="mb-4 px-4 py-3 rounded-lg border border-yellow-500/40 bg-yellow-500/10 text-yellow-400 text-sm font-mono">
           AVISO — Bounce rate 7d: {data.bounceRate7d}% (umbral critico: 5%). Considera verificar emails antes de enviar.
         </div>
       )}
 
-      {/* Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 nd-section">
-        <StatCard
-          label="Total Leads"
-          value={data.totalLeads}
-          icon={<Users className="h-5 w-5" strokeWidth={1.5} />}
-        />
-        <StatCard
-          label="Analizados"
-          value={data.analyzed}
-          sub={`de ${data.totalLeads}`}
-          icon={<BarChart3 className="h-5 w-5" strokeWidth={1.5} />}
-        />
-        <StatCard
-          label="Emails Hoy"
-          value={`${data.sentToday} / ${data.globalDailyLimit}`}
-          sub={data.sentToday >= data.globalDailyLimit ? "Limite alcanzado" : `${data.globalDailyLimit - data.sentToday} restantes`}
-          icon={<Send className="h-5 w-5" strokeWidth={1.5} />}
-          color={data.sentToday >= data.globalDailyLimit ? "warning" : "default"}
-        />
-        <StatCard
-          label="Por Revisar"
-          value={data.pendingReview}
-          sub={`${data.totalSent} enviados total`}
-          icon={<Mail className="h-5 w-5" strokeWidth={1.5} />}
-          color={data.pendingReview > 0 ? "warning" : "default"}
-        />
+      {/* ─── Bento Row 1: Key Metrics ─── */}
+      <div className="grid grid-cols-12 gap-4 nd-section">
+        {/* Total Leads — tall card */}
+        <Card className="col-span-12 md:col-span-3" texture>
+          <div className="flex items-start justify-between">
+            <div>
+              <p className="nd-label mb-3">Total Leads</p>
+              <p className="text-[36px] font-light font-mono tracking-tight leading-none text-text-display">
+                {data.totalLeads.toLocaleString()}
+              </p>
+            </div>
+            <div className="text-accent opacity-50">
+              <Users className="h-5 w-5" strokeWidth={1.5} />
+            </div>
+          </div>
+          <div className="mt-5">
+            <ProgressBar
+              value={data.analyzed}
+              max={data.totalLeads}
+              label="Analizados"
+              color="success"
+              size="sm"
+            />
+          </div>
+        </Card>
+
+        {/* Emails Hoy — wider card with bar */}
+        <Card className="col-span-12 md:col-span-5" texture>
+          <div className="flex items-start justify-between">
+            <div>
+              <p className="nd-label mb-3">Emails Hoy</p>
+              <div className="flex items-baseline gap-2">
+                <span className="text-[36px] font-light font-mono tracking-tight leading-none text-text-display">
+                  {data.sentToday}
+                </span>
+                <span className="text-[14px] font-mono text-text-muted">/ {data.globalDailyLimit}</span>
+              </div>
+            </div>
+            <div className={data.sentToday >= data.globalDailyLimit ? "text-warning" : "text-accent opacity-50"}>
+              <Send className="h-5 w-5" strokeWidth={1.5} />
+            </div>
+          </div>
+          <div className="mt-5">
+            <div className="flex items-center justify-between mb-1.5">
+              <span className="text-[10px] text-text-muted font-mono">
+                {data.sentToday >= data.globalDailyLimit ? "LIMITE ALCANZADO" : `${data.globalDailyLimit - data.sentToday} RESTANTES`}
+              </span>
+              <span className="text-[11px] text-text-display font-mono tabular-nums">{emailPct}%</span>
+            </div>
+            <div className="w-full h-[5px] bg-border rounded-full overflow-hidden">
+              <div
+                className={`h-full rounded-full transition-all duration-500 ${emailPct >= 100 ? "bg-warning" : "bg-accent"}`}
+                style={{ width: `${Math.min(emailPct, 100)}%` }}
+              />
+            </div>
+          </div>
+        </Card>
+
+        {/* Right column: two stacked small cards */}
+        <div className="col-span-12 md:col-span-4 grid grid-rows-2 gap-4">
+          <Card>
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="nd-label mb-1.5">Por Revisar</p>
+                <p className="text-[24px] font-light font-mono tracking-tight leading-none text-text-display">
+                  {data.pendingReview}
+                </p>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="text-[10px] text-text-muted font-mono">{data.totalSent} ENVIADOS</span>
+                <Mail className="h-4 w-4 text-text-muted" strokeWidth={1.5} />
+              </div>
+            </div>
+          </Card>
+          <Card>
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="nd-label mb-1.5">Campañas Activas</p>
+                <p className="text-[24px] font-light font-mono tracking-tight leading-none text-text-display">
+                  {data.activeCampaigns}
+                </p>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="text-[10px] text-text-muted font-mono">{analysisPct}% ANALIZADO</span>
+                <BarChart3 className="h-4 w-4 text-text-muted" strokeWidth={1.5} />
+              </div>
+            </div>
+          </Card>
+        </div>
       </div>
 
-      {/* Tracking Funnel */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 nd-section">
-        <StatCard
-          label="Tasa Apertura"
-          value={`${data.openRate}%`}
-          sub={`${data.totalOpened} de ${data.totalSent} enviados`}
-          icon={<Eye className="h-5 w-5" strokeWidth={1.5} />}
-          color={data.openRate > 30 ? "success" : "default"}
-        />
-        <StatCard
-          label="Tasa Clicks"
-          value={`${data.clickRate}%`}
-          sub={`${data.totalClicked} de ${data.totalOpened} abiertos`}
-          icon={<MousePointerClick className="h-5 w-5" strokeWidth={1.5} />}
-          color={data.clickRate > 5 ? "success" : "default"}
-        />
-        <StatCard
-          label="Tasa Respuesta"
-          value={`${data.replyRate}%`}
-          sub={`${data.totalReplied} respuestas totales`}
-          icon={<MessageCircle className="h-5 w-5" strokeWidth={1.5} />}
-          color={data.replyRate > 3 ? "success" : "default"}
-        />
-        <StatCard
-          label="Bounce Rate 7d"
-          value={`${data.bounceRate7d}%`}
-          sub={`${data.totalBounced} bounces total`}
-          icon={<Mail className="h-5 w-5" strokeWidth={1.5} />}
-          color={data.bounceRate7d >= 5 ? "danger" : data.bounceRate7d >= 2 ? "warning" : "default"}
-        />
-      </div>
+      {/* ─── Bento Row 2: Tracking Funnel ─── */}
+      <Card className="nd-section" texture>
+        <div className="flex items-center gap-2 mb-6">
+          <TrendingUp className="h-4 w-4 text-accent" strokeWidth={1.5} />
+          <h3 className="nd-label">Funnel de Conversion</h3>
+        </div>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-6 md:gap-4">
+          <div className="flex flex-col items-center relative">
+            <MetricRing
+              value={data.openRate}
+              label="Apertura"
+              sub={`${data.totalOpened} de ${data.totalSent}`}
+              color={data.openRate > 30 ? "success" : "accent"}
+            />
+            <div className="hidden md:block absolute right-0 top-1/3 w-[1px] h-8 bg-border" />
+          </div>
+          <div className="flex flex-col items-center relative">
+            <MetricRing
+              value={data.clickRate}
+              label="Clicks"
+              sub={`${data.totalClicked} de ${data.totalOpened}`}
+              color={data.clickRate > 5 ? "success" : "muted"}
+            />
+            <div className="hidden md:block absolute right-0 top-1/3 w-[1px] h-8 bg-border" />
+          </div>
+          <div className="flex flex-col items-center relative">
+            <MetricRing
+              value={data.replyRate}
+              label="Respuesta"
+              sub={`${data.totalReplied} respuestas`}
+              color={data.replyRate > 3 ? "success" : "muted"}
+            />
+            <div className="hidden md:block absolute right-0 top-1/3 w-[1px] h-8 bg-border" />
+          </div>
+          <div className="flex flex-col items-center">
+            <MetricRing
+              value={data.bounceRate7d}
+              label="Bounce 7d"
+              sub={`${data.totalBounced} total`}
+              color={data.bounceRate7d >= 5 ? "accent" : data.bounceRate7d >= 2 ? "warning" : "success"}
+            />
+          </div>
+        </div>
+      </Card>
 
-      {/* Charts */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 nd-section">
-        <Card texture>
-          <h3 className="nd-label mb-6">Emails enviados · ultimos 7 dias</h3>
+      {/* ─── Bento Row 3: Charts ─── */}
+      <div className="grid grid-cols-12 gap-4 nd-section">
+        {/* Email chart — wider */}
+        <Card className="col-span-12 lg:col-span-7" texture>
+          <div className="flex items-center justify-between mb-6">
+            <div className="flex items-center gap-2">
+              <Activity className="h-4 w-4 text-accent" strokeWidth={1.5} />
+              <h3 className="nd-label">Emails enviados · ultimos 7 dias</h3>
+            </div>
+            {data.emailsByDay.length > 0 && (
+              <span className="text-[20px] font-mono font-light text-text-display tabular-nums">
+                {data.emailsByDay.reduce((s, d) => s + d.count, 0)}
+              </span>
+            )}
+          </div>
           {data.emailsByDay.length > 0 ? (
             <ResponsiveContainer width="100%" height={200}>
-              <BarChart data={data.emailsByDay} barCategoryGap="20%">
+              <AreaChart data={data.emailsByDay}>
+                <defs>
+                  <linearGradient id="emailGradient" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor="#E8632B" stopOpacity={0.15} />
+                    <stop offset="100%" stopColor="#E8632B" stopOpacity={0.01} />
+                  </linearGradient>
+                </defs>
                 <XAxis
                   dataKey="date"
-                  tick={{ fill: "#666666", fontSize: 10, fontFamily: "Space Mono" }}
+                  tick={{ fill: "#999999", fontSize: 10, fontFamily: "Space Mono" }}
                   tickFormatter={(v) => v.slice(5)}
-                  axisLine={{ stroke: "#222222" }}
+                  axisLine={{ stroke: "#E0E0E0" }}
                   tickLine={false}
                 />
                 <YAxis
-                  tick={{ fill: "#666666", fontSize: 10, fontFamily: "Space Mono" }}
+                  tick={{ fill: "#999999", fontSize: 10, fontFamily: "Space Mono" }}
                   axisLine={false}
                   tickLine={false}
                   width={30}
                 />
                 <Tooltip
                   contentStyle={{
-                    background: "#111111",
-                    border: "1px solid #333333",
+                    background: "#FFFFFF",
+                    border: "1px solid #E0E0E0",
                     borderRadius: 8,
                     fontSize: 11,
                     fontFamily: "Space Mono",
-                    color: "#E8E8E8",
+                    color: "#333333",
                     padding: "8px 12px",
+                    boxShadow: "none",
                   }}
-                  cursor={{ fill: "rgba(255,255,255,0.03)" }}
+                  cursor={{ stroke: "#E8632B", strokeWidth: 1, strokeDasharray: "4 4" }}
                 />
-                <Bar dataKey="count" fill="#E8E8E8" radius={0} name="Enviados" />
+                <Area
+                  type="monotone"
+                  dataKey="count"
+                  stroke="#E8632B"
+                  strokeWidth={2}
+                  fill="url(#emailGradient)"
+                  name="Enviados"
+                  dot={{ fill: "#E8632B", r: 3, strokeWidth: 0 }}
+                  activeDot={{ fill: "#E8632B", r: 5, strokeWidth: 2, stroke: "#FFFFFF" }}
+                />
+              </AreaChart>
+            </ResponsiveContainer>
+          ) : (
+            <div className="flex items-center justify-center h-[200px]">
+              <span className="nd-label text-text-muted">[SIN DATOS]</span>
+            </div>
+          )}
+        </Card>
+
+        {/* Quality distribution — narrower bar chart */}
+        <Card className="col-span-12 lg:col-span-5">
+          <div className="flex items-center gap-2 mb-6">
+            <Zap className="h-4 w-4 text-accent" strokeWidth={1.5} />
+            <h3 className="nd-label">Calidad Web</h3>
+          </div>
+          {data.qualityDist.length > 0 ? (
+            <ResponsiveContainer width="100%" height={200}>
+              <BarChart data={data.qualityDist} layout="vertical" barCategoryGap="25%">
+                <XAxis
+                  type="number"
+                  tick={{ fill: "#999999", fontSize: 10, fontFamily: "Space Mono" }}
+                  axisLine={false}
+                  tickLine={false}
+                />
+                <YAxis
+                  type="category"
+                  dataKey="range"
+                  tick={{ fill: "#777777", fontSize: 10, fontFamily: "Space Mono" }}
+                  axisLine={false}
+                  tickLine={false}
+                  width={50}
+                />
+                <Tooltip
+                  contentStyle={{
+                    background: "#FFFFFF",
+                    border: "1px solid #E0E0E0",
+                    borderRadius: 8,
+                    fontSize: 11,
+                    fontFamily: "Space Mono",
+                    color: "#333333",
+                    padding: "8px 12px",
+                    boxShadow: "none",
+                  }}
+                  cursor={{ fill: "rgba(0,0,0,0.03)" }}
+                />
+                <Bar dataKey="count" fill="#111111" radius={[0, 3, 3, 0]} name="Leads" barSize={12} />
               </BarChart>
             </ResponsiveContainer>
           ) : (
@@ -204,65 +359,24 @@ export default function Dashboard() {
             </div>
           )}
         </Card>
-
-        <Card>
-          <h3 className="nd-label mb-6">Distribucion de calidad web</h3>
-          {data.qualityDist.length > 0 ? (
-            <ResponsiveContainer width="100%" height={200}>
-              <PieChart>
-                <Pie
-                  data={data.qualityDist}
-                  cx="50%"
-                  cy="50%"
-                  outerRadius={70}
-                  innerRadius={30}
-                  dataKey="count"
-                  nameKey="range"
-                  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                  label={(props: any) => `${props.range}`}
-                  labelLine={{ stroke: "#444444", strokeWidth: 1 }}
-                  stroke="#000000"
-                  strokeWidth={2}
-                >
-                  {data.qualityDist.map((_, i) => (
-                    <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} />
-                  ))}
-                </Pie>
-                <Tooltip
-                  contentStyle={{
-                    background: "#111111",
-                    border: "1px solid #333333",
-                    borderRadius: 8,
-                    fontSize: 11,
-                    fontFamily: "Space Mono",
-                    color: "#E8E8E8",
-                    padding: "8px 12px",
-                  }}
-                />
-              </PieChart>
-            </ResponsiveContainer>
-          ) : (
-            <div className="flex items-center justify-center h-[200px]">
-              <span className="nd-label text-text-muted">[SIN DATOS]</span>
-            </div>
-          )}
-        </Card>
       </div>
 
-      {/* Bottom row — Lists */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <Card>
+      {/* ─── Bento Row 4: Lists with bars ─── */}
+      <div className="grid grid-cols-12 gap-4 nd-section">
+        {/* Top Cities — with inline bars */}
+        <Card className="col-span-12 lg:col-span-4">
           <h3 className="nd-label mb-5">Top ciudades</h3>
           {data.topCities.length > 0 ? (
             <div>
-              {data.topCities.map((c, i) => (
-                <div
+              {data.topCities.map((c) => (
+                <ListRow
                   key={c.city}
-                  className={`nd-list-item ${i > 0 ? "" : "pt-0"}`}
-                >
-                  <span className="text-sm text-text-primary">{c.city}</span>
-                  <span className="text-[12px] text-text-display font-mono tabular-nums">{c.count}</span>
-                </div>
+                  label={c.city}
+                  value={c.count}
+                  bar={c.count}
+                  barMax={maxCityCount}
+                  barColor="accent"
+                />
               ))}
             </div>
           ) : (
@@ -270,64 +384,61 @@ export default function Dashboard() {
           )}
         </Card>
 
-        <Card>
+        {/* Leads por estado — with inline bars */}
+        <Card className="col-span-12 lg:col-span-4">
           <h3 className="nd-label mb-5">Leads por estado</h3>
           {data.statusCounts.length > 0 ? (
             <div>
-              {data.statusCounts.map((s, i) => (
-                <div
+              {data.statusCounts.map((s) => (
+                <ListRow
                   key={s.status}
-                  className={`nd-list-item ${i > 0 ? "" : "pt-0"}`}
-                >
-                  <span className="nd-list-label">{s.status.replace(/_/g, " ")}</span>
-                  <span className="text-[12px] text-text-display font-mono tabular-nums">{s.count}</span>
-                </div>
+                  label={s.status.replace(/_/g, " ")}
+                  value={s.count}
+                  bar={s.count}
+                  barMax={maxStatusCount}
+                  barColor="muted"
+                />
               ))}
             </div>
           ) : (
             <span className="nd-label text-text-muted">[SIN DATOS]</span>
           )}
         </Card>
-      </div>
 
-      {/* Service Performance */}
-      {data.serviceStats && Object.keys(data.serviceStats).length > 0 && (
-        <div className="grid grid-cols-1 gap-4">
-          <Card>
-            <h3 className="nd-label mb-5">Rendimiento por servicio</h3>
-            <div>
+        {/* Service Performance — with progress bars */}
+        <Card className="col-span-12 lg:col-span-4">
+          <h3 className="nd-label mb-5">Rendimiento por servicio</h3>
+          {data.serviceStats && Object.keys(data.serviceStats).length > 0 ? (
+            <div className="space-y-4">
               {Object.entries(data.serviceStats)
                 .sort(([, a], [, b]) => b.recommended - a.recommended)
-                .map(([service, stats], i) => {
-                  const serviceNames: Record<string, string> = {
-                    web_development: "Desarrollo Web",
-                    seo: "SEO",
-                    ai_agents: "AI / Chatbots",
-                    google_business: "Google Business",
-                    social_media: "Social Media",
-                  };
+                .map(([service, stats]) => {
                   const contactRate = stats.recommended > 0
                     ? Math.round((stats.contacted / stats.recommended) * 100)
                     : 0;
-
                   return (
-                    <div
-                      key={service}
-                      className={`nd-list-item ${i > 0 ? "" : "pt-0"}`}
-                    >
-                      <span className="text-sm text-text-primary">{serviceNames[service] || service}</span>
-                      <div className="flex items-center gap-4">
-                        <span className="text-[10px] text-text-muted font-mono">{stats.recommended} RECOMENDADOS</span>
-                        <span className="text-[10px] text-text-muted font-mono">{stats.contacted} CONTACTADOS</span>
-                        <span className="text-[12px] text-text-display font-mono tabular-nums">{contactRate}%</span>
+                    <div key={service}>
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="text-sm text-text-primary">{serviceNames[service] || service}</span>
+                        <span className="text-[10px] text-text-muted font-mono">
+                          {stats.contacted}/{stats.recommended}
+                        </span>
                       </div>
+                      <ProgressBar
+                        value={contactRate}
+                        color={contactRate > 50 ? "success" : contactRate > 20 ? "warning" : "muted"}
+                        size="sm"
+                        showValue={false}
+                      />
                     </div>
                   );
                 })}
             </div>
-          </Card>
-        </div>
-      )}
+          ) : (
+            <span className="nd-label text-text-muted">[SIN DATOS]</span>
+          )}
+        </Card>
+      </div>
     </div>
   );
 }

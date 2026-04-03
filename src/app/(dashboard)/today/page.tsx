@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback, useRef } from "react";
-import { StatCard, Card, Button, Badge, EmptyState, Spinner } from "@/components/ui";
+import { Card, Button, Badge, EmptyState, Spinner, ProgressBar } from "@/components/ui";
 import {
   RefreshCw,
   Send,
@@ -272,35 +272,68 @@ export default function TodayPage() {
         </div>
       </div>
 
-      {/* ─── Stat Cards ─────────────────────────────────────────────── */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 nd-section">
-        <StatCard
-          label="Enviados Hoy"
-          value={`${data.sentToday}/${data.effectiveLimit}`}
-          sub={`+ ${data.waSentToday} WA`}
-          icon={<Send className="h-5 w-5" strokeWidth={1.5} />}
-          color={data.sentToday >= data.effectiveLimit ? "warning" : "default"}
-        />
-        <StatCard
-          label="Pendiente Revision"
-          value={data.pendingEmails.length}
-          sub={`${data.pendingEmails.length} emails · ${data.pendingWa.length} WA`}
-          icon={<Mail className="h-5 w-5" strokeWidth={1.5} />}
-          color={data.pendingEmails.length + data.pendingWa.length > 0 ? "warning" : "default"}
-        />
-        <StatCard
-          label="Listos Para Enviar"
-          value={data.readyToSend}
-          sub={`${data.readyToSend} emails · ${data.readyToSendWa} WA`}
-          icon={<Zap className="h-5 w-5" strokeWidth={1.5} />}
-          color={data.readyToSend > 0 ? "success" : "default"}
-        />
-        <StatCard
-          label="Secuencias Activas"
-          value={data.activeSequences}
-          sub="pendientes hoy"
-          icon={<CheckCheck className="h-5 w-5" strokeWidth={1.5} />}
-        />
+      {/* ─── Stat Cards (Bento) ──────────────────────────────────── */}
+      <div className="grid grid-cols-12 gap-4 nd-section">
+        <Card className="col-span-12 md:col-span-5" texture>
+          <div className="flex items-start justify-between">
+            <div>
+              <p className="nd-label mb-3">Enviados Hoy</p>
+              <div className="flex items-baseline gap-2">
+                <span className="text-[36px] font-light font-mono tracking-tight leading-none text-text-display">
+                  {data.sentToday}
+                </span>
+                <span className="text-[14px] font-mono text-text-muted">/ {data.effectiveLimit}</span>
+              </div>
+            </div>
+            <div className="text-accent opacity-50 flex items-center gap-2">
+              <span className="text-[10px] text-text-muted font-mono">+{data.waSentToday} WA</span>
+              <Send className="h-5 w-5" strokeWidth={1.5} />
+            </div>
+          </div>
+          <div className="mt-4">
+            <ProgressBar
+              value={data.sentToday}
+              max={data.effectiveLimit}
+              color={data.sentToday >= data.effectiveLimit ? "warning" : "accent"}
+              size="sm"
+              showValue={false}
+            />
+          </div>
+        </Card>
+
+        <Card className="col-span-6 md:col-span-3">
+          <div className="flex items-start justify-between">
+            <div>
+              <p className="nd-label mb-2">Pendiente Revision</p>
+              <p className="text-[28px] font-light font-mono tracking-tight leading-none text-text-display">
+                {data.pendingEmails.length + data.pendingWa.length}
+              </p>
+              <p className="text-[10px] text-text-muted font-mono mt-2">{data.pendingEmails.length} emails · {data.pendingWa.length} WA</p>
+            </div>
+            <Mail className="h-4 w-4 text-text-muted" strokeWidth={1.5} />
+          </div>
+        </Card>
+
+        <div className="col-span-6 md:col-span-4 grid grid-rows-2 gap-4">
+          <Card>
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="nd-label mb-1">Listos Para Enviar</p>
+                <p className="text-[22px] font-light font-mono tracking-tight leading-none text-text-display">{data.readyToSend}</p>
+              </div>
+              <Zap className="h-4 w-4 text-accent" strokeWidth={1.5} />
+            </div>
+          </Card>
+          <Card>
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="nd-label mb-1">Secuencias Activas</p>
+                <p className="text-[22px] font-light font-mono tracking-tight leading-none text-text-display">{data.activeSequences}</p>
+              </div>
+              <CheckCheck className="h-4 w-4 text-text-muted" strokeWidth={1.5} />
+            </div>
+          </Card>
+        </div>
       </div>
 
       {/* ─── Quick Actions ──────────────────────────────────────────── */}

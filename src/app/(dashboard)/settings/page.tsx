@@ -1,8 +1,8 @@
 "use client";
 
 import { useEffect, useState, useCallback, useRef } from "react";
-import { Card, Button, Input, Select, Toggle, Spinner, Badge } from "@/components/ui";
-import { Zap, TestTube, CheckCircle, XCircle, RefreshCw, MessageCircle, Wifi, WifiOff, Globe, Building, Shield, Clock, Link2, Webhook } from "lucide-react";
+import { Card, Button, Input, Select, Toggle, Spinner, Badge, ProgressBar } from "@/components/ui";
+import { Zap, TestTube, CheckCircle, XCircle, RefreshCw, MessageCircle, Wifi, WifiOff, Globe, Building, Shield, Clock, Link2, Webhook, Settings2 } from "lucide-react";
 
 interface ConnectionTest {
   ok: boolean;
@@ -152,6 +152,15 @@ export default function SettingsPage() {
 
   const enabledServices = (settings.agency_services || "").split(",").map((s) => s.trim()).filter(Boolean);
 
+  // Warmup effective limit calculation
+  const warmupEffective = Math.min(
+    parseInt(settings.warmup_start_limit || "5") + (parseInt(settings.warmup_day || "1") - 1) * parseInt(settings.warmup_increment || "5"),
+    parseInt(settings.warmup_max_limit || "50")
+  );
+  const warmupPct = parseInt(settings.warmup_max_limit || "50") > 0
+    ? Math.round((warmupEffective / parseInt(settings.warmup_max_limit || "50")) * 100)
+    : 0;
+
   if (loading) return <div className="flex justify-center py-20"><Spinner /></div>;
 
   return (
@@ -170,14 +179,14 @@ export default function SettingsPage() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 nd-section">
-        {/* Agency Identity */}
-        <Card>
+      {/* ─── Bento Row 1: Identity + Country ─── */}
+      <div className="grid grid-cols-12 gap-4 nd-section">
+        <Card className="col-span-12 lg:col-span-8">
           <h3 className="nd-heading mb-6">
             <Building className="h-4 w-4 inline mr-2" strokeWidth={1.5} />
             Identidad de la Agencia
           </h3>
-          <div className="space-y-5">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-5">
             <div>
               <label className="nd-label block mb-2">Nombre de la agencia</label>
               <Input value={settings.agency_name || ""} onChange={(e) => setSettings({ ...settings, agency_name: e.target.value })} />
@@ -186,23 +195,25 @@ export default function SettingsPage() {
               <label className="nd-label block mb-2">URL de la agencia</label>
               <Input value={settings.agency_url || ""} onChange={(e) => setSettings({ ...settings, agency_url: e.target.value })} placeholder="tuagencia.com" />
             </div>
-            <div>
+            <div className="md:col-span-2">
               <label className="nd-label block mb-2">Descripcion</label>
               <Input value={settings.agency_description || ""} onChange={(e) => setSettings({ ...settings, agency_description: e.target.value })} placeholder="Agencia de desarrollo web y..." />
             </div>
-            <div>
+            <div className="md:col-span-2">
               <label className="nd-label block mb-3">Servicios ofrecidos</label>
-              <div className="space-y-2">
+              <div className="flex flex-wrap gap-2">
                 {SERVICE_OPTIONS.map((svc) => (
-                  <label key={svc.key} className="flex items-center gap-2 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={enabledServices.includes(svc.key)}
-                      onChange={() => toggleService(svc.key)}
-                      className="rounded border-border"
-                    />
-                    <span className="text-sm text-text-secondary">{svc.label}</span>
-                  </label>
+                  <button
+                    key={svc.key}
+                    onClick={() => toggleService(svc.key)}
+                    className={`inline-flex items-center px-3 py-1.5 rounded-full border text-[11px] font-mono uppercase tracking-[0.04em] transition-all cursor-pointer ${
+                      enabledServices.includes(svc.key)
+                        ? "border-accent bg-accent-subtle text-accent"
+                        : "border-border text-text-muted hover:border-border-light hover:text-text-secondary"
+                    }`}
+                  >
+                    {svc.label}
+                  </button>
                 ))}
               </div>
               <p className="text-[11px] text-text-muted mt-2">Los servicios seleccionados se usan en el analisis y generacion de mensajes</p>
@@ -210,8 +221,7 @@ export default function SettingsPage() {
           </div>
         </Card>
 
-        {/* Country & Locale */}
-        <Card>
+        <Card className="col-span-12 lg:col-span-4">
           <h3 className="nd-heading mb-6">
             <Globe className="h-4 w-4 inline mr-2" strokeWidth={1.5} />
             Pais y Localizacion
@@ -224,14 +234,13 @@ export default function SettingsPage() {
                   <option key={c.code} value={c.code}>{c.label}</option>
                 ))}
               </Select>
-              <p className="text-[11px] text-text-muted mt-1">Determina el idioma de los mensajes y formato de telefono</p>
             </div>
             <div>
-              <label className="nd-label block mb-2">Codigo de pais (telefono)</label>
+              <label className="nd-label block mb-2">Codigo de pais</label>
               <div className="flex items-center gap-2">
                 <span className="text-sm text-text-muted">+</span>
                 <Input value={settings.phone_country_code || ""} onChange={(e) => setSettings({ ...settings, phone_country_code: e.target.value })} className="w-20" />
-                <span className="text-[11px] text-text-muted">({settings.phone_digits || "9"} digitos)</span>
+                <span className="text-[11px] text-text-muted">({settings.phone_digits || "9"} dig.)</span>
               </div>
             </div>
             <div>
@@ -252,10 +261,12 @@ export default function SettingsPage() {
             </div>
           </div>
         </Card>
+      </div>
 
-        {/* Email Settings */}
-        <Card>
-          <h3 className="nd-heading mb-6">Configuracion de Email</h3>
+      {/* ─── Bento Row 2: Email + Warmup + Scraping ─── */}
+      <div className="grid grid-cols-12 gap-4 nd-section">
+        <Card className="col-span-12 md:col-span-4">
+          <h3 className="nd-heading mb-6">Email</h3>
           <div className="space-y-5">
             <div>
               <label className="nd-label block mb-2">Email remitente</label>
@@ -266,7 +277,7 @@ export default function SettingsPage() {
               <Input value={settings.from_name || ""} onChange={(e) => setSettings({ ...settings, from_name: e.target.value })} />
             </div>
             <div>
-              <label className="nd-label block mb-2">Limite diario global</label>
+              <label className="nd-label block mb-2">Limite diario</label>
               <Input type="number" value={settings.global_daily_limit || ""} onChange={(e) => setSettings({ ...settings, global_daily_limit: e.target.value })} />
             </div>
             <div>
@@ -282,8 +293,94 @@ export default function SettingsPage() {
           </div>
         </Card>
 
-        {/* WhatsApp Connection */}
-        <Card>
+        <Card className="col-span-12 md:col-span-5" texture>
+          <h3 className="nd-heading mb-6">
+            <Clock className="h-4 w-4 inline mr-2" strokeWidth={1.5} />
+            Warmup y Ventana de Envio
+          </h3>
+          <div className="space-y-5">
+            <div>
+              <Toggle
+                checked={settings.warmup_enabled === "true"}
+                onChange={(v) => setSettings({ ...settings, warmup_enabled: String(v) })}
+                label="Warmup progresivo"
+              />
+              <p className="text-[11px] text-text-muted mt-2">Incrementa gradualmente el volumen de envio</p>
+            </div>
+
+            {settings.warmup_enabled === "true" && (
+              <div className="space-y-4 pl-4 border-l-2 border-border">
+                <div className="flex items-center gap-3">
+                  <div>
+                    <label className="nd-label block mb-1">Dia</label>
+                    <Input type="number" value={settings.warmup_day || "1"} onChange={(e) => setSettings({ ...settings, warmup_day: e.target.value })} className="w-16" />
+                  </div>
+                  <div>
+                    <label className="nd-label block mb-1">Inicio</label>
+                    <Input type="number" value={settings.warmup_start_limit || "5"} onChange={(e) => setSettings({ ...settings, warmup_start_limit: e.target.value })} className="w-16" />
+                  </div>
+                  <div>
+                    <label className="nd-label block mb-1">+/dia</label>
+                    <Input type="number" value={settings.warmup_increment || "5"} onChange={(e) => setSettings({ ...settings, warmup_increment: e.target.value })} className="w-16" />
+                  </div>
+                  <div>
+                    <label className="nd-label block mb-1">Max</label>
+                    <Input type="number" value={settings.warmup_max_limit || "50"} onChange={(e) => setSettings({ ...settings, warmup_max_limit: e.target.value })} className="w-16" />
+                  </div>
+                </div>
+                <ProgressBar
+                  value={warmupPct}
+                  label={`Dia ${settings.warmup_day || "1"}: ${warmupEffective} emails/dia`}
+                  color={warmupPct >= 100 ? "success" : "warning"}
+                  size="sm"
+                />
+              </div>
+            )}
+
+            <div className="flex items-center gap-3">
+              <div>
+                <label className="nd-label block mb-1">Desde</label>
+                <Input type="number" value={settings.send_window_start || "9"} onChange={(e) => setSettings({ ...settings, send_window_start: e.target.value })} className="w-16" />
+              </div>
+              <span className="text-text-muted mt-5">—</span>
+              <div>
+                <label className="nd-label block mb-1">Hasta</label>
+                <Input type="number" value={settings.send_window_end || "18"} onChange={(e) => setSettings({ ...settings, send_window_end: e.target.value })} className="w-16" />
+              </div>
+              <span className="text-[11px] text-text-muted mt-5">hrs</span>
+            </div>
+          </div>
+        </Card>
+
+        <Card className="col-span-12 md:col-span-3">
+          <h3 className="nd-heading mb-6">
+            <Settings2 className="h-4 w-4 inline mr-2" strokeWidth={1.5} />
+            Scraping
+          </h3>
+          <div className="space-y-5">
+            <div>
+              <label className="nd-label block mb-2">Concurrencia</label>
+              <Input type="number" value={settings.scrape_concurrency || ""} onChange={(e) => setSettings({ ...settings, scrape_concurrency: e.target.value })} />
+            </div>
+            <div>
+              <label className="nd-label block mb-2">Delay (ms)</label>
+              <Input type="number" value={settings.scrape_delay_ms || ""} onChange={(e) => setSettings({ ...settings, scrape_delay_ms: e.target.value })} />
+            </div>
+            <div className="pt-2">
+              <Toggle
+                checked={settings.autopilot_global === "true"}
+                onChange={(v) => setSettings({ ...settings, autopilot_global: String(v) })}
+                label="Autopilot"
+              />
+              <p className="text-[11px] text-text-muted mt-2 leading-relaxed">Todo automatico</p>
+            </div>
+          </div>
+        </Card>
+      </div>
+
+      {/* ─── Bento Row 3: WhatsApp + RGPD ─── */}
+      <div className="grid grid-cols-12 gap-4 nd-section">
+        <Card className="col-span-12 lg:col-span-5">
           <h3 className="nd-heading mb-6">
             <MessageCircle className="h-4 w-4 inline mr-2" strokeWidth={1.5} />
             WhatsApp
@@ -317,7 +414,7 @@ export default function SettingsPage() {
               <div className="flex flex-col items-center py-4">
                 <p className="nd-label mb-3">Escanea con WhatsApp</p>
                 <img src={waStatus.qrDataUrl} alt="QR Code" className="w-48 h-48 rounded-lg" />
-                <p className="text-[10px] text-text-muted font-mono mt-2">Abre WhatsApp &gt; Dispositivos vinculados &gt; Vincular dispositivo</p>
+                <p className="text-[10px] text-text-muted font-mono mt-2">Abre WhatsApp &gt; Dispositivos vinculados</p>
               </div>
             )}
 
@@ -343,29 +440,28 @@ export default function SettingsPage() {
           </div>
         </Card>
 
-        {/* RGPD / Compliance */}
-        <Card>
+        <Card className="col-span-12 lg:col-span-7">
           <h3 className="nd-heading mb-6">
             <Shield className="h-4 w-4 inline mr-2" strokeWidth={1.5} />
             Compliance / RGPD
           </h3>
-          <div className="space-y-5">
-            <div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-5">
+            <div className="md:col-span-2">
               <label className="nd-label block mb-2">Footer legal (se anade a cada email)</label>
               <textarea
-                className="w-full px-3 py-2 border border-border rounded-lg text-sm bg-transparent text-text-primary focus:outline-none focus:ring-1 focus:ring-text-primary min-h-[80px]"
+                className="w-full px-3 py-2 border border-border rounded-lg text-sm bg-transparent text-text-primary focus:outline-none focus:ring-1 focus:ring-text-primary min-h-[80px] font-mono"
                 value={settings.legal_footer || ""}
                 onChange={(e) => setSettings({ ...settings, legal_footer: e.target.value })}
               />
             </div>
             <div>
-              <label className="nd-label block mb-2">URL de baja personalizada (opcional)</label>
+              <label className="nd-label block mb-2">URL de baja (opcional)</label>
               <Input
                 value={settings.unsubscribe_url || ""}
                 onChange={(e) => setSettings({ ...settings, unsubscribe_url: e.target.value })}
-                placeholder="Se usa /api/unsubscribe por defecto"
+                placeholder="/api/unsubscribe"
               />
-              <p className="text-[11px] text-text-muted mt-1">Los destinatarios pueden darse de baja via link. Se anaden automaticamente al blacklist.</p>
+              <p className="text-[11px] text-text-muted mt-1">Se anaden auto al blacklist.</p>
             </div>
             <div>
               <label className="nd-label block mb-2">Reply-To (opcional)</label>
@@ -375,119 +471,34 @@ export default function SettingsPage() {
                 placeholder="respuestas@tudominio.com"
                 type="email"
               />
-              <p className="text-[11px] text-text-muted mt-1">Si se configura, las respuestas llegarán a este email en lugar de al remitente.</p>
+              <p className="text-[11px] text-text-muted mt-1">Respuestas llegan aqui.</p>
             </div>
           </div>
         </Card>
+      </div>
 
-        {/* Warmup & Send Window */}
-        <Card>
-          <h3 className="nd-heading mb-6">
-            <Clock className="h-4 w-4 inline mr-2" strokeWidth={1.5} />
-            Warmup y Ventana de Envio
-          </h3>
-          <div className="space-y-5">
-            <div className="pt-1">
-              <Toggle
-                checked={settings.warmup_enabled === "true"}
-                onChange={(v) => setSettings({ ...settings, warmup_enabled: String(v) })}
-                label="Warmup progresivo"
-              />
-              <p className="text-[11px] text-text-muted mt-2">Incrementa gradualmente el volumen de envio para proteger la reputacion del dominio</p>
-            </div>
-
-            {settings.warmup_enabled === "true" && (
-              <div className="space-y-4 pl-1 border-l-2 border-border ml-1 pl-4">
-                <div className="flex items-center gap-3">
-                  <div>
-                    <label className="nd-label block mb-1">Dia actual</label>
-                    <Input type="number" value={settings.warmup_day || "1"} onChange={(e) => setSettings({ ...settings, warmup_day: e.target.value })} className="w-20" />
-                  </div>
-                  <div>
-                    <label className="nd-label block mb-1">Inicio</label>
-                    <Input type="number" value={settings.warmup_start_limit || "5"} onChange={(e) => setSettings({ ...settings, warmup_start_limit: e.target.value })} className="w-20" />
-                  </div>
-                  <div>
-                    <label className="nd-label block mb-1">+/dia</label>
-                    <Input type="number" value={settings.warmup_increment || "5"} onChange={(e) => setSettings({ ...settings, warmup_increment: e.target.value })} className="w-20" />
-                  </div>
-                  <div>
-                    <label className="nd-label block mb-1">Max</label>
-                    <Input type="number" value={settings.warmup_max_limit || "50"} onChange={(e) => setSettings({ ...settings, warmup_max_limit: e.target.value })} className="w-20" />
-                  </div>
-                </div>
-                <p className="text-[11px] text-text-muted">
-                  Dia {settings.warmup_day || "1"}: limite efectivo = {Math.min(
-                    parseInt(settings.warmup_start_limit || "5") + (parseInt(settings.warmup_day || "1") - 1) * parseInt(settings.warmup_increment || "5"),
-                    parseInt(settings.warmup_max_limit || "50")
-                  )} emails/dia
-                </p>
-              </div>
-            )}
-
-            <div className="flex items-center gap-3">
-              <div>
-                <label className="nd-label block mb-1">Enviar desde</label>
-                <Input type="number" value={settings.send_window_start || "9"} onChange={(e) => setSettings({ ...settings, send_window_start: e.target.value })} className="w-20" />
-              </div>
-              <span className="text-text-muted mt-5">—</span>
-              <div>
-                <label className="nd-label block mb-1">Hasta</label>
-                <Input type="number" value={settings.send_window_end || "18"} onChange={(e) => setSettings({ ...settings, send_window_end: e.target.value })} className="w-20" />
-              </div>
-              <span className="text-[11px] text-text-muted mt-5">hrs (horario local)</span>
-            </div>
-            <p className="text-[11px] text-text-muted">Los emails y WhatsApps solo se envian dentro de esta ventana horaria</p>
-          </div>
-        </Card>
-
-        {/* Scraping Settings */}
-        <Card>
-          <h3 className="nd-heading mb-6">Scraping</h3>
-          <div className="space-y-5">
-            <div>
-              <label className="nd-label block mb-2">Concurrencia</label>
-              <Input type="number" value={settings.scrape_concurrency || ""} onChange={(e) => setSettings({ ...settings, scrape_concurrency: e.target.value })} />
-            </div>
-            <div>
-              <label className="nd-label block mb-2">Delay entre scrapes (ms)</label>
-              <Input type="number" value={settings.scrape_delay_ms || ""} onChange={(e) => setSettings({ ...settings, scrape_delay_ms: e.target.value })} />
-            </div>
-            <div className="pt-2">
-              <Toggle
-                checked={settings.autopilot_global === "true"}
-                onChange={(v) => setSettings({ ...settings, autopilot_global: String(v) })}
-                label="Autopilot global"
-              />
-              <p className="text-[11px] text-text-muted mt-2 leading-relaxed">Scraping, analisis, generacion y envio automatico</p>
-            </div>
-          </div>
-        </Card>
-
-        {/* Tracking */}
-        <Card>
+      {/* ─── Bento Row 4: Tracking + CRM + Google Maps ─── */}
+      <div className="grid grid-cols-12 gap-4 nd-section">
+        <Card className="col-span-12 md:col-span-4">
           <h3 className="nd-heading mb-6">
             <Link2 className="h-4 w-4 inline mr-2" strokeWidth={1.5} />
-            Tracking de Emails
+            Tracking
           </h3>
-          <div className="space-y-5">
-            <div>
-              <label className="nd-label block mb-2">URL base de tracking</label>
-              <Input
-                value={settings.tracking_base_url || ""}
-                onChange={(e) => setSettings({ ...settings, tracking_base_url: e.target.value })}
-                placeholder="https://tudominio.com"
-              />
-              <p className="text-[11px] text-text-muted mt-1">Se usa para pixel de apertura y tracking de clicks. Debe ser accesible publicamente.</p>
-            </div>
+          <div>
+            <label className="nd-label block mb-2">URL base</label>
+            <Input
+              value={settings.tracking_base_url || ""}
+              onChange={(e) => setSettings({ ...settings, tracking_base_url: e.target.value })}
+              placeholder="https://tudominio.com"
+            />
+            <p className="text-[11px] text-text-muted mt-1">Pixel apertura y clicks. Debe ser publica.</p>
           </div>
         </Card>
 
-        {/* CRM Webhook */}
-        <Card>
+        <Card className="col-span-12 md:col-span-4">
           <h3 className="nd-heading mb-6">
             <Webhook className="h-4 w-4 inline mr-2" strokeWidth={1.5} />
-            Integracion CRM
+            CRM Webhook
           </h3>
           <div className="space-y-5">
             <div>
@@ -497,24 +508,22 @@ export default function SettingsPage() {
                 onChange={(e) => setSettings({ ...settings, crm_webhook_url: e.target.value })}
                 placeholder="https://hooks.zapier.com/..."
               />
-              <p className="text-[11px] text-text-muted mt-1">Se envia un POST con datos del lead. Compatible con Zapier, Make, n8n.</p>
             </div>
             <div>
-              <label className="nd-label block mb-2">Disparar cuando el lead</label>
+              <label className="nd-label block mb-2">Disparar cuando</label>
               <Select
                 value={settings.crm_webhook_on || "replied"}
                 onChange={(e) => setSettings({ ...settings, crm_webhook_on: e.target.value })}
               >
-                <option value="replied">Responde (replied)</option>
-                <option value="contacted">Es contactado (contacted)</option>
-                <option value="replied,contacted">Responde o es contactado</option>
+                <option value="replied">Responde</option>
+                <option value="contacted">Es contactado</option>
+                <option value="replied,contacted">Ambos</option>
               </Select>
             </div>
           </div>
         </Card>
 
-        {/* Google Maps Scraper Settings */}
-        <Card>
+        <Card className="col-span-12 md:col-span-4">
           <h3 className="nd-heading mb-6">Google Maps Scraper</h3>
           <div className="space-y-5">
             <div>
@@ -524,7 +533,6 @@ export default function SettingsPage() {
                 onChange={(e) => setSettings({ ...settings, gmaps_scraper_url: e.target.value })}
                 placeholder="http://localhost:8080"
               />
-              <p className="text-[11px] text-text-muted mt-1">URL donde corre el contenedor Docker de google-maps-scraper</p>
             </div>
             <div>
               <label className="nd-label block mb-2">API Key (opcional)</label>
@@ -539,10 +547,13 @@ export default function SettingsPage() {
         </Card>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 nd-section">
-        {/* Test Connections */}
-        <Card>
-          <h3 className="nd-heading mb-5">Probar conexiones</h3>
+      {/* ─── Bento Row 5: Test + Jobs ─── */}
+      <div className="grid grid-cols-12 gap-4 nd-section">
+        <Card className="col-span-12 lg:col-span-5">
+          <h3 className="nd-heading mb-5">
+            <TestTube className="h-4 w-4 inline mr-2" strokeWidth={1.5} />
+            Probar conexiones
+          </h3>
           <Button variant="secondary" size="sm" onClick={testConnections} disabled={testing}>
             {testing ? (
               <><RefreshCw className="h-3.5 w-3.5 animate-spin" strokeWidth={1.5} /> Probando...</>
@@ -574,10 +585,12 @@ export default function SettingsPage() {
           )}
         </Card>
 
-        {/* Manual Job Execution */}
-        <Card>
-          <h3 className="nd-heading mb-2">Ejecutar jobs</h3>
-          <p className="nd-label text-text-muted mb-5">Ejecuta los procesos de background manualmente</p>
+        <Card className="col-span-12 lg:col-span-7" texture>
+          <h3 className="nd-heading mb-2">
+            <Zap className="h-4 w-4 inline mr-2 text-accent" strokeWidth={1.5} />
+            Ejecutar jobs
+          </h3>
+          <p className="nd-label text-text-muted mb-5">Ejecuta procesos de background manualmente</p>
           <div className="flex flex-wrap gap-2">
             <Button variant="secondary" size="sm" onClick={() => runJobs("scrape")} disabled={processing}>
               Scraping + Analisis
@@ -595,7 +608,7 @@ export default function SettingsPage() {
               Procesar Secuencias
             </Button>
             <Button size="sm" onClick={() => runJobs("all")} disabled={processing}>
-              <Zap className="h-3 w-3 text-accent" strokeWidth={1.5} /> Ejecutar todo
+              <Zap className="h-3 w-3" strokeWidth={1.5} /> Ejecutar todo
             </Button>
           </div>
           {processResult && (
