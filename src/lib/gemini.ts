@@ -125,6 +125,55 @@ function getLocaleWritingRules(country: string): string {
   return `${formatting}\n${regional[country] || ""}`;
 }
 
+// --- Lead country detection from phone prefix ---
+
+export function detectCountryFromPhone(phone: string | null | undefined): string | null {
+  if (!phone) return null;
+  const clean = phone.replace(/[\s\-().]/g, "");
+  // Map of phone prefixes to country codes (longest prefix first to avoid false matches)
+  const prefixes: [string, string][] = [
+    ["+521", "MX"], // Mexico mobile
+    ["+52", "MX"],
+    ["0052", "MX"],
+    ["+54", "AR"],
+    ["0054", "AR"],
+    ["+56", "CL"],
+    ["0056", "CL"],
+    ["+57", "CO"],
+    ["0057", "CO"],
+    ["+51", "PE"],
+    ["0051", "PE"],
+    ["+593", "EC"],
+    ["00593", "EC"],
+    ["+598", "UY"],
+    ["00598", "UY"],
+    ["+34", "ES"],
+    ["0034", "ES"],
+    ["+1", "US"], // US/Canada
+    ["001", "US"],
+    ["+44", "UK"],
+    ["0044", "UK"],
+    ["+61", "AU"],
+    ["0061", "AU"],
+    ["+55", "BR"],
+    ["0055", "BR"],
+    ["+351", "PT"],
+    ["00351", "PT"],
+    ["+33", "FR"],
+    ["0033", "FR"],
+    ["+49", "DE"],
+    ["0049", "DE"],
+    ["+39", "IT"],
+    ["0039", "IT"],
+    ["+31", "NL"],
+    ["0031", "NL"],
+  ];
+  for (const [prefix, country] of prefixes) {
+    if (clean.startsWith(prefix)) return country;
+  }
+  return null;
+}
+
 // --- Interfaces ---
 
 export interface WebAnalysis {
@@ -241,12 +290,14 @@ export async function generateEmail(
   tone: string,
   fromName: string,
   sequenceStep?: number,
-  customInstructions?: string
+  customInstructions?: string,
+  leadCountry?: string
 ): Promise<EmailGeneration> {
   const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
   const ctx = getAgencyContext();
-  const localeLabel = getLocaleLabel(ctx.country);
-  const writingRules = getLocaleWritingRules(ctx.country);
+  const effectiveCountry = leadCountry || ctx.country;
+  const localeLabel = getLocaleLabel(effectiveCountry);
+  const writingRules = getLocaleWritingRules(effectiveCountry);
 
   // Build service-specific pitch based on analysis
   const recommendedServices = (analysis.recommendedServices || ["web_development"])
@@ -318,7 +369,8 @@ INSTRUCCIONES:
 9. El asunto debe ser corto (4-7 palabras), en sentence case, y generar curiosidad sobre el BENEFICIO, no sobre el problema
 10. NO añadas ningún footer legal ni texto de baja, el sistema los inyecta automáticamente
 
-REGLAS DE ESCRITURA Y ADAPTACIÓN REGIONAL (OBLIGATORIAS):
+ADAPTACIÓN REGIONAL (CRÍTICO):
+El negocio está en ${city || "ubicación no especificada"}. DEBES adaptar tu lenguaje al país de ESA ciudad, NO al país de la agencia. Si la ciudad está en México, escribe en español mexicano. Si está en Argentina, en argentino. Si está en España, en español de España. Esto es OBLIGATORIO.
 ${writingRules}
 
 Responde SOLO con JSON válido (sin markdown, sin backticks):
@@ -346,12 +398,14 @@ export async function regenerateEmail(
   fromName: string,
   previousSubject: string,
   previousBody: string,
-  instructions: string
+  instructions: string,
+  leadCountry?: string
 ): Promise<EmailGeneration> {
   const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
   const ctx = getAgencyContext();
-  const localeLabel = getLocaleLabel(ctx.country);
-  const writingRules = getLocaleWritingRules(ctx.country);
+  const effectiveCountry = leadCountry || ctx.country;
+  const localeLabel = getLocaleLabel(effectiveCountry);
+  const writingRules = getLocaleWritingRules(effectiveCountry);
 
   const prompt = `Eres un copywriter experto. Necesitas REGENERAR un email de prospección para ${ctx.name} (${ctx.url}).
 
@@ -378,7 +432,8 @@ NO añadas ningún footer legal ni texto de baja, el sistema los inyecta automá
 
 PRINCIPIO CLAVE: El email debe enfocarse en lo que el prospecto GANA (más clientes, más ventas, más visibilidad), NO en listar problemas técnicos. Traduce cada problema a impacto de negocio. NUNCA uses jerga técnica sin explicar qué significa para sus clientes/ventas. Evita "gratis", "sin compromiso", "diagnóstico gratuito" - usa alternativas naturales.
 
-REGLAS DE ESCRITURA Y ADAPTACIÓN REGIONAL (OBLIGATORIAS):
+ADAPTACIÓN REGIONAL (CRÍTICO):
+El negocio está en ${city || "ubicación no especificada"}. DEBES adaptar tu lenguaje al país de ESA ciudad, NO al país de la agencia. Si la ciudad está en México, escribe en español mexicano. Si está en Argentina, en argentino. Si está en España, en español de España. Esto es OBLIGATORIO.
 ${writingRules}
 
 Genera una versión diferente del email. Responde SOLO con JSON válido (sin markdown, sin backticks):
@@ -405,12 +460,14 @@ export async function generateWhatsApp(
   tone: string,
   fromName: string,
   sequenceStep?: number,
-  customInstructions?: string
+  customInstructions?: string,
+  leadCountry?: string
 ): Promise<WhatsAppGeneration> {
   const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
   const ctx = getAgencyContext();
-  const localeLabel = getLocaleLabel(ctx.country);
-  const writingRules = getLocaleWritingRules(ctx.country);
+  const effectiveCountry = leadCountry || ctx.country;
+  const localeLabel = getLocaleLabel(effectiveCountry);
+  const writingRules = getLocaleWritingRules(effectiveCountry);
 
   const analysisContext = analysis
     ? `\nANÁLISIS DE SU PRESENCIA DIGITAL:
@@ -485,7 +542,8 @@ REGLAS PARA EL MENSAJE:
 14. NUNCA uses signo de interrogación de apertura (¿). En WhatsApp nadie lo usa
 15. NUNCA digas "sin compromiso", "gratuito", "gratis", "diagnóstico gratuito". Suena a telemarketing. Usa alternativas naturales: "te puedo armar un análisis", "te cuento cómo funciona", "te muestro el potencial"
 
-REGLAS DE ESCRITURA Y ADAPTACIÓN REGIONAL (OBLIGATORIAS):
+ADAPTACIÓN REGIONAL (CRÍTICO):
+El negocio está en ${city || "ubicación no especificada"}. DEBES adaptar tu lenguaje al país de ESA ciudad, NO al país de la agencia. Si la ciudad está en México, escribe en español mexicano. Si está en Argentina, en argentino. Si está en España, en español de España. Esto es OBLIGATORIO.
 ${writingRules}
 
 Responde SOLO con JSON válido (sin markdown, sin backticks):
@@ -580,7 +638,8 @@ REGLAS CRÍTICAS DE ANTI-SPAM Y MEJORES PRÁCTICAS (2026):
 15. NUNCA prometas resultados exactos, usa lenguaje como "ayudamos a", "conseguimos que".
 16. NUNCA uses jerga técnica sin traducirla a impacto: nada de "SSL", "responsive", "SEO" a secas. Siempre explica qué significa para sus clientes/ventas.
 
-REGLAS DE ESCRITURA Y ADAPTACIÓN REGIONAL (OBLIGATORIAS):
+ADAPTACIÓN REGIONAL (CRÍTICO):
+El template usará la variable {{city}} para personalizar. Adapta el lenguaje al locale: ${localeLabel}. Escribe de forma natural para ese mercado.
 ${writingRules}
 
 VARIABLES DISPONIBLES para usar en el template:
@@ -663,7 +722,8 @@ REGLAS PARA WHATSAPP B2B (2026):
 17. PERSONALIZACIÓN: Usa variables {{variable}} para hacer el mensaje específico al prospecto.
 18. NO incluyas URLs, links ni dominios en el mensaje. Favorecen detección de spam y bloqueo del número.
 
-REGLAS DE ESCRITURA Y ADAPTACIÓN REGIONAL (OBLIGATORIAS):
+ADAPTACIÓN REGIONAL (CRÍTICO):
+El negocio está en ${city || "ubicación no especificada"}. DEBES adaptar tu lenguaje al país de ESA ciudad, NO al país de la agencia. Si la ciudad está en México, escribe en español mexicano. Si está en Argentina, en argentino. Si está en España, en español de España. Esto es OBLIGATORIO.
 ${writingRules}
 
 VARIABLES DISPONIBLES:
@@ -698,12 +758,14 @@ export async function regenerateWhatsApp(
   tone: string,
   fromName: string,
   previousMessage: string,
-  instructions: string
+  instructions: string,
+  leadCountry?: string
 ): Promise<WhatsAppGeneration> {
   const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
   const ctx = getAgencyContext();
-  const localeLabel = getLocaleLabel(ctx.country);
-  const writingRules = getLocaleWritingRules(ctx.country);
+  const effectiveCountry = leadCountry || ctx.country;
+  const localeLabel = getLocaleLabel(effectiveCountry);
+  const writingRules = getLocaleWritingRules(effectiveCountry);
 
   const prompt = `Eres un experto en ventas B2B. Necesitas REGENERAR un mensaje de WhatsApp de prospección para ${ctx.name} (${ctx.url}).
 
@@ -723,7 +785,8 @@ IDIOMA: ${localeLabel}
 
 REGLAS: Máximo 500 caracteres, conversacional, sin HTML, sin emojis excesivos, que suene como WhatsApp real. Enfócate en lo que el prospecto GANA (más clientes, más ventas), no en listar problemas técnicos. Traduce cada problema a impacto de negocio. NUNCA uses "gratis", "sin compromiso", "diagnóstico gratuito". NUNCA uses jerga técnica sin explicar qué pierde el negocio. NUNCA uses ¿ (nadie lo usa en WhatsApp). Puede hablar de web, SEO, IA, Google Business o redes según lo que sea más relevante. NO incluyas URLs, links ni dominios en el mensaje.
 
-REGLAS DE ESCRITURA Y ADAPTACIÓN REGIONAL (OBLIGATORIAS):
+ADAPTACIÓN REGIONAL (CRÍTICO):
+El negocio está en ${city || "ubicación no especificada"}. DEBES adaptar tu lenguaje al país de ESA ciudad, NO al país de la agencia. Si la ciudad está en México, escribe en español mexicano. Si está en Argentina, en argentino. Si está en España, en español de España. Esto es OBLIGATORIO.
 ${writingRules}
 
 Responde SOLO con JSON válido (sin markdown, sin backticks):

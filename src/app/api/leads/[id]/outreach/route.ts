@@ -3,7 +3,7 @@ import { db, getSetting } from "@/db";
 import { leads, emails, whatsappMessages, campaigns } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import { scrapeWebsite } from "@/lib/scraper";
-import { analyzeWebsite, generateEmail, generateWhatsApp } from "@/lib/gemini";
+import { analyzeWebsite, generateEmail, generateWhatsApp, detectCountryFromPhone } from "@/lib/gemini";
 import type { WebAnalysis } from "@/lib/gemini";
 import { calculateOpportunityScore } from "@/lib/scorer";
 import { logActivity } from "@/lib/activity";
@@ -132,7 +132,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     const fromName = getSetting("from_name") || "VanguardIA";
     const fromEmail = getSetting("from_email") || "hola@vanguardia.dev";
 
-    const generated = await generateEmail(lead.name, lead.category, lead.city, lead.website, analysis, tone, fromName);
+    const generated = await generateEmail(lead.name, lead.category, lead.city, lead.website, analysis, tone, fromName, undefined, undefined, detectCountryFromPhone(lead.phone) || undefined);
 
     db.insert(emails).values({
       leadId: lead.id,
@@ -163,7 +163,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     const tone = body.tone || campaign?.defaultTone || getSetting("default_tone") || "profesional";
     const fromName = getSetting("from_name") || "VanguardIA";
 
-    const generated = await generateWhatsApp(lead.name, lead.category, lead.city, lead.website, analysis, tone, fromName);
+    const generated = await generateWhatsApp(lead.name, lead.category, lead.city, lead.website, analysis, tone, fromName, undefined, undefined, detectCountryFromPhone(lead.phone) || undefined);
 
     db.insert(whatsappMessages).values({
       leadId: lead.id,

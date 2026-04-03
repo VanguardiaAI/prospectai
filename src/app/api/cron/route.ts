@@ -3,7 +3,7 @@ import { db, getSetting, setSetting } from "@/db";
 import { jobQueue, leads, emails, campaigns, whatsappMessages, sequenceSteps, sequenceEnrollments, abVariants, abResults, sendingDomains, replies } from "@/db/schema";
 import { eq, and, sql, lte, asc, ne } from "drizzle-orm";
 import { scrapeWebsite } from "@/lib/scraper";
-import { analyzeWebsite, generateEmail, generateWhatsApp } from "@/lib/gemini";
+import { analyzeWebsite, generateEmail, generateWhatsApp, detectCountryFromPhone } from "@/lib/gemini";
 import type { WebAnalysis } from "@/lib/gemini";
 import { calculateOpportunityScore } from "@/lib/scorer";
 import { sendEmail } from "@/lib/resend-client";
@@ -12,13 +12,30 @@ import { logActivity } from "@/lib/activity";
 import { generateUnsubscribeUrl, isUnsubscribed, injectUnsubscribeLink, appendUnsubscribeText } from "@/lib/unsubscribe";
 import { injectTrackingPixel, wrapLinksWithTracking } from "@/lib/tracking";
 import { triggerCrmWebhook } from "@/lib/crm-webhook";
+import { prioritizeLeadOnReply } from "@/lib/lead-prioritization";
 
 // --- Warmup & Send Window ---
 
 function getEffectiveDailyLimit(): number {
-  const warmupEnabled = getSetting("warmup_enabled") === "true";
   const globalLimit = parseInt(getSetting("global_daily_limit") || "50");
 
+  // When sending domains exist, the effective limit is the sum of each domain's
+  // own warmup-aware limit so new domains start at day 1 independently.
+  const activeDomains = db.select().from(sendingDomains)
+    .where(ne(sendingDomains.status, "paused"))
+    .all();
+
+  if (activeDomains.length > 0) {
+    let total = 0;
+    for (const d of activeDomains) {
+      const day = d.warmupDay && d.warmupDay > 0 ? d.warmupDay : 1;
+      total += Math.min(d.warmupStartLimit + (day - 1) * d.warmupIncrement, d.dailyLimit);
+    }
+    return Math.min(total, globalLimit);
+  }
+
+  // Fallback: no domains configured — use global warmup settings
+  const warmupEnabled = getSetting("warmup_enabled") === "true";
   if (!warmupEnabled) return globalLimit;
 
   const warmupDay = parseInt(getSetting("warmup_day") || "1");
@@ -244,7 +261,7 @@ async function processEmailGenerationJobs() {
 
       const generated = await generateEmail(
         lead.name, lead.category, lead.city, lead.website, analysis, tone, fromName,
-        undefined, abCustomInstructions
+        undefined, abCustomInstructions, detectCountryFromPhone(lead.phone) || undefined
       );
 
       db.insert(emails).values({
@@ -413,6 +430,16 @@ async function processEmailSending() {
       let bestCount = Infinity;
 
       for (const d of activeDomains) {
+        // Initialize warmupDay to 1 if it is 0 or null (new domain added later)
+        const domainWarmupDay = d.warmupDay && d.warmupDay > 0 ? d.warmupDay : 1;
+        if (!d.warmupDay || d.warmupDay <= 0) {
+          db.update(sendingDomains)
+            .set({ warmupDay: 1 })
+            .where(eq(sendingDomains.id, d.id))
+            .run();
+          d.warmupDay = 1;
+        }
+
         const domainSent = db.select({ count: sql<number>`count(*)` }).from(emails)
           .where(and(
             eq(emails.fromEmail, d.fromEmail),
@@ -422,7 +449,7 @@ async function processEmailSending() {
 
         // Per-domain warmup: effective limit = min(startLimit + (warmupDay-1)*increment, dailyLimit)
         const domainEffectiveLimit = Math.min(
-          d.warmupStartLimit + (d.warmupDay - 1) * d.warmupIncrement,
+          d.warmupStartLimit + (domainWarmupDay - 1) * d.warmupIncrement,
           d.dailyLimit
         );
 
@@ -668,7 +695,8 @@ async function processSequences() {
 
         const generated = await generateEmail(
           lead.name, lead.category, lead.city, lead.website, analysis,
-          step.tone, fromName, step.stepNumber, step.customInstructions || undefined
+          step.tone, fromName, step.stepNumber, step.customInstructions || undefined,
+          detectCountryFromPhone(lead.phone) || undefined
         );
 
         const fromEmail = getSetting("from_email") || "hola@vanguardia.dev";
@@ -700,7 +728,8 @@ async function processSequences() {
 
         const generated = await generateWhatsApp(
           lead.name, lead.category, lead.city, lead.website, analysis,
-          step.tone, fromName, step.stepNumber, step.customInstructions || undefined
+          step.tone, fromName, step.stepNumber, step.customInstructions || undefined,
+          detectCountryFromPhone(lead.phone) || undefined
         );
 
         db.insert(whatsappMessages).values({
@@ -758,13 +787,20 @@ async function processSequences() {
 
 // --- WhatsApp reply detection ---
 
-let waReplyListenerActive = false;
+// Track which client instance has the listener to avoid duplicates.
+// A simple boolean would break on client reconnection (old client destroyed,
+// new client created) because the flag would stay true while the new client
+// has no listener. Storing the client reference lets us detect that case.
+let waListenerClient: ReturnType<typeof getClient> = null;
 
 function setupWhatsAppReplyListener(): void {
-  if (waReplyListenerActive) return;
-
   const waClient = getClient();
   if (!waClient) return;
+
+  // Already registered on this exact client instance — skip.
+  if (waListenerClient === waClient) return;
+
+  waListenerClient = waClient;
 
   waClient.on("message", async (msg) => {
     try {
@@ -795,11 +831,8 @@ function setupWhatsAppReplyListener(): void {
         ))
         .run();
 
-      // Update lead status
-      db.update(leads)
-        .set({ status: "contacted" })
-        .where(eq(leads.id, lead.id))
-        .run();
+      // Prioritize lead: set status to "replied", boost opportunityScore
+      prioritizeLeadOnReply(lead.id);
 
       logActivity("wa_sent", `Respuesta WhatsApp recibida de ${lead.name} (${from})`, {
         leadId: lead.id,
@@ -813,7 +846,7 @@ function setupWhatsAppReplyListener(): void {
     }
   });
 
-  waReplyListenerActive = true;
+  // waListenerClient is already set at the top of this function.
 }
 
 // --- Main handler ---

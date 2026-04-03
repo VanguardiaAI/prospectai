@@ -3,7 +3,7 @@ import { db, getSetting } from "@/db";
 import { whatsappMessages, leads, campaigns } from "@/db/schema";
 import { eq, and, sql, desc } from "drizzle-orm";
 import { sendWhatsAppMessage, isWhatsAppReady } from "@/lib/whatsapp-client";
-import { generateWhatsApp, regenerateWhatsApp } from "@/lib/gemini";
+import { generateWhatsApp, regenerateWhatsApp, detectCountryFromPhone } from "@/lib/gemini";
 import type { WebAnalysis } from "@/lib/gemini";
 import { logActivity } from "@/lib/activity";
 
@@ -100,7 +100,8 @@ export async function POST(req: NextRequest) {
     const generated = await regenerateWhatsApp(
       lead.name, lead.category, lead.city, lead.website,
       analysis, body.tone || msg.tone, fromName,
-      msg.body, body.instructions || ""
+      msg.body, body.instructions || "",
+      detectCountryFromPhone(lead.phone) || undefined
     );
 
     db.update(whatsappMessages).set({
@@ -128,7 +129,8 @@ export async function POST(req: NextRequest) {
     const fromName = getSetting("from_name") || "VanguardIA";
 
     const generated = await generateWhatsApp(
-      lead.name, lead.category, lead.city, lead.website, analysis, tone, fromName
+      lead.name, lead.category, lead.city, lead.website, analysis, tone, fromName,
+      undefined, undefined, detectCountryFromPhone(lead.phone) || undefined
     );
 
     db.insert(whatsappMessages).values({

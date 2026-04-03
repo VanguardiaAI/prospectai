@@ -3,7 +3,7 @@ import { db } from "@/db";
 import { emails, leads } from "@/db/schema";
 import { eq, and, desc } from "drizzle-orm";
 import { logActivity } from "@/lib/activity";
-import { regenerateEmail } from "@/lib/gemini";
+import { regenerateEmail, detectCountryFromPhone } from "@/lib/gemini";
 import type { WebAnalysis } from "@/lib/gemini";
 import { getSetting } from "@/db";
 
@@ -121,7 +121,8 @@ export async function POST(req: NextRequest) {
     fromName,
     existingEmail.subject,
     existingEmail.bodyText,
-    body.instructions || ""
+    body.instructions || "",
+    detectCountryFromPhone(lead.phone) || undefined
   );
 
   const updated = db.update(emails).set({
