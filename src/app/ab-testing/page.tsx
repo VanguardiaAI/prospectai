@@ -1,0 +1,395 @@
+"use client";
+
+import { useEffect, useState, useCallback } from "react";
+import { Card, Button, Input, Select, Modal, Badge, EmptyState, Spinner } from "@/components/ui";
+import { FlaskConical, Plus, Trash2, Trophy, Crown } from "lucide-react";
+
+interface VariantConfig {
+  tone: string;
+  instructions?: string;
+}
+
+interface VariantResults {
+  total: number;
+  opens: number;
+  clicks: number;
+  replies: number;
+}
+
+interface ABTest {
+  id: number;
+  campaignId: number | null;
+  name: string;
+  status: "active" | "completed";
+  createdAt: string;
+  campaignName: string | null;
+  variantAConfig: VariantConfig;
+  variantBConfig: VariantConfig;
+  resultsA: VariantResults;
+  resultsB: VariantResults;
+}
+
+interface Campaign {
+  id: number;
+  name: string;
+}
+
+const TONE_OPTIONS = [
+  { value: "profesional", label: "Profesional" },
+  { value: "cercano", label: "Cercano" },
+  { value: "directo", label: "Directo" },
+  { value: "consultivo", label: "Consultivo" },
+  { value: "casual", label: "Casual" },
+];
+
+function rate(num: number, den: number): string {
+  if (den === 0) return "0.0";
+  return ((num / den) * 100).toFixed(1);
+}
+
+export default function ABTestingPage() {
+  const [tests, setTests] = useState<ABTest[]>([]);
+  const [campaigns, setCampaigns] = useState<Campaign[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [showModal, setShowModal] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [form, setForm] = useState({
+    name: "",
+    campaignId: "",
+    variantA: { tone: "profesional", instructions: "" },
+    variantB: { tone: "directo", instructions: "" },
+  });
+
+  const fetchTests = useCallback(async () => {
+    const res = await fetch("/api/ab-testing");
+    const data = await res.json();
+    setTests(data);
+    setLoading(false);
+  }, []);
+
+  const fetchCampaigns = useCallback(async () => {
+    const res = await fetch("/api/campaigns");
+    const data = await res.json();
+    setCampaigns(data);
+  }, []);
+
+  useEffect(() => {
+    fetchTests();
+    fetchCampaigns();
+  }, [fetchTests, fetchCampaigns]);
+
+  const openCreate = () => {
+    setForm({
+      name: "",
+      campaignId: "",
+      variantA: { tone: "profesional", instructions: "" },
+      variantB: { tone: "directo", instructions: "" },
+    });
+    setShowModal(true);
+  };
+
+  const create = async () => {
+    setSaving(true);
+    await fetch("/api/ab-testing", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        campaignId: form.campaignId ? Number(form.campaignId) : null,
+        name: form.name,
+        variantA: {
+          tone: form.variantA.tone,
+          instructions: form.variantA.instructions || undefined,
+        },
+        variantB: {
+          tone: form.variantB.tone,
+          instructions: form.variantB.instructions || undefined,
+        },
+      }),
+    });
+    setSaving(false);
+    setShowModal(false);
+    fetchTests();
+  };
+
+  const declareWinner = async (test: ABTest, winner: "A" | "B") => {
+    if (!confirm(`Declarar Variante ${winner} como ganadora?`)) return;
+    await fetch("/api/ab-testing", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id: test.id, status: "completed", winnerId: winner }),
+    });
+    fetchTests();
+  };
+
+  const remove = async (id: number) => {
+    if (!confirm("Eliminar este test A/B?")) return;
+    await fetch(`/api/ab-testing?id=${id}`, { method: "DELETE" });
+    fetchTests();
+  };
+
+  const getWinningVariant = (test: ABTest): "A" | "B" | "tie" => {
+    const rateA = test.resultsA.total > 0 ? test.resultsA.replies / test.resultsA.total : 0;
+    const rateB = test.resultsB.total > 0 ? test.resultsB.replies / test.resultsB.total : 0;
+    if (rateA > rateB) return "A";
+    if (rateB > rateA) return "B";
+    return "tie";
+  };
+
+  if (loading) return <div className="flex justify-center py-20"><Spinner /></div>;
+
+  return (
+    <div>
+      {/* Header */}
+      <div className="nd-page-header">
+        <div>
+          <h1 className="nd-heading">A/B Testing</h1>
+          <p className="nd-label mt-2">Compara variantes de mensajes y optimiza resultados</p>
+        </div>
+        <Button size="sm" onClick={openCreate}>
+          <Plus className="h-3.5 w-3.5" strokeWidth={1.5} /> Nuevo test
+        </Button>
+      </div>
+
+      {tests.length === 0 ? (
+        <EmptyState
+          icon={<FlaskConical className="h-10 w-10" strokeWidth={1.5} />}
+          title="Sin tests A/B"
+          description="Crea tu primer test para comparar variantes de mensajes"
+        />
+      ) : (
+        <div className="space-y-4">
+          {tests.map((test) => {
+            const winning = getWinningVariant(test);
+
+            return (
+              <Card key={test.id}>
+                {/* Test header */}
+                <div className="flex items-start justify-between mb-5">
+                  <div>
+                    <h3 className="text-[15px] text-text-display font-medium">{test.name}</h3>
+                    <div className="flex items-center gap-3 mt-1">
+                      {test.campaignName && (
+                        <span className="text-[11px] text-text-muted font-mono">{test.campaignName}</span>
+                      )}
+                      <span className="text-[11px] text-text-muted">
+                        {new Date(test.createdAt).toLocaleDateString("es-MX")}
+                      </span>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Badge color={test.status === "active" ? "success" : "default"}>
+                      {test.status === "active" ? "ACTIVO" : "COMPLETADO"}
+                    </Badge>
+                  </div>
+                </div>
+
+                {/* Variant configs */}
+                <div className="grid grid-cols-2 gap-4 mb-5">
+                  <div className={`border rounded-lg p-3 ${winning === "A" && test.status === "active" ? "border-green-500/40 bg-green-500/5" : "border-border"}`}>
+                    <div className="flex items-center gap-2 mb-2">
+                      <span className="nd-label">Variante A</span>
+                      {test.status === "completed" && winning === "A" && (
+                        <Crown className="h-3.5 w-3.5 text-amber-400" strokeWidth={1.5} />
+                      )}
+                    </div>
+                    <span className="text-[11px] text-text-primary font-mono uppercase">{test.variantAConfig.tone}</span>
+                    {test.variantAConfig.instructions && (
+                      <p className="text-[10px] text-text-muted mt-1 leading-relaxed">{test.variantAConfig.instructions}</p>
+                    )}
+                  </div>
+                  <div className={`border rounded-lg p-3 ${winning === "B" && test.status === "active" ? "border-green-500/40 bg-green-500/5" : "border-border"}`}>
+                    <div className="flex items-center gap-2 mb-2">
+                      <span className="nd-label">Variante B</span>
+                      {test.status === "completed" && winning === "B" && (
+                        <Crown className="h-3.5 w-3.5 text-amber-400" strokeWidth={1.5} />
+                      )}
+                    </div>
+                    <span className="text-[11px] text-text-primary font-mono uppercase">{test.variantBConfig.tone}</span>
+                    {test.variantBConfig.instructions && (
+                      <p className="text-[10px] text-text-muted mt-1 leading-relaxed">{test.variantBConfig.instructions}</p>
+                    )}
+                  </div>
+                </div>
+
+                {/* Results comparison table */}
+                <div className="border border-border rounded-lg overflow-hidden mb-5">
+                  <div className="grid grid-cols-3 text-[10px] font-mono uppercase text-text-muted bg-surface-secondary">
+                    <div className="px-3 py-2">Metrica</div>
+                    <div className="px-3 py-2 text-center">Variante A</div>
+                    <div className="px-3 py-2 text-center">Variante B</div>
+                  </div>
+                  {/* Emails sent */}
+                  <div className="grid grid-cols-3 border-t border-border">
+                    <div className="px-3 py-2 nd-label">Emails enviados</div>
+                    <div className="px-3 py-2 text-center text-sm text-text-display font-mono">{test.resultsA.total}</div>
+                    <div className="px-3 py-2 text-center text-sm text-text-display font-mono">{test.resultsB.total}</div>
+                  </div>
+                  {/* Open rate */}
+                  {(() => {
+                    const openRateA = test.resultsA.total > 0 ? test.resultsA.opens / test.resultsA.total : 0;
+                    const openRateB = test.resultsB.total > 0 ? test.resultsB.opens / test.resultsB.total : 0;
+                    return (
+                      <div className="grid grid-cols-3 border-t border-border">
+                        <div className="px-3 py-2 nd-label">Tasa apertura</div>
+                        <div className={`px-3 py-2 text-center text-sm font-mono ${openRateA > openRateB ? "text-green-400" : "text-text-display"}`}>
+                          {rate(test.resultsA.opens, test.resultsA.total)}%
+                        </div>
+                        <div className={`px-3 py-2 text-center text-sm font-mono ${openRateB > openRateA ? "text-green-400" : "text-text-display"}`}>
+                          {rate(test.resultsB.opens, test.resultsB.total)}%
+                        </div>
+                      </div>
+                    );
+                  })()}
+                  {/* Click rate */}
+                  {(() => {
+                    const clickRateA = test.resultsA.total > 0 ? test.resultsA.clicks / test.resultsA.total : 0;
+                    const clickRateB = test.resultsB.total > 0 ? test.resultsB.clicks / test.resultsB.total : 0;
+                    return (
+                      <div className="grid grid-cols-3 border-t border-border">
+                        <div className="px-3 py-2 nd-label">Tasa clicks</div>
+                        <div className={`px-3 py-2 text-center text-sm font-mono ${clickRateA > clickRateB ? "text-green-400" : "text-text-display"}`}>
+                          {rate(test.resultsA.clicks, test.resultsA.total)}%
+                        </div>
+                        <div className={`px-3 py-2 text-center text-sm font-mono ${clickRateB > clickRateA ? "text-green-400" : "text-text-display"}`}>
+                          {rate(test.resultsB.clicks, test.resultsB.total)}%
+                        </div>
+                      </div>
+                    );
+                  })()}
+                  {/* Reply rate */}
+                  {(() => {
+                    const replyRateA = test.resultsA.total > 0 ? test.resultsA.replies / test.resultsA.total : 0;
+                    const replyRateB = test.resultsB.total > 0 ? test.resultsB.replies / test.resultsB.total : 0;
+                    return (
+                      <div className="grid grid-cols-3 border-t border-border">
+                        <div className="px-3 py-2 nd-label">Tasa respuestas</div>
+                        <div className={`px-3 py-2 text-center text-sm font-mono font-medium ${replyRateA > replyRateB ? "text-green-400" : "text-text-display"}`}>
+                          {rate(test.resultsA.replies, test.resultsA.total)}%
+                        </div>
+                        <div className={`px-3 py-2 text-center text-sm font-mono font-medium ${replyRateB > replyRateA ? "text-green-400" : "text-text-display"}`}>
+                          {rate(test.resultsB.replies, test.resultsB.total)}%
+                        </div>
+                      </div>
+                    );
+                  })()}
+                </div>
+
+                {/* Actions */}
+                <div className="flex items-center gap-2 pt-4 border-t border-border">
+                  {test.status === "active" ? (
+                    <>
+                      <Button size="sm" variant="secondary" onClick={() => declareWinner(test, "A")}>
+                        <Trophy className="h-3 w-3" strokeWidth={1.5} /> Declarar ganador A
+                      </Button>
+                      <Button size="sm" variant="secondary" onClick={() => declareWinner(test, "B")}>
+                        <Trophy className="h-3 w-3" strokeWidth={1.5} /> Declarar ganador B
+                      </Button>
+                    </>
+                  ) : (
+                    <Badge color="success">
+                      <Crown className="h-3 w-3" strokeWidth={1.5} />
+                      Ganador: Variante {winning === "tie" ? "Empate" : winning}
+                    </Badge>
+                  )}
+                  <div className="flex-1" />
+                  <Button size="sm" variant="ghost" onClick={() => remove(test.id)}>
+                    <Trash2 className="h-3 w-3 text-accent" strokeWidth={1.5} />
+                  </Button>
+                </div>
+              </Card>
+            );
+          })}
+        </div>
+      )}
+
+      {/* Create Modal */}
+      <Modal open={showModal} onClose={() => setShowModal(false)} title="Nuevo test A/B">
+        <div className="space-y-5">
+          <div>
+            <label className="nd-label block mb-2">Nombre del test</label>
+            <Input
+              value={form.name}
+              onChange={(e) => setForm({ ...form, name: e.target.value })}
+              placeholder="Ej: Tono profesional vs cercano"
+            />
+          </div>
+          <div>
+            <label className="nd-label block mb-2">Campana</label>
+            <Select
+              value={form.campaignId}
+              onChange={(e) => setForm({ ...form, campaignId: e.target.value })}
+            >
+              <option value="">Sin campana especifica</option>
+              {campaigns.map((c) => (
+                <option key={c.id} value={c.id}>{c.name}</option>
+              ))}
+            </Select>
+          </div>
+
+          {/* Variant A */}
+          <div className="border border-border rounded-lg p-4">
+            <span className="nd-label block mb-3">Variante A</span>
+            <div className="space-y-3">
+              <div>
+                <label className="text-[10px] text-text-muted block mb-1">Tono</label>
+                <Select
+                  value={form.variantA.tone}
+                  onChange={(e) => setForm({ ...form, variantA: { ...form.variantA, tone: e.target.value } })}
+                >
+                  {TONE_OPTIONS.map((t) => (
+                    <option key={t.value} value={t.value}>{t.label}</option>
+                  ))}
+                </Select>
+              </div>
+              <div>
+                <label className="text-[10px] text-text-muted block mb-1">Instrucciones personalizadas (opcional)</label>
+                <textarea
+                  className="w-full bg-surface-primary border border-border rounded-md px-3 py-2 text-sm text-text-primary placeholder:text-text-muted focus:outline-none focus:ring-1 focus:ring-border-focus resize-none font-mono"
+                  rows={2}
+                  value={form.variantA.instructions}
+                  onChange={(e) => setForm({ ...form, variantA: { ...form.variantA, instructions: e.target.value } })}
+                  placeholder="Ej: Enfocate en resultados y datos concretos..."
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Variant B */}
+          <div className="border border-border rounded-lg p-4">
+            <span className="nd-label block mb-3">Variante B</span>
+            <div className="space-y-3">
+              <div>
+                <label className="text-[10px] text-text-muted block mb-1">Tono</label>
+                <Select
+                  value={form.variantB.tone}
+                  onChange={(e) => setForm({ ...form, variantB: { ...form.variantB, tone: e.target.value } })}
+                >
+                  {TONE_OPTIONS.map((t) => (
+                    <option key={t.value} value={t.value}>{t.label}</option>
+                  ))}
+                </Select>
+              </div>
+              <div>
+                <label className="text-[10px] text-text-muted block mb-1">Instrucciones personalizadas (opcional)</label>
+                <textarea
+                  className="w-full bg-surface-primary border border-border rounded-md px-3 py-2 text-sm text-text-primary placeholder:text-text-muted focus:outline-none focus:ring-1 focus:ring-border-focus resize-none font-mono"
+                  rows={2}
+                  value={form.variantB.instructions}
+                  onChange={(e) => setForm({ ...form, variantB: { ...form.variantB, instructions: e.target.value } })}
+                  placeholder="Ej: Usa un tono mas personal y amigable..."
+                />
+              </div>
+            </div>
+          </div>
+
+          <div className="flex justify-end gap-3 pt-2">
+            <Button variant="secondary" size="sm" onClick={() => setShowModal(false)}>Cancelar</Button>
+            <Button size="sm" onClick={create} disabled={!form.name || saving}>
+              {saving ? "Creando..." : "Crear test"}
+            </Button>
+          </div>
+        </div>
+      </Modal>
+    </div>
+  );
+}

@@ -30,8 +30,23 @@ yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
 
-# env files (can opt-in for committing if needed)
-.env*
+# env files — never commit real secrets
+.env
+.env.local
+.env.*.local
+# .env.example is intentionally tracked (no real secrets)
+
+# database
+/data/*.db
+/data/*.db-wal
+/data/*.db-shm
+
+# whatsapp-web.js session data
+.wwebjs_auth/
+.wwebjs_cache/
+
+# Claude Code IDE config (machine-specific paths)
+.claude/
 
 # vercel
 .vercel

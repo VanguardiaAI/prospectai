@@ -1,26 +1,304 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  /* Nothing Design — Color Tokens (Dark Mode) */
+  --black: #000000;
+  --surface: #111111;
+  --surface-raised: #1A1A1A;
+  --border: #222222;
+  --border-visible: #333333;
+  --text-disabled: #666666;
+  --text-secondary: #999999;
+  --text-primary: #E8E8E8;
+  --text-display: #FFFFFF;
+  --accent: #E8632B;
+  --accent-subtle: rgba(232, 99, 43, 0.08);
+  --success: #4A9E5C;
+  --success-subtle: rgba(74, 158, 92, 0.08);
+  --warning: #D4A843;
+  --warning-subtle: rgba(212, 168, 67, 0.08);
+  --interactive: #5B9BF6;
+
+  /* Nothing Design — Spacing (8px base) */
+  --space-2xs: 2px;
+  --space-xs: 4px;
+  --space-sm: 8px;
+  --space-md: 16px;
+  --space-lg: 24px;
+  --space-xl: 32px;
+  --space-2xl: 48px;
+  --space-3xl: 64px;
+  --space-4xl: 96px;
+
+  /* Nothing Design — Type Scale */
+  --display-xl: 72px;
+  --display-lg: 48px;
+  --display-md: 36px;
+  --heading: 24px;
+  --subheading: 18px;
+  --body: 16px;
+  --body-sm: 14px;
+  --caption: 12px;
+  --label: 11px;
+
+  /* Font Families */
+  --font-display: "Doto", "Space Mono", monospace;
+  --font-body: "Space Grotesk", "DM Sans", system-ui, sans-serif;
+  --font-data: "Space Mono", "JetBrains Mono", "SF Mono", monospace;
+
+  /* Motion — opacity preferred over movement, no spring/bounce */
+  --ease-out: cubic-bezier(0.25, 0.1, 0.25, 1);
+  --duration-micro: 150ms;
+  --duration-transition: 250ms;
 }
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  /* Surfaces */
+  --color-bg-primary: var(--black);
+  --color-bg-secondary: var(--surface);
+  --color-bg-tertiary: var(--surface-raised);
+  --color-bg-hover: var(--surface-raised);
+
+  /* Borders */
+  --color-border: var(--border);
+  --color-border-light: var(--border-visible);
+
+  /* Text */
+  --color-text-primary: var(--text-primary);
+  --color-text-secondary: var(--text-secondary);
+  --color-text-muted: var(--text-disabled);
+  --color-text-display: var(--text-display);
+
+  /* Accent & status — red is "interrupt", use sparingly */
+  --color-accent: var(--accent);
+  --color-accent-hover: var(--accent);
+  --color-accent-subtle: var(--accent-subtle);
+  --color-success: var(--success);
+  --color-success-subtle: var(--success-subtle);
+  --color-warning: var(--warning);
+  --color-warning-subtle: var(--warning-subtle);
+  --color-danger: var(--accent);
+  --color-info: var(--text-secondary);
+  --color-interactive: var(--interactive);
+
+  /* Fonts */
+  --font-sans: var(--font-body);
+  --font-mono: var(--font-data);
+  --font-display: var(--font-display);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+/* ─── Base ─── */
+
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--border-visible) transparent;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--black);
+  color: var(--text-primary);
+  font-family: var(--font-body);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* ─── Nothing Design — Typography Classes ─── */
+
+/* Display: Doto font, hero moments only */
+.nd-display {
+  font-family: var(--font-display);
+  letter-spacing: -0.02em;
+  line-height: 1.05;
+  color: var(--text-display);
+}
+
+/* Section heading: mono, all caps, tracked */
+.nd-heading {
+  font-family: var(--font-data);
+  font-size: 13px;
+  line-height: 1.2;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-display);
+}
+
+/* Label: smallest readable, metadata tier */
+.nd-label {
+  font-family: var(--font-data);
+  font-size: var(--label);
+  line-height: 1.2;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+}
+
+/* Data values: mono for numbers/codes */
+.nd-data {
+  font-family: var(--font-data);
+}
+
+/* ─── Nothing Design — Sidebar ─── */
+
+.sidebar-link {
+  transition: all var(--duration-micro) var(--ease-out);
+}
+
+/* ─── Nothing Design — Table ─── */
+
+.nd-table {
+  width: 100%;
+  font-size: var(--body-sm);
+  border-collapse: collapse;
+}
+
+.nd-table thead th {
+  font-family: var(--font-data);
+  font-size: var(--label);
+  line-height: 1.2;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+  padding: 0 var(--space-md) var(--space-md) 0;
+  text-align: left;
+  font-weight: 400;
+  border-bottom: 1px solid var(--border-visible);
+}
+
+.nd-table tbody tr {
+  border-bottom: 1px solid var(--border);
+  transition: background var(--duration-micro) var(--ease-out);
+}
+
+.nd-table tbody tr:hover {
+  background: var(--surface-raised);
+}
+
+.nd-table tbody td {
+  padding: var(--space-sm) var(--space-md) var(--space-sm) 0;
+  vertical-align: middle;
+}
+
+/* Active row indicator — left accent border */
+.nd-table tbody tr.nd-row-active {
+  background: var(--surface-raised);
+  box-shadow: inset 2px 0 0 var(--accent);
+}
+
+/* Right-aligned number cells */
+.nd-table .nd-cell-number {
+  text-align: right;
+  font-family: var(--font-data);
+}
+
+/* ─── Nothing Design — List (key/value rows) ─── */
+
+.nd-list-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-sm) 0;
+}
+
+.nd-list-item + .nd-list-item {
+  border-top: 1px solid var(--border);
+}
+
+.nd-list-label {
+  font-family: var(--font-data);
+  font-size: var(--label);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+}
+
+.nd-list-value {
+  font-family: var(--font-data);
+  font-size: var(--body-sm);
+  color: var(--text-primary);
+}
+
+/* ─── Nothing Design — Dot Grid Motif ─── */
+
+.dot-grid {
+  background-image: radial-gradient(circle, var(--border-visible) 1px, transparent 1px);
+  background-size: 16px 16px;
+}
+
+.dot-grid-subtle {
+  background-image: radial-gradient(circle, var(--border) 0.5px, transparent 0.5px);
+  background-size: 12px 12px;
+}
+
+/* Card texture — slightly brighter dots for dark surfaces */
+.nd-texture {
+  background-image: radial-gradient(circle, #3A3A3A 1.5px, transparent 1.5px);
+  background-size: 18px 18px;
+}
+
+/* ─── Nothing Design — Page Section Spacing ─── */
+
+.nd-section {
+  margin-bottom: var(--space-md);
+}
+
+.nd-section-lg {
+  margin-bottom: var(--space-2xl);
+}
+
+/* ─── Nothing Design — Page Header ─── */
+
+.nd-page-header {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--space-xl);
+  margin-bottom: var(--space-md);
+  padding-bottom: var(--space-md);
+  border-bottom: 1px solid var(--border);
+}
+
+.nd-page-header > *:last-child {
+  flex-shrink: 0;
+}
+
+.nd-page-header h1 {
+  font-family: var(--font-display);
+  font-size: var(--display-md);
+  letter-spacing: -0.02em;
+  line-height: 1.1;
+  color: var(--text-display);
+}
+
+/* ─── Webkit Scrollbar ─── */
+
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--border-visible);
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--text-disabled);
+}
+
+/* ─── Nothing Design — Focus Ring ─── */
+
+*:focus-visible {
+  outline: 1px solid var(--border-visible);
+  outline-offset: 2px;
+}
+
+/* ─── Nothing Design — Selection ─── */
+
+::selection {
+  background: rgba(255, 255, 255, 0.12);
+  color: var(--text-display);
 }

@@ -1,0 +1,9 @@
+name,category,phone,email,website,full_address,city,state,rating,reviews,google_maps_url
+Tacos El Paisa,Restaurante,+52 55 1234 5678,contacto@tacospaisa.com,tacospaisa.com,"Av. Insurgentes Sur 123, Roma Norte",Ciudad de México,CDMX,4.5,120,https://maps.google.com/1
+La Cocina de Doña María,Restaurante,+52 55 2345 6789,,,"Calle Madero 45, Centro",Ciudad de México,CDMX,4.8,350,https://maps.google.com/2
+Pizzería Roma,Restaurante,+52 55 3456 7890,,pizzeriaroma.mx,"Calle Orizaba 78, Roma Norte",Ciudad de México,CDMX,4.2,85,https://maps.google.com/3
+Café Central,Cafetería,+52 55 4567 8901,info@cafecentral.com.mx,cafecentral.com.mx,"Av. Juárez 200, Centro",Ciudad de México,CDMX,4.0,200,https://maps.google.com/4
+Sushi Tokio Express,Restaurante Japonés,+52 55 5678 9012,,sushitokioexpress.com,"Av. Revolución 500, Mixcoac",Ciudad de México,CDMX,3.9,45,https://maps.google.com/5
+Barbacoa Don Julio,Restaurante,+52 55 6789 0123,,,"Calle López 89, Centro",Ciudad de México,CDMX,4.7,500,https://maps.google.com/6
+Gym Power Fit,Gimnasio,+52 55 7890 1234,contacto@gympowerfit.com,gympowerfit.com,"Av. Universidad 300, Del Valle",Ciudad de México,CDMX,4.1,90,https://maps.google.com/7
+Estética Glamour,Salón de Belleza,+52 55 8901 2345,,esteticaglamour.com,"Calle Durango 150, Roma Norte",Ciudad de México,CDMX,4.3,65,https://maps.google.com/8
