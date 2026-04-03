@@ -234,6 +234,7 @@ sqlite.exec(`
   CREATE TABLE IF NOT EXISTS email_templates (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     name TEXT NOT NULL,
+    channel TEXT NOT NULL DEFAULT 'email',
     category TEXT,
     subject_template TEXT NOT NULL,
     body_html_template TEXT NOT NULL,
@@ -273,6 +274,13 @@ try {
 }
 try {
   sqlite.exec(`ALTER TABLE emails ADD COLUMN clicked_at TEXT`);
+} catch {
+  // Column already exists
+}
+
+// Add channel column to email_templates (migration for existing DBs)
+try {
+  sqlite.exec(`ALTER TABLE email_templates ADD COLUMN channel TEXT NOT NULL DEFAULT 'email'`);
 } catch {
   // Column already exists
 }

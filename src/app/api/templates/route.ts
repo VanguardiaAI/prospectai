@@ -38,7 +38,7 @@ export async function POST(req: NextRequest) {
   }
 
   // Create from scratch
-  const { name, category, subjectTemplate, bodyHtmlTemplate, bodyTextTemplate, variables } = body;
+  const { name, channel, category, subjectTemplate, bodyHtmlTemplate, bodyTextTemplate, variables } = body;
 
   if (!name || !subjectTemplate || !bodyHtmlTemplate || !bodyTextTemplate) {
     return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
@@ -46,6 +46,7 @@ export async function POST(req: NextRequest) {
 
   const result = db.insert(emailTemplates).values({
     name,
+    channel: channel || "email",
     category: category || null,
     subjectTemplate,
     bodyHtmlTemplate,
@@ -67,6 +68,7 @@ export async function PUT(req: NextRequest) {
 
   const allowed: Record<string, unknown> = {};
   if (updates.name !== undefined) allowed.name = updates.name;
+  if (updates.channel !== undefined) allowed.channel = updates.channel;
   if (updates.category !== undefined) allowed.category = updates.category;
   if (updates.subjectTemplate !== undefined) allowed.subjectTemplate = updates.subjectTemplate;
   if (updates.bodyHtmlTemplate !== undefined) allowed.bodyHtmlTemplate = updates.bodyHtmlTemplate;

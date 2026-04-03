@@ -222,6 +222,7 @@ export const sendingDomains = sqliteTable("sending_domains", {
 export const emailTemplates = sqliteTable("email_templates", {
   id: integer("id").primaryKey({ autoIncrement: true }),
   name: text("name").notNull(),
+  channel: text("channel", { enum: ["email", "whatsapp"] }).notNull().default("email"),
   category: text("category"),
   subjectTemplate: text("subject_template").notNull(),
   bodyHtmlTemplate: text("body_html_template").notNull(),
