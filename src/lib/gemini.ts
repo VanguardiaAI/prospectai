@@ -86,8 +86,10 @@ function getLocaleLabel(country: string): string {
 function getLocaleWritingRules(country: string): string {
   const formatting = `- NUNCA uses em dash (—) ni guion largo. Usa comas, puntos o guiones cortos (-) para separar ideas.
 - NUNCA uses signo de exclamación de apertura (¡). Solo usa el de cierre (!) cuando sea estrictamente necesario.
+- NUNCA uses signo de interrogación de apertura (¿) en mensajes de WhatsApp. En WhatsApp nadie lo usa, queda robótico. Solo usa el de cierre (?). En emails sí puedes usarlo si la región lo requiere.
 - Preséntate SIEMPRE como una persona real: "Soy [nombre], de [empresa]". NUNCA digas "Soy [empresa]" ni te presentes como si fueras la empresa misma.
-- Escribe de forma natural y humana. Evita construcciones rígidas o que suenen a copy publicitario.`;
+- Escribe de forma natural y humana. Evita construcciones rígidas o que suenen a copy publicitario.
+- SIEMPRE conecta cualquier problema detectado con un IMPACTO DE NEGOCIO concreto: pérdida de clientes, menos ventas, peor visibilidad, etc. NUNCA listes problemas técnicos sin explicar qué pierde el negocio por eso.`;
 
   const regional: Record<string, string> = {
     ES: `- Región: España. Usa "tú" y "vosotros" de forma natural.
@@ -269,7 +271,7 @@ export async function generateEmail(
   const prompt = `Eres un copywriter experto generando emails de prospección para ${ctx.name} (${ctx.url}).
 ${ctx.description}
 
-Tu objetivo es escribir un email personalizado para contactar a un negocio que podría beneficiarse de nuestros servicios.
+Tu objetivo: escribir un email que haga que el dueño del negocio QUIERA responder porque ve una oportunidad clara de conseguir más clientes o más ventas.
 
 DATOS DEL NEGOCIO:
 - Nombre: ${businessName}
@@ -290,16 +292,31 @@ TONO DEL EMAIL: ${tone}
 ${stepContext}
 ${extraInstructions}
 
+PRINCIPIO FUNDAMENTAL - ENFOQUE EN BENEFICIO:
+El prospecto NO le importan sus problemas técnicos. Le importa tener MÁS CLIENTES y MÁS VENTAS. Cada problema que menciones debe traducirse a impacto de negocio:
+- "Sin SSL" → "Los visitantes ven una alerta de 'sitio no seguro' y se van a la competencia"
+- "No es responsive" → "El 70% de la gente busca desde el celular y no puede navegar bien por la página"
+- "SEO bajo" → "Cuando alguien busca [su categoría] en [su ciudad], aparece la competencia y ellos no"
+- "Sin web" → "Todos los clientes que buscan en Google un negocio como el suyo no los encuentran"
+- "Contenido hackeado/spam" → "Google podría estar penalizando el sitio y los clientes ven contenido que daña la imagen del negocio"
+
+ESTRUCTURA DEL EMAIL (Framework PAS orientado a beneficio):
+1. HOOK (1-2 frases): Algo específico del negocio que demuestre que lo investigaste. NO halagues genéricamente.
+2. OPORTUNIDAD (2-3 frases): Conecta lo que encontraste con una oportunidad concreta de crecimiento. NO listes problemas técnicos. Habla de clientes que están perdiendo o que podrían captar.
+3. PRUEBA/CREDIBILIDAD (1 frase): Menciona brevemente cómo ayudas a negocios similares (sin prometer resultados exactos).
+4. CTA (1 frase): Pregunta suave orientada a que el prospecto quiera saber más. Ej: "Te interesaría ver cuánto potencial tiene tu zona?" NO: "Agenda una llamada".
+
 INSTRUCCIONES:
 1. Escribe en ${localeLabel}
-2. El email debe ser breve, directo y personalizado para este negocio específico
-3. Menciona problemas ESPECÍFICOS detectados (no genéricos), ya sea de web, SEO, Google Business, redes sociales o IA
-4. Ofrece la solución más relevante según los servicios recomendados (NO menciones todos, elige 1-2 máximo)
+2. El email debe ser breve (75-125 palabras máx para inicial, 50-75 para follow-up), directo y personalizado
+3. NUNCA uses jerga técnica sin traducirla a impacto de negocio. Nada de "SSL", "responsive", "SEO", "meta tags" a secas
+4. Ofrece la solución más relevante (1-2 servicios máximo), pero enmarcada como RESULTADO para el negocio
 5. Preséntate como "${fromName}, de ${ctx.name}". NUNCA digas "Soy ${ctx.name}" ni te presentes como si fueras la empresa
-6. NO uses lenguaje de spam ni promesas exageradas
-7. El email debe sentirse como si lo hubiera escrito una persona real
-8. Incluye un CTA claro pero no presionante
-9. NO añadas ningún footer legal ni texto de baja, el sistema los inyecta automáticamente
+6. NO uses lenguaje de spam: nada de "gratis", "sin compromiso", "oferta", "diagnóstico gratuito". Usa alternativas naturales: "te preparo un análisis", "te muestro el potencial", "te cuento cómo funciona"
+7. El email debe sentirse como si lo hubiera escrito una persona real a otra persona real
+8. NUNCA uses halagos genéricos como "Me encanta lo que hacen" o "Gran proyecto"
+9. El asunto debe ser corto (4-7 palabras), en sentence case, y generar curiosidad sobre el BENEFICIO, no sobre el problema
+10. NO añadas ningún footer legal ni texto de baja, el sistema los inyecta automáticamente
 
 REGLAS DE ESCRITURA Y ADAPTACIÓN REGIONAL (OBLIGATORIAS):
 ${writingRules}
@@ -358,6 +375,8 @@ INSTRUCCIONES ADICIONALES: ${instructions || "Solo cambia el tono"}
 REMITENTE: ${fromName}, de ${ctx.name}. Preséntate SIEMPRE como "${fromName}, de ${ctx.name}". NUNCA digas "Soy ${ctx.name}".
 IDIOMA: ${localeLabel}
 NO añadas ningún footer legal ni texto de baja, el sistema los inyecta automáticamente.
+
+PRINCIPIO CLAVE: El email debe enfocarse en lo que el prospecto GANA (más clientes, más ventas, más visibilidad), NO en listar problemas técnicos. Traduce cada problema a impacto de negocio. NUNCA uses jerga técnica sin explicar qué significa para sus clientes/ventas. Evita "gratis", "sin compromiso", "diagnóstico gratuito" - usa alternativas naturales.
 
 REGLAS DE ESCRITURA Y ADAPTACIÓN REGIONAL (OBLIGATORIAS):
 ${writingRules}
@@ -425,21 +444,46 @@ REMITENTE: ${fromName} de ${ctx.name}
 ${stepContext}
 ${extraInstructions}
 
-REGLAS PARA EL MENSAJE DE WHATSAPP:
+OBJETIVO PRINCIPAL DEL MENSAJE:
+El prospecto tiene que sentir que GANA algo hablando contigo. No le estás auditando ni señalando errores: le estás mostrando cómo puede conseguir MÁS CLIENTES o MÁS VENTAS. Cada problema técnico que menciones debe conectarse con un beneficio tangible para su negocio.
+
+ESTRUCTURA DEL MENSAJE:
+1. APERTURA (1 línea): Saludo natural + quién eres. Breve.
+2. GANCHO DE VALOR (1-2 líneas): Algo específico de su negocio conectado con una OPORTUNIDAD de crecimiento. NO listes problemas técnicos. Traduce cada problema a lo que significa en clientes o ventas.
+3. PROPUESTA (1 línea): Qué le ofreces concretamente y qué va a conseguir con ello.
+4. CIERRE (1 línea): Pregunta abierta natural que invite a responder.
+
+EJEMPLOS DE BUEN MENSAJE vs MAL MENSAJE:
+
+MAL (suena a spam, lista problemas, no dice qué gana):
+"Hola. Soy Álex, de VanguardIA, y hemos visto vuestra web en La Chata de Guadalajara. Hemos notado que tiene contenido de casinos ajeno a vuestro negocio, algo crítico por seguridad y para vuestra imagen online. Además, carece de certificados SSL y no está adaptada a móviles. Podemos ofrecerte un diagnóstico gratuito para ver cómo optimizarla y asegurar vuestra presencia digital. ¿Te gustaría que lo analizáramos sin compromiso?"
+
+Por qué es malo: usa "vuestra" (España) para un negocio mexicano, lista problemas técnicos que no entiende el dueño, no dice qué gana, "diagnóstico gratuito" suena a spam, usa ¿ en WhatsApp.
+
+BIEN (conversacional, enfocado en beneficio, adaptado a región):
+"Hola, soy Álex de VanguardIA. Vi La Chata de Guadalajara y la verdad es que se ve que tienen muy buena propuesta gastronómica. Me di cuenta de que su web podría estar alejando clientes en lugar de atraerlos, sobre todo desde el celular que es donde busca la gente hoy. Ayudamos a restaurantes como el suyo a que les lleguen más comensales por internet. Te puedo armar un análisis rápido para que veas el potencial, te interesa?"
+
+Por qué es bueno: habla de "su" no "vuestra", dice "celular" no "móvil", conecta el problema con PERDER CLIENTES, ofrece ver "el potencial" (positivo), cierra natural sin ¿.
+
+OTRO BUEN EJEMPLO (negocio sin web):
+"Hola, soy Álex de VanguardIA. Busqué La Chata de Guadalajara en internet y no encontré una web del negocio. Eso significa que todos los clientes que buscan taquerías en Google no los están encontrando a ustedes, se están yendo a la competencia. Ayudamos a negocios gastronómicos a captar esos clientes con una presencia web que de verdad genere visitas. Quieres que te cuente cómo funciona?"
+
+REGLAS PARA EL MENSAJE:
 1. Escribe en ${localeLabel}
 2. Máximo 500 caracteres. WhatsApp es conversacional, no formal
-3. Saludo breve y natural, como si hablaras con alguien en persona
-4. Ve al punto rápido: menciona algo ESPECÍFICO de su negocio o su presencia digital
-5. Si no tiene web o es de baja calidad, mencionalo como oportunidad, NO como crítica
-6. Ofrece algo concreto (diagnóstico complementario, propuesta personalizada)
-7. Cierra con una pregunta abierta para generar respuesta
+3. SIEMPRE traduce problemas técnicos a IMPACTO DE NEGOCIO: "sin SSL" → "los clientes ven una alerta de sitio no seguro y se van", "no es responsive" → "la gente que busca desde el celular no puede ver bien tu página y se va a la competencia"
+4. NUNCA uses jerga técnica sin explicar qué significa para su bolsillo: nada de "SSL", "responsive", "SEO", "meta tags" a secas. Si mencionas algo técnico, explica el impacto en clientes/ventas
+5. El beneficio siempre es: más clientes, más visitas, más ventas, mejor imagen, que no pierdan clientes ante la competencia
+6. Si no tiene web o es de baja calidad, mencionalo como oportunidad de CRECIMIENTO, nunca como crítica
+7. Ofrece algo concreto enfocado en el resultado: "ver cuántos clientes podrían estar captando", "análisis del potencial de tu zona", NO "diagnóstico gratuito" ni "auditoría" que suena a vendedor
 8. NO uses HTML, NO uses formatos de email
 9. NO uses emojis excesivos (máximo 1-2 si el tono lo permite)
 10. Firma solo con el nombre, sin links ni datos adicionales
-11. Debe sonar como un mensaje real de WhatsApp, no un copy publicitario
-12. Puedes hablar de cualquier servicio relevante (web, SEO, IA, Google Business, redes) según lo que más necesite el negocio
-13. Preséntate como "${fromName}, de ${ctx.name}". NUNCA digas "Soy ${ctx.name}" ni te presentes como la empresa
-14. NO incluyas URLs, links ni dominios en el mensaje. Favorecen la detección de spam y el bloqueo del número
+11. Debe sonar como un mensaje real de WhatsApp que le mandarías a un conocido profesional, no copy publicitario
+12. Preséntate como "${fromName}, de ${ctx.name}". NUNCA digas "Soy ${ctx.name}" ni te presentes como la empresa
+13. NO incluyas URLs, links ni dominios en el mensaje. Favorecen la detección de spam y el bloqueo del número
+14. NUNCA uses signo de interrogación de apertura (¿). En WhatsApp nadie lo usa
+15. NUNCA digas "sin compromiso", "gratuito", "gratis", "diagnóstico gratuito". Suena a telemarketing. Usa alternativas naturales: "te puedo armar un análisis", "te cuento cómo funciona", "te muestro el potencial"
 
 REGLAS DE ESCRITURA Y ADAPTACIÓN REGIONAL (OBLIGATORIAS):
 ${writingRules}
@@ -507,26 +551,34 @@ ${customInstructions ? `INSTRUCCIONES ADICIONALES: ${customInstructions}` : ""}
 SERVICIOS QUE OFRECEMOS:
 ${servicesDesc}
 
+PRINCIPIO FUNDAMENTAL - ENFOQUE EN BENEFICIO:
+El dueño de negocio NO le importan problemas técnicos. Le importa tener MÁS CLIENTES y MÁS VENTAS. Todo problema debe traducirse a impacto de negocio:
+- "Sin SSL" → "Los visitantes ven 'sitio no seguro' y se van a la competencia"
+- "No responsive" → "El 70% busca desde el celular y no puede navegar bien por la página"
+- "SEO bajo" → "Cuando buscan {{category}} en {{city}}, sale la competencia y ellos no"
+- "Sin web" → "Los clientes que buscan en Google no los encuentran"
+
 REGLAS CRÍTICAS DE ANTI-SPAM Y MEJORES PRÁCTICAS (2026):
 1. LONGITUD: ${wordLimits[purpose]}. Los emails de más de 150 palabras tienen tasas de respuesta significativamente menores.
 2. FORMATO: Texto plano con HTML mínimo (solo <p>, <br>, <b>). SIN imágenes, SIN colores, SIN headers HTML.
-3. ASUNTO: 4-7 palabras, minúsculas o sentence case. NUNCA Title Case ni MAYÚSCULAS.
-4. PALABRAS SPAM PROHIBIDAS: gratis, oferta, garantizado, exclusivo, urgente, actúa ahora, descuento, sin coste, oportunidad única, resultados garantizados, dinero, beneficio, promoción, click aquí, sin compromiso.
-5. USA ALTERNATIVAS SEGURAS: "complementario" en vez de "gratis", "explorar" en vez de "comprar", "demostrado" en vez de "garantizado", "enfoque personalizado" en vez de "oferta exclusiva".
-6. PERSONALIZACIÓN: Usa variables {{variable}} para personalización. MÍNIMO: {{business_name}} y una referencia específica al negocio.
-7. UN SOLO CTA: Formulado como pregunta suave, bajo compromiso. Ej: "¿Merece la pena una charla de 15 min?" NO "Agenda una demo ahora".
-8. ESTRUCTURA (Framework PAS):
-   - HOOK: 1-2 frases reconociendo algo específico del prospecto
-   - SEÑAL: 1-2 frases conectando un problema detectable con un reto de negocio
-   - PROPUESTA DE VALOR: 2-3 frases, específica y cuantificada si es posible
-   - CTA: 1 frase, pregunta suave
+3. ASUNTO: 4-7 palabras, sentence case, que genere curiosidad sobre el BENEFICIO, no sobre el problema. Ej: "más clientes para {{business_name}}" NO "problemas en tu web".
+4. PALABRAS SPAM PROHIBIDAS: gratis, oferta, garantizado, exclusivo, urgente, actúa ahora, descuento, sin coste, oportunidad única, resultados garantizados, dinero, beneficio, promoción, click aquí, sin compromiso, diagnóstico gratuito.
+5. USA ALTERNATIVAS NATURALES: "te preparo un análisis" en vez de "diagnóstico gratuito", "te muestro el potencial" en vez de "oferta exclusiva", "te cuento cómo funciona" en vez de "sin compromiso".
+6. PERSONALIZACIÓN: Usa variables {{variable}}. MÍNIMO: {{business_name}} y una referencia específica al negocio.
+7. UN SOLO CTA: Pregunta suave orientada al beneficio. Ej: "Te interesaría ver cuánto potencial tiene tu zona?" NO "Agenda una demo ahora".
+8. ESTRUCTURA (Framework PAS orientado a beneficio):
+   - HOOK: 1-2 frases que demuestren que investigaste el negocio. SIN halagos genéricos.
+   - OPORTUNIDAD: 2-3 frases conectando lo detectado con clientes/ventas que podrían captar. NUNCA listes problemas técnicos a secas.
+   - CREDIBILIDAD: 1 frase sobre cómo ayudas a negocios similares (sin prometer cifras exactas).
+   - CTA: 1 frase, pregunta suave sobre el beneficio.
 9. FIRMA: Solo "{{sender_name}}, de ${ctx.name}". NUNCA "Soy ${ctx.name}". NO añadas footer legal ni link de baja (el sistema los inyecta).
 10. VARIACIÓN: El template debe sonar natural y humano, NO como un copy publicitario.
 11. PARA FOLLOW-UP: Cambia el ángulo. Si el inicial habla de web, el follow-up habla de SEO o IA. Más breve y directo.
 12. PARA BREAKUP: Despedida cordial, deja la puerta abierta, sin culpa ni presión.
 13. CUMPLIMIENTO LEGAL: El email debe poder identificarse como comunicación comercial. Remitente claramente identificado.
 14. NUNCA uses halagos genéricos como "Me encanta lo que hacéis" o "Me encanta lo que hacen".
-15. NUNCA prometas resultados, usa lenguaje como "ayudamos a", "conseguimos que".
+15. NUNCA prometas resultados exactos, usa lenguaje como "ayudamos a", "conseguimos que".
+16. NUNCA uses jerga técnica sin traducirla a impacto: nada de "SSL", "responsive", "SEO" a secas. Siempre explica qué significa para sus clientes/ventas.
 
 REGLAS DE ESCRITURA Y ADAPTACIÓN REGIONAL (OBLIGATORIAS):
 ${writingRules}
@@ -585,24 +637,31 @@ ${customInstructions ? `INSTRUCCIONES ADICIONALES: ${customInstructions}` : ""}
 SERVICIOS QUE OFRECEMOS:
 ${servicesDesc}
 
+PRINCIPIO FUNDAMENTAL - ENFOQUE EN BENEFICIO:
+El prospecto tiene que sentir que GANA algo. No le audites ni señales errores: muéstrale cómo puede conseguir MÁS CLIENTES o MÁS VENTAS. Traduce cada problema técnico a impacto de negocio:
+- "Sin web" → "los clientes que buscan en Google no te encuentran, se van a la competencia"
+- "Web lenta/mal" → "la gente entra, no carga bien y se va"
+- "Sin presencia en redes" → "tus competidores están captando a tus clientes potenciales ahí"
+
 REGLAS PARA WHATSAPP B2B (2026):
 1. MÁXIMO 500 caracteres. WhatsApp es conversacional, no formal.
 2. Saludo breve y natural, como si hablaras con alguien en persona.
-3. Ve al punto rápido: menciona algo ESPECÍFICO del negocio del prospecto usando variables.
-4. Si el negocio no tiene web o es de baja calidad, mencionalo como OPORTUNIDAD, no como crítica.
-5. Ofrece algo concreto: diagnóstico sin coste, propuesta personalizada, análisis rápido.
-6. Cierra con pregunta abierta para generar respuesta.
-7. SIN HTML, SIN formato de email.
-8. MÁXIMO 1-2 emojis si el tono lo permite. Preferiblemente 0.
-9. Firma: "{{sender_name}}, de ${ctx.name}". NUNCA "Soy ${ctx.name}". Sin links, URLs ni dominios.
-10. Debe sonar como un mensaje real de WhatsApp, NO como copy publicitario.
-11. PROHIBIDO: lenguaje de spam, promesas exageradas, urgencia artificial, "oferta por tiempo limitado".
-12. USA ALTERNATIVAS NATURALES: "te comento" en vez de "te informo", "vi que" en vez de "he observado", "qué te parece" en vez de "le interesaría".
-13. Para FOLLOW-UP: Referencia al mensaje anterior. Más breve. Nuevo ángulo de valor.
-14. Para BREAKUP: Cordial, sin presión, deja la puerta abierta.
-15. ANTI-BLOQUEO: Los mensajes repetitivos o demasiado comerciales provocan reportes y bloqueo del número. Naturalidad ante todo.
-16. PERSONALIZACIÓN: Usa variables {{variable}} para hacer el mensaje específico al prospecto.
-17. NO incluyas URLs, links ni dominios en el mensaje. Favorecen detección de spam y bloqueo del número.
+3. SIEMPRE traduce problemas a IMPACTO DE NEGOCIO: clientes que pierden, ventas que no llegan, competencia que les gana.
+4. NUNCA uses jerga técnica sin explicar qué pierde el negocio: nada de "SSL", "responsive", "SEO" a secas.
+5. Si el negocio no tiene web o es de baja calidad, mencionalo como OPORTUNIDAD de crecimiento, no como crítica.
+6. Ofrece algo enfocado en resultado: "ver cuántos clientes podrían captar", "análisis del potencial de tu zona". NUNCA "diagnóstico gratuito", "sin compromiso", "gratis".
+7. Cierra con pregunta abierta natural para generar respuesta. SIN signo de apertura (¿), solo cierre (?).
+8. SIN HTML, SIN formato de email.
+9. MÁXIMO 1-2 emojis si el tono lo permite. Preferiblemente 0.
+10. Firma: "{{sender_name}}, de ${ctx.name}". NUNCA "Soy ${ctx.name}". Sin links, URLs ni dominios.
+11. Debe sonar como un mensaje real de WhatsApp a un conocido profesional, NO como copy publicitario.
+12. PROHIBIDO: lenguaje de spam, promesas exageradas, urgencia artificial, "oferta por tiempo limitado", "sin compromiso".
+13. USA ALTERNATIVAS NATURALES: "te comento" en vez de "te informo", "vi que" en vez de "he observado", "qué te parece" en vez de "le interesaría".
+14. Para FOLLOW-UP: Referencia al mensaje anterior. Más breve. Nuevo ángulo de valor.
+15. Para BREAKUP: Cordial, sin presión, deja la puerta abierta.
+16. ANTI-BLOQUEO: Los mensajes repetitivos o demasiado comerciales provocan reportes y bloqueo del número. Naturalidad ante todo.
+17. PERSONALIZACIÓN: Usa variables {{variable}} para hacer el mensaje específico al prospecto.
+18. NO incluyas URLs, links ni dominios en el mensaje. Favorecen detección de spam y bloqueo del número.
 
 REGLAS DE ESCRITURA Y ADAPTACIÓN REGIONAL (OBLIGATORIAS):
 ${writingRules}
@@ -662,7 +721,7 @@ INSTRUCCIONES: ${instructions || "Solo cambia el tono"}
 REMITENTE: ${fromName}, de ${ctx.name}. Preséntate como "${fromName}, de ${ctx.name}". NUNCA digas "Soy ${ctx.name}".
 IDIOMA: ${localeLabel}
 
-REGLAS: Máximo 500 caracteres, conversacional, sin HTML, sin emojis excesivos, que suene como WhatsApp real. Puede hablar de web, SEO, IA, Google Business o redes según lo que sea más relevante. NO incluyas URLs, links ni dominios en el mensaje.
+REGLAS: Máximo 500 caracteres, conversacional, sin HTML, sin emojis excesivos, que suene como WhatsApp real. Enfócate en lo que el prospecto GANA (más clientes, más ventas), no en listar problemas técnicos. Traduce cada problema a impacto de negocio. NUNCA uses "gratis", "sin compromiso", "diagnóstico gratuito". NUNCA uses jerga técnica sin explicar qué pierde el negocio. NUNCA uses ¿ (nadie lo usa en WhatsApp). Puede hablar de web, SEO, IA, Google Business o redes según lo que sea más relevante. NO incluyas URLs, links ni dominios en el mensaje.
 
 REGLAS DE ESCRITURA Y ADAPTACIÓN REGIONAL (OBLIGATORIAS):
 ${writingRules}
