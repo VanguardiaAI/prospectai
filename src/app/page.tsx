@@ -20,8 +20,12 @@ import {
   Eye,
   Reply,
 } from "lucide-react";
+import { motion, useReducedMotion } from "motion/react";
 import { GlobeCdn } from "@/components/ui/cobe-globe-cdn";
 import MagnifiedBento from "@/components/ui/magnified-bento";
+import { FeatureCard } from "@/components/ui/grid-feature-cards";
+import GlobeFeatureSection from "@/components/ui/globe-feature-section";
+import { FeaturesDashboard } from "@/components/ui/features-dashboard";
 
 /* ─── Scroll-reveal hook ─── */
 function useReveal() {
@@ -213,6 +217,7 @@ function Nav() {
             { href: "#features", text: "FUNCIONALIDADES" },
             { href: "#process", text: "PROCESO" },
             { href: "#metrics", text: "RESULTADOS" },
+            { href: "#pricing", text: "PRICING" },
           ].map((l) => (
             <a
               key={l.href}
@@ -248,7 +253,7 @@ function Hero() {
   const ref = useReveal();
   return (
     <section className="pt-28 pb-20 px-6 relative overflow-hidden" ref={ref}>
-      <div className="absolute inset-0 l-dot-grid-dense" style={{ opacity: 0.4 }} />
+      <div className="absolute inset-0 l-dot-grid-dense pointer-events-none" style={{ opacity: 0.4 }} />
 
       <div className="max-w-[1200px] mx-auto relative">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
@@ -328,52 +333,66 @@ function SearchShowcase() {
 
 /* ─── Features ─── */
 function Features() {
-  const ref = useReveal();
   const features = [
-    { icon: Search, title: "Búsqueda inteligente", desc: "Encuentra negocios por ciudad, sector y tipo. Filtra por los que realmente necesitan tus servicios.", segments: 8 },
-    { icon: Sparkles, title: "Análisis con IA", desc: "Cada web se analiza automáticamente: velocidad, SEO, seguridad, diseño responsivo y más.", segments: 6 },
-    { icon: Mail, title: "Emails personalizados", desc: "La IA genera mensajes únicos basados en los problemas reales de cada negocio.", segments: 9 },
-    { icon: MessageCircle, title: "WhatsApp integrado", desc: "Conecta directamente con el decisor. Seguimiento automático integrado.", segments: 7 },
-    { icon: Target, title: "Pipeline visual", desc: "Kanban integrado para mover leads: nuevo, contactado, interesado, cliente.", segments: 5 },
-    { icon: BarChart3, title: "Métricas en tiempo real", desc: "Tasas de apertura, clics, respuestas y conversión. Optimiza con datos reales.", segments: 10 },
+    { icon: Search, title: "Búsqueda inteligente", description: "Encuentra negocios por ciudad, sector y tipo. Filtra por los que realmente necesitan tus servicios." },
+    { icon: Sparkles, title: "Análisis con IA", description: "Cada web se analiza automáticamente: velocidad, SEO, seguridad, diseño responsivo y más." },
+    { icon: Mail, title: "Emails personalizados", description: "La IA genera mensajes únicos basados en los problemas reales de cada negocio." },
+    { icon: MessageCircle, title: "WhatsApp integrado", description: "Conecta directamente con el decisor. Seguimiento automático integrado." },
+    { icon: Target, title: "Pipeline visual", description: "Kanban integrado para mover leads: nuevo, contactado, interesado, cliente." },
+    { icon: BarChart3, title: "Métricas en tiempo real", description: "Tasas de apertura, clics, respuestas y conversión. Optimiza con datos reales." },
   ];
 
   return (
-    <section id="features" className="py-24 px-6" ref={ref}>
-      <div className="max-w-[1200px] mx-auto">
-        <div className="mb-16" data-reveal style={{ opacity: 0 }}>
+    <section id="features" className="py-24 px-6">
+      <div className="max-w-[1200px] mx-auto space-y-8">
+        <FeaturesAnimatedContainer className="max-w-[500px]">
           <span className="l-label block mb-4">FUNCIONALIDADES</span>
-          <h2 className="l-display-section max-w-[500px]">
+          <h2 className="l-display-section">
             Todo lo que necesitas para cerrar más clientes
           </h2>
-        </div>
+          <p className="l-body-sm mt-4">
+            Prospección, análisis, contacto y seguimiento. Todo automatizado con IA.
+          </p>
+        </FeaturesAnimatedContainer>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-px" style={{ background: "var(--c-border)", borderRadius: "12px", overflow: "hidden" }}>
-          {features.map((f, i) => (
-            <div
-              key={i}
-              data-reveal
-              className={`l-delay-${i + 1}`}
-              style={{
-                background: "var(--c-s100)",
-                padding: "32px",
-                opacity: 0,
-              }}
-            >
-              <div className="flex items-center justify-between mb-4">
-                <f.icon size={20} strokeWidth={1.5} style={{ color: i % 2 === 0 ? "var(--c-orange)" : "var(--c-dark)" }} />
-                <span className="l-label" style={{ fontSize: "10px", color: "var(--c-text3)" }}>
-                  {String(i + 1).padStart(2, "0")}
-                </span>
-              </div>
-              <h3 className="l-display-card mb-2">{f.title}</h3>
-              <p className="l-body-sm mb-4">{f.desc}</p>
-              <SegmentedBar filled={f.segments} total={10} />
-            </div>
+        <FeaturesAnimatedContainer
+          delay={0.4}
+          className="features-grid grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3"
+        >
+          {features.map((feature, i) => (
+            <FeatureCard key={i} feature={feature} />
           ))}
-        </div>
+        </FeaturesAnimatedContainer>
       </div>
     </section>
+  );
+}
+
+type FeaturesAnimProps = {
+  delay?: number;
+  className?: string;
+  style?: React.CSSProperties;
+  children: React.ReactNode;
+};
+
+function FeaturesAnimatedContainer({ className, style, delay = 0.1, children }: FeaturesAnimProps) {
+  const shouldReduceMotion = useReducedMotion();
+
+  if (shouldReduceMotion) {
+    return <div className={className} style={style}>{children}</div>;
+  }
+
+  return (
+    <motion.div
+      initial={{ filter: "blur(4px)", translateY: -8, opacity: 0 }}
+      whileInView={{ filter: "blur(0px)", translateY: 0, opacity: 1 }}
+      viewport={{ once: true }}
+      transition={{ delay, duration: 0.8 }}
+      className={className}
+      style={style}
+    >
+      {children}
+    </motion.div>
   );
 }
 
@@ -454,7 +473,7 @@ function Metrics() {
 
   return (
     <section id="metrics" className="py-24 px-6 relative" ref={ref}>
-      <div className="absolute inset-0 l-dot-grid" style={{ opacity: 0.3 }} />
+      <div className="absolute inset-0 l-dot-grid pointer-events-none" style={{ opacity: 0.3 }} />
       <div className="max-w-[1200px] mx-auto relative">
         <div className="mb-16" data-reveal style={{ opacity: 0 }}>
           <span className="l-label block mb-4">RESULTADOS</span>
@@ -552,50 +571,224 @@ function UseCases() {
   );
 }
 
-/* ─── CTA ─── */
-function CTA() {
+/* ─── Pricing ─── */
+function Pricing() {
   const ref = useReveal();
-  return (
-    <section id="cta" className="py-24 px-6" ref={ref}>
-      <div
-        data-reveal
-        className="max-w-[900px] mx-auto relative overflow-hidden"
-        style={{
-          background: "var(--c-dark)",
-          borderRadius: "16px",
-          padding: "clamp(40px, 6vw, 80px)",
-          opacity: 0,
-        }}
-      >
-        <div
-          className="absolute inset-0"
-          style={{
-            backgroundImage: "radial-gradient(circle, rgba(242,241,237,0.04) 1px, transparent 1px)",
-            backgroundSize: "20px 20px",
-          }}
-        />
 
-        <div className="relative text-center">
-          <span className="l-label block mb-6" style={{ color: "rgba(242,241,237,0.4)" }}>
-            EMPIEZA HOY
-          </span>
-          <h2 className="l-display-section mb-4" style={{ color: "var(--c-cream)" }}>
-            Tu primera campaña en menos de 5 minutos
+  const plans = [
+    {
+      name: "STARTER",
+      price: "0",
+      period: "GRATIS PARA SIEMPRE",
+      desc: "Para probar el motor de prospección sin compromiso.",
+      bar: 2,
+      features: [
+        "50 leads / mes",
+        "Análisis web básico",
+        "10 emails personalizados",
+        "Pipeline visual",
+        "1 búsqueda simultánea",
+      ],
+      cta: "EMPEZAR GRATIS",
+      ctaStyle: "secondary" as const,
+      accent: false,
+    },
+    {
+      name: "PRO",
+      price: "49",
+      period: "/ MES",
+      desc: "Para freelancers y agencias que quieren escalar su prospección.",
+      bar: 6,
+      features: [
+        "2,000 leads / mes",
+        "Análisis web completo",
+        "500 emails personalizados",
+        "WhatsApp integrado",
+        "Seguimiento automático",
+        "Métricas en tiempo real",
+        "3 búsquedas simultáneas",
+      ],
+      cta: "EMPEZAR CON PRO",
+      ctaStyle: "primary" as const,
+      accent: true,
+    },
+    {
+      name: "SCALE",
+      price: "149",
+      period: "/ MES",
+      desc: "Para equipos que necesitan volumen y funcionalidades avanzadas.",
+      bar: 10,
+      features: [
+        "10,000 leads / mes",
+        "Análisis web + auditoría SEO",
+        "Emails ilimitados",
+        "WhatsApp + seguimiento",
+        "API access",
+        "Usuarios ilimitados",
+        "Soporte prioritario",
+      ],
+      cta: "CONTACTAR VENTAS",
+      ctaStyle: "secondary" as const,
+      accent: false,
+    },
+  ];
+
+  return (
+    <section id="pricing" className="py-24 px-6 relative" ref={ref}>
+      <div className="absolute inset-0 l-dot-grid pointer-events-none" style={{ opacity: 0.25 }} />
+
+      <div className="max-w-[1200px] mx-auto relative">
+        <div className="mb-16" data-reveal style={{ opacity: 0 }}>
+          <span className="l-label block mb-4">PRICING</span>
+          <h2 className="l-display-section max-w-[500px]">
+            Planes que crecen contigo
           </h2>
-          <p className="l-body mb-10" style={{ color: "rgba(242,241,237,0.5)", maxWidth: "420px", margin: "0 auto 40px" }}>
-            Sin tarjeta de crédito. Sin compromisos. Configura,
-            lanza y empieza a recibir respuestas.
+          <p className="l-body mt-4 max-w-[420px]">
+            Sin sorpresas. Sin contratos. Cancela cuando quieras.
           </p>
-          <Link
-            href="/login"
-            className="l-btn-primary"
-            style={{ background: "var(--c-orange)", color: "#fff", padding: "16px 36px", fontSize: "13px" }}
-          >
-            CREAR CUENTA GRATIS
-            <ArrowRight size={14} />
-          </Link>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-px" style={{ background: "var(--c-border)", borderRadius: "12px", overflow: "hidden" }}>
+          {plans.map((plan, i) => (
+            <div
+              key={i}
+              data-reveal
+              className={`l-delay-${i + 1}`}
+              style={{
+                opacity: 0,
+                background: plan.accent ? "var(--c-cream)" : "var(--c-s100)",
+                padding: "40px 32px",
+                display: "flex",
+                flexDirection: "column",
+                position: "relative",
+              }}
+            >
+              {/* Accent top line for featured plan */}
+              {plan.accent && (
+                <div
+                  style={{
+                    position: "absolute",
+                    top: 0,
+                    left: "32px",
+                    right: "32px",
+                    height: "2px",
+                    background: "var(--c-orange)",
+                  }}
+                />
+              )}
+
+              {/* Plan header */}
+              <div className="flex items-center justify-between mb-6">
+                <span className="l-label" style={{ color: plan.accent ? "var(--c-orange)" : "var(--c-text3)" }}>
+                  {plan.name}
+                </span>
+                {plan.accent && (
+                  <span
+                    className="l-pill"
+                    style={{
+                      padding: "4px 10px",
+                      fontSize: "9px",
+                      borderColor: "var(--c-orange)",
+                      color: "var(--c-orange)",
+                    }}
+                  >
+                    POPULAR
+                  </span>
+                )}
+              </div>
+
+              {/* Price */}
+              <div className="flex items-baseline gap-2 mb-2">
+                <span className="l-doto" style={{ fontSize: "56px", color: plan.accent ? "var(--c-orange)" : "var(--c-dark)" }}>
+                  {plan.price === "0" ? "Free" : `€${plan.price}`}
+                </span>
+                {plan.price !== "0" && (
+                  <span className="l-label" style={{ color: "var(--c-text3)" }}>
+                    {plan.period}
+                  </span>
+                )}
+              </div>
+
+              {/* Period for free plan */}
+              {plan.price === "0" && (
+                <span className="l-label mb-4" style={{ color: "var(--c-text3)" }}>
+                  {plan.period}
+                </span>
+              )}
+
+              {/* Description */}
+              <p className="l-body-sm mb-6" style={{ minHeight: "48px" }}>
+                {plan.desc}
+              </p>
+
+              {/* Segmented bar */}
+              <div className="mb-8">
+                <SegmentedBar filled={plan.bar} total={10} />
+              </div>
+
+              {/* Features */}
+              <ul style={{ listStyle: "none", padding: 0, margin: 0, flex: 1 }}>
+                {plan.features.map((f, j) => (
+                  <li
+                    key={j}
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "10px",
+                      padding: "8px 0",
+                      borderBottom: j < plan.features.length - 1 ? "1px solid var(--c-border)" : "none",
+                    }}
+                  >
+                    <span
+                      style={{
+                        width: "4px",
+                        height: "4px",
+                        borderRadius: "50%",
+                        background: plan.accent ? "var(--c-orange)" : "var(--c-text3)",
+                        flexShrink: 0,
+                      }}
+                    />
+                    <span className="l-body-sm" style={{ fontSize: "14px" }}>{f}</span>
+                  </li>
+                ))}
+              </ul>
+
+              {/* CTA */}
+              <div className="mt-8">
+                <a
+                  href="#cta"
+                  className={plan.ctaStyle === "primary" ? "l-btn-primary" : "l-btn-secondary"}
+                  style={{
+                    width: "100%",
+                    justifyContent: "center",
+                    padding: "14px 24px",
+                    fontSize: "12px",
+                  }}
+                >
+                  {plan.cta}
+                  <ArrowRight size={13} />
+                </a>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* Bottom note */}
+        <div data-reveal className="mt-8 text-center l-delay-4" style={{ opacity: 0 }}>
+          <p className="l-label" style={{ color: "var(--c-text3)" }}>
+            TODOS LOS PLANES INCLUYEN SSL, GDPR COMPLIANCE Y SOPORTE POR EMAIL
+          </p>
         </div>
       </div>
+    </section>
+  );
+}
+
+/* ─── CTA ─── */
+function CTA() {
+  return (
+    <section className="py-24 px-6">
+      <GlobeFeatureSection />
     </section>
   );
 }
@@ -625,11 +818,13 @@ export default function LandingPage() {
     <div className="landing">
       <Nav />
       <Hero />
+      <FeaturesDashboard />
       <SearchShowcase />
       <Features />
       <Process />
       <Metrics />
       <UseCases />
+      <Pricing />
       <CTA />
       <Footer />
     </div>

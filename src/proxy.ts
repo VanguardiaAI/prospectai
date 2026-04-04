@@ -4,6 +4,7 @@ import { jwtVerify } from "jose";
 
 // Routes that don't require authentication
 const PUBLIC_ROUTES = [
+  "/",
   "/login",
   "/api/auth/login",
   "/api/auth/logout",
@@ -28,8 +29,14 @@ function isPublicRoute(pathname: string): boolean {
   );
 }
 
+// File extensions that are always public (served from /public)
+const STATIC_EXTENSIONS = [".png", ".jpg", ".jpeg", ".gif", ".svg", ".webp", ".ico", ".css", ".js", ".woff", ".woff2", ".ttf", ".otf"];
+
 function isStaticAsset(pathname: string): boolean {
-  return SKIP_PATTERNS.some((pattern) => pathname.startsWith(pattern));
+  return (
+    SKIP_PATTERNS.some((pattern) => pathname.startsWith(pattern)) ||
+    STATIC_EXTENSIONS.some((ext) => pathname.endsWith(ext))
+  );
 }
 
 export async function proxy(request: NextRequest) {
@@ -42,21 +49,6 @@ export async function proxy(request: NextRequest) {
 
   // Allow public routes
   if (isPublicRoute(pathname)) {
-    // If already logged in and visiting /login, redirect to dashboard
-    if (pathname === "/login") {
-      const token = request.cookies.get("prospect_session")?.value;
-      if (token) {
-        try {
-          const secret = new TextEncoder().encode(
-            process.env.AUTH_SECRET || ""
-          );
-          await jwtVerify(token, secret);
-          return NextResponse.redirect(new URL("/", request.url));
-        } catch {
-          // Invalid token, let them see login page
-        }
-      }
-    }
     return NextResponse.next();
   }
 
