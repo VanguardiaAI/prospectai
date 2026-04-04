@@ -135,7 +135,7 @@ export function registerAnalyticsTools(server: McpServer) {
       const { page: p, limit: l, offset } = paginationParams(page, limit);
 
       const conditions = [];
-      if (type) conditions.push(eq(activityLog.type, type));
+      if (type) conditions.push(sql`${activityLog.type} = ${type}`);
       const where = conditions.length > 0 ? and(...conditions) : undefined;
 
       const total = db.select({ count: sql<number>`count(*)` })

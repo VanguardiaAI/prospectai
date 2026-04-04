@@ -27,7 +27,7 @@ export function registerLeadTools(server: McpServer) {
       const conditions = [];
       if (campaignId) conditions.push(eq(leads.campaignId, campaignId));
       if (city) conditions.push(sql`lower(${leads.city}) = lower(${city})`);
-      if (status) conditions.push(eq(leads.status, status));
+      if (status) conditions.push(sql`${leads.status} = ${status}`);
       if (minScore !== undefined) conditions.push(gte(leads.opportunityScore, minScore));
       if (maxScore !== undefined) conditions.push(lte(leads.opportunityScore, maxScore));
       if (search) conditions.push(sql`(lower(${leads.name}) LIKE lower(${"%" + search + "%"}) OR lower(${leads.category}) LIKE lower(${"%" + search + "%"}))`);
