@@ -26,7 +26,7 @@ import {
 import { clsx } from "clsx";
 
 const nav = [
-  { href: "/", label: "DASHBOARD", icon: LayoutDashboard },
+  { href: "/overview", label: "DASHBOARD", icon: LayoutDashboard },
   { href: "/today", label: "HOY", icon: CalendarCheck },
   { href: "/campaigns", label: "CAMPANAS", icon: Megaphone },
   { href: "/search", label: "BUSCAR", icon: MapPin },

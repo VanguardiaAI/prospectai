@@ -324,6 +324,339 @@ body {
   color: var(--text-display);
 }
 
+/* ─── Landing Page Design System (Cursor + Nothing Design Blend) ─── */
+
+.landing {
+  --c-dark: #26251e;
+  --c-cream: #f2f1ed;
+  --c-s100: #f7f7f4;
+  --c-s200: #f2f1ed;
+  --c-s300: #ebeae5;
+  --c-s400: #e6e5e0;
+  --c-s500: #e1e0db;
+  --c-orange: #f54e00;
+  --c-border: rgba(38, 37, 30, 0.1);
+  --c-border-md: rgba(38, 37, 30, 0.2);
+  --c-border-strong: rgba(38, 37, 30, 0.55);
+  --c-text2: rgba(38, 37, 30, 0.55);
+  --c-text3: rgba(38, 37, 30, 0.4);
+
+  --f-gothic: var(--font-space-grotesk), system-ui, sans-serif;
+  --f-serif: var(--font-crimson-pro), Georgia, serif;
+  --f-mono: var(--font-space-mono), ui-monospace, monospace;
+  --f-dot: "Doto", var(--font-space-mono), monospace;
+
+  background: var(--c-cream);
+  color: var(--c-dark);
+  font-family: var(--f-gothic);
+  -webkit-font-smoothing: antialiased;
+}
+
+.landing ::selection {
+  background: rgba(245, 78, 0, 0.15);
+  color: var(--c-dark);
+}
+
+/* ─── Nav ─── */
+.l-nav {
+  background: rgba(242, 241, 237, 0.85);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--c-border);
+}
+
+/* ─── Typography ─── */
+.l-display-hero {
+  font-family: var(--f-gothic);
+  font-size: clamp(40px, 6vw, 76px);
+  font-weight: 300;
+  line-height: 1.05;
+  letter-spacing: -0.03em;
+  color: var(--c-dark);
+}
+
+.l-display-section {
+  font-family: var(--f-gothic);
+  font-size: clamp(28px, 3.5vw, 40px);
+  font-weight: 300;
+  line-height: 1.15;
+  letter-spacing: -0.02em;
+  color: var(--c-dark);
+}
+
+.l-display-card {
+  font-family: var(--f-gothic);
+  font-size: 20px;
+  font-weight: 400;
+  line-height: 1.25;
+  letter-spacing: -0.01em;
+  color: var(--c-dark);
+}
+
+.l-body {
+  font-family: var(--f-serif);
+  font-size: clamp(16px, 1.2vw, 19px);
+  font-weight: 400;
+  line-height: 1.55;
+  color: var(--c-text2);
+}
+
+.l-body-sm {
+  font-family: var(--f-serif);
+  font-size: 16px;
+  font-weight: 400;
+  line-height: 1.5;
+  color: var(--c-text2);
+}
+
+/* Nothing Design — mono instrument labels */
+.l-label {
+  font-family: var(--f-mono);
+  font-size: 11px;
+  font-weight: 400;
+  line-height: 1.2;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--c-text2);
+}
+
+/* Doto display — hero moments only */
+.l-doto {
+  font-family: var(--f-dot);
+  letter-spacing: -0.02em;
+  line-height: 1.05;
+  color: var(--c-dark);
+}
+
+/* ─── Buttons ─── */
+.l-btn-primary {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--c-dark);
+  color: var(--c-cream);
+  padding: 14px 28px;
+  border-radius: 999px;
+  font-family: var(--f-mono);
+  font-size: 13px;
+  font-weight: 400;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  line-height: 1;
+  border: none;
+  cursor: pointer;
+  transition: background 150ms ease, color 150ms ease;
+}
+
+.l-btn-primary:hover {
+  background: var(--c-orange);
+  color: #fff;
+}
+
+.l-btn-secondary {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: transparent;
+  color: var(--c-dark);
+  padding: 14px 28px;
+  border-radius: 999px;
+  font-family: var(--f-mono);
+  font-size: 13px;
+  font-weight: 400;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  line-height: 1;
+  border: 1px solid var(--c-border-strong);
+  cursor: pointer;
+  transition: border-color 150ms ease, color 150ms ease;
+}
+
+.l-btn-secondary:hover {
+  color: var(--c-orange);
+  border-color: var(--c-orange);
+}
+
+/* ─── Cards ─── */
+.l-card {
+  background: var(--c-s100);
+  border: 1px solid var(--c-border);
+  border-radius: 12px;
+  padding: 32px;
+  transition: border-color 200ms ease;
+}
+
+.l-card:hover {
+  border-color: var(--c-border-md);
+}
+
+/* ─── Pill ─── */
+.l-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: transparent;
+  color: var(--c-text2);
+  padding: 6px 14px;
+  border-radius: 999px;
+  font-family: var(--f-mono);
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  border: 1px solid var(--c-border-strong);
+}
+
+/* ─── Segmented Progress Bar (Nothing Design signature) ─── */
+.l-segmented-bar {
+  display: flex;
+  gap: 2px;
+  height: 6px;
+}
+
+.l-segmented-bar > span {
+  flex: 1;
+  background: var(--c-s500);
+  transition: background 400ms ease;
+}
+
+.l-segmented-bar > span.filled {
+  background: var(--c-orange);
+}
+
+/* ─── Dot Grid (Nothing Design motif) ─── */
+.l-dot-grid {
+  background-image: radial-gradient(circle, rgba(38,37,30,0.08) 1px, transparent 1px);
+  background-size: 20px 20px;
+}
+
+.l-dot-grid-dense {
+  background-image: radial-gradient(circle, rgba(38,37,30,0.06) 0.8px, transparent 0.8px);
+  background-size: 14px 14px;
+}
+
+/* ─── SVG Animations ─── */
+
+/* Pulse ring on hero graphic */
+@keyframes l-pulse-ring {
+  0% { transform: scale(0.8); opacity: 0; }
+  40% { opacity: 0.4; }
+  100% { transform: scale(1.6); opacity: 0; }
+}
+
+.l-pulse-ring {
+  animation: l-pulse-ring 2.4s cubic-bezier(0.25,0.1,0.25,1) infinite;
+}
+
+/* Scanning line */
+@keyframes l-scan {
+  0% { transform: translateY(-100%); opacity: 0; }
+  10% { opacity: 1; }
+  90% { opacity: 1; }
+  100% { transform: translateY(100%); opacity: 0; }
+}
+
+.l-scan-line {
+  animation: l-scan 3s cubic-bezier(0.25,0.1,0.25,1) infinite;
+}
+
+/* Draw path — for SVG line animations */
+@keyframes l-draw {
+  to { stroke-dashoffset: 0; }
+}
+
+.l-draw-path {
+  animation: l-draw 1.5s cubic-bezier(0.25,0.1,0.25,1) forwards;
+}
+
+/* Fade up on scroll */
+@keyframes l-fade-up {
+  from { opacity: 0; transform: translateY(24px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.l-fade-up {
+  animation: l-fade-up 0.6s cubic-bezier(0.25,0.1,0.25,1) both;
+}
+
+/* Stagger delays */
+.l-delay-1 { animation-delay: 100ms; }
+.l-delay-2 { animation-delay: 200ms; }
+.l-delay-3 { animation-delay: 300ms; }
+.l-delay-4 { animation-delay: 400ms; }
+.l-delay-5 { animation-delay: 500ms; }
+.l-delay-6 { animation-delay: 600ms; }
+
+/* Node pulse for pipeline SVG */
+@keyframes l-node-pulse {
+  0%, 100% { r: 4; opacity: 0.6; }
+  50% { r: 6; opacity: 1; }
+}
+
+/* Data flow — dots traveling along path */
+@keyframes l-data-flow {
+  0% { offset-distance: 0%; opacity: 0; }
+  10% { opacity: 1; }
+  90% { opacity: 1; }
+  100% { offset-distance: 100%; opacity: 0; }
+}
+
+/* Dash flow — animated dashed line between pipeline nodes */
+@keyframes l-dash-flow {
+  from { stroke-dashoffset: 0; }
+  to { stroke-dashoffset: -20; }
+}
+
+/* Typing cursor blink */
+@keyframes l-blink {
+  0%, 50% { opacity: 1; }
+  51%, 100% { opacity: 0; }
+}
+
+.l-blink {
+  animation: l-blink 1s step-end infinite;
+}
+
+/* Metric count entrance */
+@keyframes l-count-in {
+  from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.l-count-in {
+  animation: l-count-in 0.8s cubic-bezier(0.25,0.1,0.25,1) both;
+}
+
+/* Segmented bar fill */
+@keyframes l-bar-fill {
+  from { transform: scaleX(0); }
+  to { transform: scaleX(1); }
+}
+
+/* Float subtle */
+@keyframes l-float {
+  0%, 100% { transform: translateY(0px); }
+  50% { transform: translateY(-6px); }
+}
+
+.l-float {
+  animation: l-float 4s cubic-bezier(0.25,0.1,0.25,1) infinite;
+}
+
+/* Rotate slow */
+@keyframes l-rotate {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+.l-rotate-slow {
+  animation: l-rotate 20s linear infinite;
+}
+
+/* ─── Section alternation ─── */
+.l-section-alt {
+  background: var(--c-s400);
+}
+
 /* ─── Toast Animation ─── */
 
 @keyframes slide-in {

@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Space_Grotesk, Space_Mono } from "next/font/google";
+import { Space_Grotesk, Space_Mono, Crimson_Pro } from "next/font/google";
 import { ToastProvider } from "@/components/Toast";
 import "./globals.css";
 
@@ -15,6 +15,13 @@ const spaceMono = Space_Mono({
   weight: ["400", "700"],
 });
 
+const crimsonPro = Crimson_Pro({
+  variable: "--font-crimson-pro",
+  subsets: ["latin"],
+  weight: ["400", "500", "600"],
+  style: ["normal", "italic"],
+});
+
 export const metadata: Metadata = {
   title: "ProspectAI - Prospección Inteligente",
   description: "Automatiza la prospección de negocios para tu agencia web",
@@ -26,7 +33,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="es" className={`${spaceGrotesk.variable} ${spaceMono.variable} h-full`}>
+    <html lang="es" className={`${spaceGrotesk.variable} ${spaceMono.variable} ${crimsonPro.variable} h-full`}>
       <head>
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
