@@ -1,6 +1,6 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
-import { db } from "@/db";
+import { db, getSetting } from "@/db";
 import { emails, whatsappMessages, leads, jobQueue } from "@/db/schema";
 import { eq, and, sql, desc } from "drizzle-orm";
 import { logActivity } from "@/lib/activity";
@@ -25,6 +25,9 @@ export function registerMessageTools(server: McpServer) {
       if (channel === "email" || channel === "all") {
         const conditions = [eq(emails.status, "draft")];
         if (campaignId) conditions.push(eq(emails.campaignId, campaignId));
+        const where = and(...conditions);
+
+        const emailCount = db.select({ count: sql<number>`count(*)` }).from(emails).where(where).get()?.count ?? 0;
 
         const draftEmails = db.select({
           id: emails.id, subject: emails.subject, bodyText: emails.bodyText,
@@ -32,22 +35,27 @@ export function registerMessageTools(server: McpServer) {
           leadId: emails.leadId, createdAt: emails.createdAt,
           bodyHtml: emails.bodyHtml, fromEmail: emails.fromEmail,
         }).from(emails)
-          .where(and(...conditions))
+          .where(where)
           .orderBy(desc(emails.createdAt))
+          .limit(l)
+          .offset(offset)
           .all();
 
-        lines.push(`## Email Drafts (${draftEmails.length})\n`);
-        const sliced = draftEmails.slice(offset, offset + l);
-        for (const e of sliced) {
+        lines.push(`## Email Drafts (${emailCount} total, page ${p})\n`);
+        for (const e of draftEmails) {
           const lead = db.select({ name: leads.name }).from(leads).where(eq(leads.id, e.leadId)).get();
           lines.push(formatEmailSummary(e, lead?.name ?? "Unknown"));
         }
-        totalItems += draftEmails.length;
+        if (offset + l < emailCount) lines.push(`... more email drafts. Use page=${p + 1}`);
+        totalItems += emailCount;
       }
 
       if (channel === "whatsapp" || channel === "all") {
         const conditions = [eq(whatsappMessages.status, "draft")];
         if (campaignId) conditions.push(eq(whatsappMessages.campaignId, campaignId));
+        const where = and(...conditions);
+
+        const waCount = db.select({ count: sql<number>`count(*)` }).from(whatsappMessages).where(where).get()?.count ?? 0;
 
         const draftWA = db.select({
           id: whatsappMessages.id, body: whatsappMessages.body,
@@ -55,17 +63,19 @@ export function registerMessageTools(server: McpServer) {
           status: whatsappMessages.status, leadId: whatsappMessages.leadId,
           createdAt: whatsappMessages.createdAt,
         }).from(whatsappMessages)
-          .where(and(...conditions))
+          .where(where)
           .orderBy(desc(whatsappMessages.createdAt))
+          .limit(l)
+          .offset(offset)
           .all();
 
-        lines.push(`\n## WhatsApp Drafts (${draftWA.length})\n`);
-        const sliced = draftWA.slice(offset, offset + l);
-        for (const w of sliced) {
+        lines.push(`\n## WhatsApp Drafts (${waCount} total, page ${p})\n`);
+        for (const w of draftWA) {
           const lead = db.select({ name: leads.name }).from(leads).where(eq(leads.id, w.leadId)).get();
           lines.push(formatWASummary(w, lead?.name ?? "Unknown"));
         }
-        totalItems += draftWA.length;
+        if (offset + l < waCount) lines.push(`... more WA drafts. Use page=${p + 1}`);
+        totalItems += waCount;
       }
 
       if (totalItems === 0) lines.push("No drafts pending review.");
@@ -140,10 +150,46 @@ export function registerMessageTools(server: McpServer) {
     {
       emailIds: z.array(z.number().int()).optional().describe("Email IDs to approve"),
       whatsappIds: z.array(z.number().int()).optional().describe("WhatsApp message IDs to approve"),
+      campaignId: z.number().int().optional().describe("Approve ALL drafts for this campaign (use with care)"),
     },
-    async ({ emailIds, whatsappIds }) => {
+    async ({ emailIds, whatsappIds, campaignId }) => {
       let approvedEmails = 0;
       let approvedWA = 0;
+      let bulkWarning = "";
+
+      // Bulk approve by campaign (with safety limit of 50)
+      if (campaignId && !emailIds?.length && !whatsappIds?.length) {
+        const MAX_BULK_APPROVE = 50;
+
+        const draftEmails = db.select({ id: emails.id, leadId: emails.leadId, campaignId: emails.campaignId })
+          .from(emails)
+          .where(and(eq(emails.campaignId, campaignId), eq(emails.status, "draft")))
+          .limit(MAX_BULK_APPROVE)
+          .all();
+        const draftWA = db.select({ id: whatsappMessages.id, leadId: whatsappMessages.leadId, campaignId: whatsappMessages.campaignId })
+          .from(whatsappMessages)
+          .where(and(eq(whatsappMessages.campaignId, campaignId), eq(whatsappMessages.status, "draft")))
+          .limit(MAX_BULK_APPROVE)
+          .all();
+
+        // Count total to warn if there are more
+        const totalDraftEmails = db.select({ count: sql<number>`count(*)` }).from(emails)
+          .where(and(eq(emails.campaignId, campaignId), eq(emails.status, "draft"))).get()?.count ?? 0;
+        const totalDraftWA = db.select({ count: sql<number>`count(*)` }).from(whatsappMessages)
+          .where(and(eq(whatsappMessages.campaignId, campaignId), eq(whatsappMessages.status, "draft"))).get()?.count ?? 0;
+
+        emailIds = draftEmails.map(e => e.id);
+        whatsappIds = draftWA.map(w => w.id);
+
+        if (emailIds.length === 0 && whatsappIds.length === 0) {
+          return { content: [{ type: "text", text: `No drafts found for campaign ID ${campaignId}.` }] };
+        }
+
+        const remaining = (totalDraftEmails - draftEmails.length) + (totalDraftWA - draftWA.length);
+        if (remaining > 0) {
+          bulkWarning = `\nNote: ${remaining} more drafts remain. Run approve_messages(campaignId=${campaignId}) again to approve the next batch.`;
+        }
+      }
 
       if (emailIds?.length) {
         for (const id of emailIds) {
@@ -163,6 +209,7 @@ export function registerMessageTools(server: McpServer) {
           const msg = db.select().from(whatsappMessages).where(and(eq(whatsappMessages.id, id), eq(whatsappMessages.status, "draft"))).get();
           if (msg) {
             db.update(whatsappMessages).set({ status: "approved", updatedAt: new Date().toISOString() }).where(eq(whatsappMessages.id, id)).run();
+            db.update(leads).set({ status: "wa_approved" }).where(eq(leads.id, msg.leadId)).run();
             db.insert(jobQueue).values({ type: "send_wa", leadId: msg.leadId, campaignId: msg.campaignId }).run();
             logActivity("wa_approved", `WhatsApp approved via MCP for lead ID ${msg.leadId}`, { leadId: msg.leadId, campaignId: msg.campaignId ?? undefined });
             approvedWA++;
@@ -174,10 +221,55 @@ export function registerMessageTools(server: McpServer) {
         return { content: [{ type: "text", text: "No messages were approved. Check that the IDs are valid draft messages." }] };
       }
 
+      let msg = `Approved: ${approvedEmails} emails, ${approvedWA} WhatsApp messages.\nMessages are queued for sending by the background scheduler.`;
+      if (bulkWarning) msg += bulkWarning;
+
+      return { content: [{ type: "text", text: msg }] };
+    }
+  );
+
+  server.tool(
+    "reject_messages",
+    "Reject draft messages. Rejected messages will not be sent. Optionally provide a reason for the rejection.",
+    {
+      emailIds: z.array(z.number().int()).optional().describe("Email IDs to reject"),
+      whatsappIds: z.array(z.number().int()).optional().describe("WhatsApp message IDs to reject"),
+      reason: z.string().optional().describe("Reason for rejection"),
+    },
+    async ({ emailIds, whatsappIds, reason }) => {
+      let rejectedEmails = 0;
+      let rejectedWA = 0;
+
+      if (emailIds?.length) {
+        for (const id of emailIds) {
+          const email = db.select().from(emails).where(and(eq(emails.id, id), eq(emails.status, "draft"))).get();
+          if (email) {
+            db.update(emails).set({ status: "rejected", updatedAt: new Date().toISOString() }).where(eq(emails.id, id)).run();
+            logActivity("email_rejected", `Email rejected via MCP${reason ? `: ${reason}` : ""}`, { leadId: email.leadId, campaignId: email.campaignId ?? undefined });
+            rejectedEmails++;
+          }
+        }
+      }
+
+      if (whatsappIds?.length) {
+        for (const id of whatsappIds) {
+          const msg = db.select().from(whatsappMessages).where(and(eq(whatsappMessages.id, id), eq(whatsappMessages.status, "draft"))).get();
+          if (msg) {
+            db.update(whatsappMessages).set({ status: "rejected", updatedAt: new Date().toISOString() }).where(eq(whatsappMessages.id, id)).run();
+            logActivity("wa_rejected", `WhatsApp rejected via MCP${reason ? `: ${reason}` : ""}`, { leadId: msg.leadId, campaignId: msg.campaignId ?? undefined });
+            rejectedWA++;
+          }
+        }
+      }
+
+      if (rejectedEmails === 0 && rejectedWA === 0) {
+        return { content: [{ type: "text", text: "No messages were rejected. Check that the IDs are valid draft messages." }] };
+      }
+
       return {
         content: [{
           type: "text",
-          text: `Approved: ${approvedEmails} emails, ${approvedWA} WhatsApp messages.\nMessages are queued for sending by the background scheduler.`,
+          text: `Rejected: ${rejectedEmails} emails, ${rejectedWA} WhatsApp messages.${reason ? `\nReason: ${reason}` : ""}`,
         }],
       };
     }
@@ -205,11 +297,14 @@ export function registerMessageTools(server: McpServer) {
         const lead = db.select().from(leads).where(eq(leads.id, email.leadId)).get();
         if (!lead) return { content: [{ type: "text", text: `Lead not found for this email.` }], isError: true };
 
-        const { regenerateEmail } = await import("@/lib/gemini");
+        const { regenerateEmail, defaultWebAnalysis } = await import("@/lib/gemini");
+        const fromName = getSetting("from_name") || getSetting("agency_name") || "VanguardIA";
         const result = await regenerateEmail(
           lead.name, lead.category, lead.city, lead.website,
-          lead.analysisJson ? JSON.parse(lead.analysisJson) : undefined,
-          tone || email.tone, instructions
+          lead.analysisJson ? JSON.parse(lead.analysisJson) : defaultWebAnalysis(lead.website, lead.webQualityScore ?? 0, lead.analysisSummary ?? ""),
+          tone || email.tone, fromName,
+          email.subject, email.bodyText,
+          instructions || ""
         );
 
         db.update(emails).set({
@@ -229,11 +324,14 @@ export function registerMessageTools(server: McpServer) {
         const lead = db.select().from(leads).where(eq(leads.id, msg.leadId)).get();
         if (!lead) return { content: [{ type: "text", text: `Lead not found.` }], isError: true };
 
-        const { regenerateWhatsApp } = await import("@/lib/gemini");
+        const { regenerateWhatsApp, defaultWebAnalysis } = await import("@/lib/gemini");
+        const waFromName = getSetting("from_name") || getSetting("agency_name") || "VanguardIA";
         const result = await regenerateWhatsApp(
           lead.name, lead.category, lead.city, lead.website,
-          lead.analysisJson ? JSON.parse(lead.analysisJson) : undefined,
-          tone || msg.tone, instructions
+          lead.analysisJson ? JSON.parse(lead.analysisJson) : defaultWebAnalysis(lead.website, lead.webQualityScore ?? 0, lead.analysisSummary ?? ""),
+          tone || msg.tone, waFromName,
+          msg.body,
+          instructions || ""
         );
 
         db.update(whatsappMessages).set({

@@ -7,6 +7,7 @@ import { logActivity } from "@/lib/activity";
 import { checkFullConfig } from "../helpers/validators.js";
 import { formatEmailSummary, formatWASummary } from "../helpers/formatters.js";
 import { getEffectiveDailyLimit } from "@/lib/cron/warmup";
+import { startGoogleMapsSearch } from "../helpers/scraper.js";
 
 export function registerOrchestrationTools(server: McpServer) {
   server.tool(
@@ -66,66 +67,19 @@ export function registerOrchestrationTools(server: McpServer) {
 
       // 3. Start search if keyword provided
       if (searchKeyword) {
-        const scraperUrl = getSetting("gmaps_scraper_url");
-        if (!scraperUrl) {
-          lines.push("\nSearch skipped: gmaps_scraper_url not configured.");
-          lines.push("\nNext steps:");
-          lines.push("1. Configure the scraper URL in settings");
-          lines.push("2. Use search_and_import_leads to search and import leads");
-          lines.push("3. Or use import_leads_csv to import leads from a CSV file");
+        const result = await startGoogleMapsSearch(searchKeyword, campaign.id);
+        if (result.success) {
+          lines.push(`\nSearch started: "${searchKeyword}" [Search ID:${result.searchJobId}]`);
+          lines.push(`\nNext steps:`);
+          lines.push(`1. Use search_and_import_leads with searchJobId=${result.searchJobId} to check results and import`);
+          lines.push(`2. Once imported, use process_jobs to scrape and analyze leads`);
+          lines.push(`3. Use list_draft_messages to review generated emails`);
+          lines.push(`4. Use approve_and_send to approve and queue for sending`);
         } else {
-          try {
-            const formData = new URLSearchParams();
-            formData.set("name", `prospectai-${Date.now()}`);
-            formData.set("keywords", searchKeyword.trim());
-            formData.set("lang", "es");
-            formData.set("depth", "5");
-            formData.set("email", "on");
-            formData.set("maxtime", "10m");
-            formData.set("zoom", "15");
-            formData.set("latitude", "0");
-            formData.set("longitude", "0");
-            formData.set("radius", "10000");
-
-            const scraperRes = await fetch(`${scraperUrl}/scrape`, {
-              method: "POST",
-              headers: { "Content-Type": "application/x-www-form-urlencoded" },
-              body: formData.toString(),
-            });
-
-            if (scraperRes.ok) {
-              const html = await scraperRes.text();
-              const match = html.match(/<td>([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})<\/td>/);
-              const scraperJobId = match?.[1];
-
-              if (scraperJobId) {
-                const searchJob = db.insert(searchJobs).values({
-                  scraperJobId,
-                  keyword: searchKeyword.trim(),
-                  campaignId: campaign.id,
-                  status: "pending",
-                }).returning().get();
-
-                logActivity("import", `Search started via MCP: "${searchKeyword}"`, {
-                  campaignId: campaign.id,
-                  metadata: { searchJobId: searchJob.id },
-                });
-
-                lines.push(`\nSearch started: "${searchKeyword}" [Search ID:${searchJob.id}]`);
-                lines.push(`\nNext steps:`);
-                lines.push(`1. Use search_and_import_leads with searchJobId=${searchJob.id} to check results and import`);
-                lines.push(`2. Once imported, use process_jobs to scrape and analyze leads`);
-                lines.push(`3. Use list_draft_messages to review generated emails`);
-                lines.push(`4. Use approve_and_send to approve and queue for sending`);
-              } else {
-                lines.push("\nSearch submitted but could not parse job ID from scraper response.");
-              }
-            } else {
-              lines.push(`\nSearch failed: scraper returned HTTP ${scraperRes.status}`);
-            }
-          } catch (e) {
-            lines.push(`\nSearch error: ${e instanceof Error ? e.message : "connection failed"}. Is the scraper running?`);
-          }
+          lines.push(`\nSearch skipped: ${result.error}`);
+          lines.push("\nNext steps:");
+          lines.push("1. Fix the issue above, then use search_and_import_leads");
+          lines.push("2. Or use import_leads_csv to import leads from a CSV file");
         }
       } else {
         lines.push(`\nNext steps:`);
@@ -253,57 +207,17 @@ export function registerOrchestrationTools(server: McpServer) {
 
       // Start new search
       if (keyword) {
-        try {
-          const formData = new URLSearchParams();
-          formData.set("name", `prospectai-${Date.now()}`);
-          formData.set("keywords", keyword.trim());
-          formData.set("lang", "es");
-          formData.set("depth", "5");
-          formData.set("email", "on");
-          formData.set("maxtime", "10m");
-          formData.set("zoom", "15");
-          formData.set("latitude", "0");
-          formData.set("longitude", "0");
-          formData.set("radius", "10000");
-
-          const res = await fetch(`${scraperUrl}/scrape`, {
-            method: "POST",
-            headers: { "Content-Type": "application/x-www-form-urlencoded" },
-            body: formData.toString(),
-          });
-
-          if (!res.ok) {
-            return { content: [{ type: "text", text: `Scraper error: HTTP ${res.status}` }], isError: true };
-          }
-
-          const html = await res.text();
-          const match = html.match(/<td>([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})<\/td>/);
-
-          if (!match?.[1]) {
-            return { content: [{ type: "text", text: "Search submitted but could not parse job ID." }], isError: true };
-          }
-
-          const job = db.insert(searchJobs).values({
-            scraperJobId: match[1],
-            keyword: keyword.trim(),
-            campaignId,
-            status: "pending",
-          }).returning().get();
-
-          logActivity("import", `Search started via MCP: "${keyword}"`, { campaignId });
-
-          return {
-            content: [{
-              type: "text",
-              text: `Search started: "${keyword}" [Search ID:${job.id}]\n\nUse search_and_import_leads with searchJobId=${job.id} to poll results and import.`,
-            }],
-          };
-        } catch (e) {
-          return {
-            content: [{ type: "text", text: `Search error: ${e instanceof Error ? e.message : "connection failed"}. Is the scraper running?` }],
-            isError: true,
-          };
+        const result = await startGoogleMapsSearch(keyword, campaignId);
+        if (!result.success) {
+          return { content: [{ type: "text", text: result.error! }], isError: true };
         }
+
+        return {
+          content: [{
+            type: "text",
+            text: `Search started: "${keyword}" [Search ID:${result.searchJobId}]\n\nUse search_and_import_leads with searchJobId=${result.searchJobId} to poll results and import.`,
+          }],
+        };
       }
 
       return { content: [{ type: "text", text: "Provide either a keyword to start a new search or a searchJobId to poll/import existing results." }] };
@@ -361,68 +275,79 @@ export function registerOrchestrationTools(server: McpServer) {
 
       for (const lead of eligibleLeads) {
         const contactEmail = lead.contactEmail || lead.extractedEmail || lead.email;
-        const analysis = lead.analysisJson ? JSON.parse(lead.analysisJson) : defaultWebAnalysis(!!lead.website);
+        const analysis = lead.analysisJson ? JSON.parse(lead.analysisJson) : defaultWebAnalysis(lead.website, lead.webQualityScore ?? 0, lead.analysisSummary ?? "");
+
+        // Check for existing drafts to prevent duplicates
+        const existingEmail = contactEmail ? db.select({ id: emails.id }).from(emails)
+          .where(and(eq(emails.leadId, lead.id), eq(emails.status, "draft"))).get() : undefined;
+        const existingWA = lead.phone ? db.select({ id: whatsappMessages.id }).from(whatsappMessages)
+          .where(and(eq(whatsappMessages.leadId, lead.id), eq(whatsappMessages.status, "draft"))).get() : undefined;
 
         // Generate email
         if (channels.includes("email") && contactEmail) {
-          if (isBlacklisted(contactEmail, lead.website ?? undefined, lead.name)) {
-            previews.push(`[SKIPPED] ${lead.name}: blacklisted`);
-            continue;
-          }
-          if (isUnsubscribed(contactEmail)) {
-            previews.push(`[SKIPPED] ${lead.name}: unsubscribed`);
-            continue;
-          }
+          if (existingEmail) {
+            previews.push(`[SKIPPED] ${lead.name}: already has email draft`);
+          } else if (isBlacklisted(contactEmail, lead.website ?? undefined, lead.name)) {
+            previews.push(`[SKIPPED] ${lead.name} email: blacklisted`);
+          } else if (isUnsubscribed(contactEmail)) {
+            previews.push(`[SKIPPED] ${lead.name} email: unsubscribed`);
+          } else {
+            try {
+              const result = await generateEmail(
+                lead.name, lead.category, lead.city, lead.website, analysis,
+                defaultTone, fromName, undefined, customInstructions
+              );
 
-          try {
-            const result = await generateEmail(
-              lead.name, lead.category, lead.city, lead.website, analysis,
-              defaultTone, fromName, customInstructions
-            );
+              db.insert(emails).values({
+                leadId: lead.id,
+                campaignId: lead.campaignId,
+                toEmail: contactEmail,
+                fromEmail,
+                subject: result.subject,
+                bodyHtml: result.bodyHtml,
+                bodyText: result.bodyText,
+                tone: defaultTone,
+                status: "draft",
+              }).run();
 
-            db.insert(emails).values({
-              leadId: lead.id,
-              campaignId: lead.campaignId,
-              toEmail: contactEmail,
-              fromEmail,
-              subject: result.subject,
-              bodyHtml: result.bodyHtml,
-              bodyText: result.bodyText,
-              tone: defaultTone,
-              status: "draft",
-            }).run();
-
-            db.update(leads).set({ status: "email_generated" }).where(eq(leads.id, lead.id)).run();
-            logActivity("email_generated", `Email generated via MCP for ${lead.name}`, { leadId: lead.id, campaignId: lead.campaignId ?? undefined });
-            previews.push(`[EMAIL] ${lead.name}: "${result.subject}"`);
-            emailCount++;
-          } catch (e) {
-            previews.push(`[ERROR] ${lead.name} email: ${e instanceof Error ? e.message : "unknown"}`);
+              db.update(leads).set({ status: "email_generated" }).where(eq(leads.id, lead.id)).run();
+              logActivity("email_generated", `Email generated via MCP for ${lead.name}`, { leadId: lead.id, campaignId: lead.campaignId ?? undefined });
+              previews.push(`[EMAIL] ${lead.name}: "${result.subject}"`);
+              emailCount++;
+            } catch (e) {
+              previews.push(`[ERROR] ${lead.name} email: ${e instanceof Error ? e.message : "unknown"}`);
+            }
           }
         }
 
-        // Generate WhatsApp
+        // Generate WhatsApp (independent of email blacklist/unsubscribe status)
         if (channels.includes("whatsapp") && lead.phone) {
-          try {
-            const result = await generateWhatsApp(
-              lead.name, lead.category, lead.city, lead.website, analysis,
-              defaultTone, fromName, customInstructions
-            );
+          if (existingWA) {
+            previews.push(`[SKIPPED] ${lead.name}: already has WA draft`);
+          } else if (isBlacklisted(undefined, undefined, lead.name)) {
+            previews.push(`[SKIPPED] ${lead.name} WA: blacklisted`);
+          } else {
+            try {
+              const result = await generateWhatsApp(
+                lead.name, lead.category, lead.city, lead.website, analysis,
+                defaultTone, fromName, undefined, customInstructions
+              );
 
-            db.insert(whatsappMessages).values({
-              leadId: lead.id,
-              campaignId: lead.campaignId,
-              toPhone: lead.phone,
-              body: result.message,
-              tone: defaultTone,
-              status: "draft",
-            }).run();
+              db.insert(whatsappMessages).values({
+                leadId: lead.id,
+                campaignId: lead.campaignId,
+                toPhone: lead.phone,
+                body: result.message,
+                tone: defaultTone,
+                status: "draft",
+              }).run();
 
-            logActivity("wa_generated", `WhatsApp generated via MCP for ${lead.name}`, { leadId: lead.id, campaignId: lead.campaignId ?? undefined });
-            previews.push(`[WA] ${lead.name}: "${result.message.slice(0, 80)}..."`);
-            waCount++;
-          } catch (e) {
-            previews.push(`[ERROR] ${lead.name} WA: ${e instanceof Error ? e.message : "unknown"}`);
+              logActivity("wa_generated", `WhatsApp generated via MCP for ${lead.name}`, { leadId: lead.id, campaignId: lead.campaignId ?? undefined });
+              previews.push(`[WA] ${lead.name}: "${result.message.slice(0, 80)}..."`);
+              waCount++;
+            } catch (e) {
+              previews.push(`[ERROR] ${lead.name} WA: ${e instanceof Error ? e.message : "unknown"}`);
+            }
           }
         }
       }
@@ -442,92 +367,34 @@ export function registerOrchestrationTools(server: McpServer) {
 
   server.tool(
     "approve_and_send",
-    "Approve and queue messages for sending. When only campaignId is provided, LISTS drafts for review (does NOT auto-approve). When specific IDs are provided, approves those messages.",
+    "Review and approve campaign messages. When only campaignId is provided, LISTS all drafts for review. Use approve_messages to approve specific IDs or all drafts in a campaign.",
     {
-      campaignId: z.number().int().optional().describe("Campaign to list drafts from"),
-      emailIds: z.array(z.number().int()).optional().describe("Specific email IDs to approve"),
-      whatsappIds: z.array(z.number().int()).optional().describe("Specific WhatsApp message IDs to approve"),
+      campaignId: z.number().int().describe("Campaign to review drafts from"),
     },
-    async ({ campaignId, emailIds, whatsappIds }) => {
-      // Safety: if only campaignId, list drafts instead of approving
-      if (campaignId && !emailIds?.length && !whatsappIds?.length) {
-        const draftEmails = db.select({
-          id: emails.id, subject: emails.subject, toEmail: emails.toEmail,
-          leadId: emails.leadId, bodyText: emails.bodyText, bodyHtml: emails.bodyHtml,
-          tone: emails.tone, status: emails.status, createdAt: emails.createdAt,
-          fromEmail: emails.fromEmail,
-        }).from(emails)
-          .where(and(eq(emails.campaignId, campaignId), eq(emails.status, "draft")))
-          .orderBy(desc(emails.createdAt))
-          .limit(20)
-          .all();
+    async ({ campaignId }) => {
+      const campaign = db.select().from(campaigns).where(eq(campaigns.id, campaignId)).get();
+      if (!campaign) return { content: [{ type: "text", text: `Campaign ID ${campaignId} not found.` }], isError: true };
 
-        const draftWA = db.select({
-          id: whatsappMessages.id, body: whatsappMessages.body, toPhone: whatsappMessages.toPhone,
-          leadId: whatsappMessages.leadId, tone: whatsappMessages.tone, status: whatsappMessages.status,
-          createdAt: whatsappMessages.createdAt,
-        }).from(whatsappMessages)
-          .where(and(eq(whatsappMessages.campaignId, campaignId), eq(whatsappMessages.status, "draft")))
-          .orderBy(desc(whatsappMessages.createdAt))
-          .limit(20)
-          .all();
+      const draftEmails = db.select({
+        id: emails.id, subject: emails.subject, toEmail: emails.toEmail,
+        leadId: emails.leadId, bodyText: emails.bodyText, bodyHtml: emails.bodyHtml,
+        tone: emails.tone, status: emails.status, createdAt: emails.createdAt,
+        fromEmail: emails.fromEmail,
+      }).from(emails)
+        .where(and(eq(emails.campaignId, campaignId), eq(emails.status, "draft")))
+        .orderBy(desc(emails.createdAt))
+        .limit(20)
+        .all();
 
-        const lines = [`# Drafts for Campaign ID:${campaignId}\n`];
-
-        if (draftEmails.length > 0) {
-          lines.push(`## Email Drafts (${draftEmails.length})`);
-          for (const e of draftEmails) {
-            const lead = db.select({ name: leads.name }).from(leads).where(eq(leads.id, e.leadId)).get();
-            lines.push(formatEmailSummary(e, lead?.name ?? "Unknown"));
-          }
-        }
-
-        if (draftWA.length > 0) {
-          lines.push(`\n## WhatsApp Drafts (${draftWA.length})`);
-          for (const w of draftWA) {
-            const lead = db.select({ name: leads.name }).from(leads).where(eq(leads.id, w.leadId)).get();
-            lines.push(formatWASummary(w, lead?.name ?? "Unknown"));
-          }
-        }
-
-        if (draftEmails.length === 0 && draftWA.length === 0) {
-          lines.push("No drafts found for this campaign.");
-        } else {
-          lines.push(`\nTo approve, call approve_and_send with specific emailIds and/or whatsappIds.`);
-          lines.push(`Example: approve_and_send(emailIds=[${draftEmails.slice(0, 3).map(e => e.id).join(",")}])`);
-        }
-
-        return { content: [{ type: "text", text: lines.join("\n") }] };
-      }
-
-      // Approve specific IDs
-      let approvedEmails = 0;
-      let approvedWA = 0;
-
-      if (emailIds?.length) {
-        for (const id of emailIds) {
-          const email = db.select().from(emails).where(and(eq(emails.id, id), eq(emails.status, "draft"))).get();
-          if (email) {
-            db.update(emails).set({ status: "approved", updatedAt: new Date().toISOString() }).where(eq(emails.id, id)).run();
-            db.update(leads).set({ status: "email_approved" }).where(eq(leads.id, email.leadId)).run();
-            db.insert(jobQueue).values({ type: "send_email", leadId: email.leadId, campaignId: email.campaignId }).run();
-            logActivity("email_approved", `Email approved via MCP`, { leadId: email.leadId, campaignId: email.campaignId ?? undefined });
-            approvedEmails++;
-          }
-        }
-      }
-
-      if (whatsappIds?.length) {
-        for (const id of whatsappIds) {
-          const msg = db.select().from(whatsappMessages).where(and(eq(whatsappMessages.id, id), eq(whatsappMessages.status, "draft"))).get();
-          if (msg) {
-            db.update(whatsappMessages).set({ status: "approved", updatedAt: new Date().toISOString() }).where(eq(whatsappMessages.id, id)).run();
-            db.insert(jobQueue).values({ type: "send_wa", leadId: msg.leadId, campaignId: msg.campaignId }).run();
-            logActivity("wa_approved", `WhatsApp approved via MCP`, { leadId: msg.leadId, campaignId: msg.campaignId ?? undefined });
-            approvedWA++;
-          }
-        }
-      }
+      const draftWA = db.select({
+        id: whatsappMessages.id, body: whatsappMessages.body, toPhone: whatsappMessages.toPhone,
+        leadId: whatsappMessages.leadId, tone: whatsappMessages.tone, status: whatsappMessages.status,
+        createdAt: whatsappMessages.createdAt,
+      }).from(whatsappMessages)
+        .where(and(eq(whatsappMessages.campaignId, campaignId), eq(whatsappMessages.status, "draft")))
+        .orderBy(desc(whatsappMessages.createdAt))
+        .limit(20)
+        .all();
 
       // Remaining quota
       const today = new Date().toISOString().split("T")[0];
@@ -535,11 +402,32 @@ export function registerOrchestrationTools(server: McpServer) {
         .where(and(eq(emails.status, "sent"), sql`date(${emails.sentAt}) = ${today}`)).get()?.count ?? 0;
       const effectiveLimit = getEffectiveDailyLimit();
 
-      const lines = [
-        `Approved: ${approvedEmails} emails, ${approvedWA} WhatsApp messages.`,
-        `Messages queued for the background scheduler.`,
-        `\nEmail quota remaining today: ${Math.max(0, effectiveLimit - emailSentToday)} / ${effectiveLimit}`,
-      ];
+      const lines = [`# Drafts for "${campaign.name}" [ID:${campaignId}]\n`];
+
+      if (draftEmails.length > 0) {
+        lines.push(`## Email Drafts (${draftEmails.length})`);
+        for (const e of draftEmails) {
+          const lead = db.select({ name: leads.name }).from(leads).where(eq(leads.id, e.leadId)).get();
+          lines.push(formatEmailSummary(e, lead?.name ?? "Unknown"));
+        }
+      }
+
+      if (draftWA.length > 0) {
+        lines.push(`\n## WhatsApp Drafts (${draftWA.length})`);
+        for (const w of draftWA) {
+          const lead = db.select({ name: leads.name }).from(leads).where(eq(leads.id, w.leadId)).get();
+          lines.push(formatWASummary(w, lead?.name ?? "Unknown"));
+        }
+      }
+
+      if (draftEmails.length === 0 && draftWA.length === 0) {
+        lines.push("No drafts found for this campaign.");
+      } else {
+        lines.push(`\nEmail quota remaining today: ${Math.max(0, effectiveLimit - emailSentToday)} / ${effectiveLimit}`);
+        lines.push(`\nTo approve specific messages: approve_messages(emailIds=[...], whatsappIds=[...])`);
+        lines.push(`To approve ALL drafts: approve_messages(campaignId=${campaignId})`);
+        lines.push(`To reject: reject_messages(emailIds=[...], whatsappIds=[...])`);
+      }
 
       return { content: [{ type: "text", text: lines.join("\n") }] };
     }

@@ -19,31 +19,77 @@ export function registerCampaignTools(server: McpServer) {
     async ({ status, page, limit }) => {
       const { page: p, limit: l, offset } = paginationParams(page, limit);
 
-      let query = db.select().from(campaigns).$dynamic();
-      if (status) query = query.where(eq(campaigns.status, status)) as typeof query;
+      const conditions = [];
+      if (status) conditions.push(eq(campaigns.status, status));
+      const where = conditions.length > 0 ? and(...conditions) : undefined;
 
-      const allCampaigns = query.orderBy(sql`${campaigns.createdAt} DESC`).all();
-      const total = allCampaigns.length;
-      const sliced = allCampaigns.slice(offset, offset + l);
+      const total = db.select({ count: sql<number>`count(*)` }).from(campaigns).where(where).get()?.count ?? 0;
+
+      const pageCampaigns = db.select().from(campaigns)
+        .where(where)
+        .orderBy(sql`${campaigns.createdAt} DESC`)
+        .limit(l)
+        .offset(offset)
+        .all();
+
+      // Batch-fetch metrics for all campaigns on this page in single queries
+      const campaignIds = pageCampaigns.map(c => c.id);
+
+      const leadCounts = campaignIds.length > 0
+        ? db.select({ campaignId: leads.campaignId, count: sql<number>`count(*)` })
+            .from(leads)
+            .where(sql`${leads.campaignId} IN (${sql.join(campaignIds.map(id => sql`${id}`), sql`, `)})`)
+            .groupBy(leads.campaignId).all()
+        : [];
+
+      const emailStats = campaignIds.length > 0
+        ? db.select({
+            campaignId: emails.campaignId,
+            status: emails.status,
+            count: sql<number>`count(*)`,
+            opened: sql<number>`sum(case when ${emails.openedAt} is not null then 1 else 0 end)`,
+            clicked: sql<number>`sum(case when ${emails.clickedAt} is not null then 1 else 0 end)`,
+          }).from(emails)
+            .where(sql`${emails.campaignId} IN (${sql.join(campaignIds.map(id => sql`${id}`), sql`, `)})`)
+            .groupBy(emails.campaignId, emails.status).all()
+        : [];
+
+      const replyCounts = campaignIds.length > 0
+        ? db.select({ campaignId: replies.campaignId, count: sql<number>`count(*)` })
+            .from(replies)
+            .where(sql`${replies.campaignId} IN (${sql.join(campaignIds.map(id => sql`${id}`), sql`, `)})`)
+            .groupBy(replies.campaignId).all()
+        : [];
+
+      // Build lookup maps
+      const leadsMap = new Map(leadCounts.map(r => [r.campaignId, r.count]));
+      const repliesMap = new Map(replyCounts.map(r => [r.campaignId, r.count]));
+
+      const emailMetrics = new Map<number, { sent: number; opened: number; clicked: number; drafts: number }>();
+      for (const row of emailStats) {
+        const cid = row.campaignId!;
+        if (!emailMetrics.has(cid)) emailMetrics.set(cid, { sent: 0, opened: 0, clicked: 0, drafts: 0 });
+        const m = emailMetrics.get(cid)!;
+        if (row.status === "sent") {
+          m.sent += row.count;
+          m.opened += row.opened ?? 0;
+          m.clicked += row.clicked ?? 0;
+        } else if (row.status === "draft") {
+          m.drafts += row.count;
+        }
+      }
 
       const lines: string[] = [`# Campaigns (${total} total, page ${p})\n`];
 
-      for (const c of sliced) {
-        const totalLeads = db.select({ count: sql<number>`count(*)` }).from(leads)
-          .where(eq(leads.campaignId, c.id)).get()?.count ?? 0;
-        const emailsSent = db.select({ count: sql<number>`count(*)` }).from(emails)
-          .where(and(eq(emails.campaignId, c.id), eq(emails.status, "sent"))).get()?.count ?? 0;
-        const emailsOpened = db.select({ count: sql<number>`count(*)` }).from(emails)
-          .where(and(eq(emails.campaignId, c.id), isNotNull(emails.openedAt))).get()?.count ?? 0;
-        const emailsClicked = db.select({ count: sql<number>`count(*)` }).from(emails)
-          .where(and(eq(emails.campaignId, c.id), isNotNull(emails.clickedAt))).get()?.count ?? 0;
-        const replyCount = db.select({ count: sql<number>`count(*)` }).from(replies)
-          .where(eq(replies.campaignId, c.id)).get()?.count ?? 0;
-        const pendingDrafts = db.select({ count: sql<number>`count(*)` }).from(emails)
-          .where(and(eq(emails.campaignId, c.id), eq(emails.status, "draft"))).get()?.count ?? 0;
-
+      for (const c of pageCampaigns) {
+        const em = emailMetrics.get(c.id) ?? { sent: 0, opened: 0, clicked: 0, drafts: 0 };
         lines.push(formatCampaignSummary(c, {
-          totalLeads, emailsSent, emailsOpened, emailsClicked, replies: replyCount, pendingDrafts,
+          totalLeads: leadsMap.get(c.id) ?? 0,
+          emailsSent: em.sent,
+          emailsOpened: em.opened,
+          emailsClicked: em.clicked,
+          replies: repliesMap.get(c.id) ?? 0,
+          pendingDrafts: em.drafts,
         }));
       }
 
