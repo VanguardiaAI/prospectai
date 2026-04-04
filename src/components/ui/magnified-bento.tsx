@@ -80,7 +80,7 @@ const MagnifiedBento = () => {
           )}
           style={{
             borderRadius: "1.6rem",
-            background: "rgba(230, 229, 224, 0.3)",
+            background: "var(--c-bento-inner-bg)",
           }}
         >
           <div className="relative h-full w-full flex flex-col items-center justify-center">
@@ -111,10 +111,10 @@ const MagnifiedBento = () => {
                       className="flex gap-2 whitespace-nowrap w-fit items-center rounded-full text-xs"
                       style={{
                         padding: "8px 12px",
-                        background: "rgba(242, 241, 237, 0.5)",
+                        background: "var(--c-tag-bg)",
                         backdropFilter: "blur(4px)",
                         color: "var(--c-text2)",
-                        border: "1px solid rgba(38, 37, 30, 0.05)",
+                        border: "1px solid var(--c-tag-border)",
                       }}
                     >
                       <item.icon size={14} strokeWidth={1.5} />
@@ -154,10 +154,10 @@ const MagnifiedBento = () => {
                       className="flex gap-2 whitespace-nowrap w-fit items-center rounded-full text-xs scale-125 ml-6"
                       style={{
                         padding: "8px 12px",
-                        background: "var(--c-cream)",
+                        background: "var(--c-tag-reveal-bg)",
                         color: "var(--c-orange)",
-                        border: "1px solid rgba(245, 78, 0, 0.2)",
-                        boxShadow: "0 1px 3px rgba(0, 0, 0, 0.05)",
+                        border: "1px solid var(--c-tag-reveal-border)",
+                        boxShadow: "var(--c-tag-reveal-shadow)",
                         fontWeight: 500,
                       }}
                     >
@@ -194,11 +194,11 @@ const MagnifiedBento = () => {
           {/* Edge fades */}
           <div
             className="pointer-events-none absolute inset-y-0 left-0 w-1/4 z-20"
-            style={{ background: "linear-gradient(to right, var(--c-cream), transparent)" }}
+            style={{ background: "linear-gradient(to right, var(--c-s100), transparent)" }}
           />
           <div
             className="pointer-events-none absolute inset-y-0 right-0 w-1/4 z-20"
-            style={{ background: "linear-gradient(to left, var(--c-cream), transparent)" }}
+            style={{ background: "linear-gradient(to left, var(--c-s100), transparent)" }}
           />
         </div>
 

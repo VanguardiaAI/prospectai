@@ -20,14 +20,14 @@ export function FeatureCard({ feature, className, ...props }: FeatureCardPorps) 
 	return (
 		<div className={cn('relative overflow-hidden p-6', className)} {...props}>
 			<div className="pointer-events-none absolute top-0 left-1/2 -mt-2 -ml-20 h-full w-full [mask-image:linear-gradient(white,transparent)]">
-				<div className="absolute inset-0 bg-gradient-to-r from-[var(--c-orange)]/5 to-[var(--c-orange)]/1 [mask-image:radial-gradient(farthest-side_at_top,white,transparent)] opacity-100">
+				<div className="absolute inset-0 l-feature-gradient [mask-image:radial-gradient(farthest-side_at_top,white,transparent)] opacity-100">
 					<GridPattern
 						width={20}
 						height={20}
 						x="-12"
 						y="4"
 						squares={p ?? []}
-						className="absolute inset-0 h-full w-full mix-blend-overlay fill-[var(--c-orange)]/10 stroke-[var(--c-border-md)]"
+						className="absolute inset-0 h-full w-full mix-blend-overlay l-feature-pattern stroke-[var(--c-border-md)]"
 					/>
 				</div>
 			</div>

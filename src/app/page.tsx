@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   Zap,
   Mail,
@@ -19,6 +19,8 @@ import {
   Sparkles,
   Eye,
   Reply,
+  Moon,
+  Sun,
 } from "lucide-react";
 import { motion, useReducedMotion } from "motion/react";
 import { GlobeCdn } from "@/components/ui/cobe-globe-cdn";
@@ -95,10 +97,10 @@ function PipelineSVG() {
         const x2 = startX + (i + 1) * (nodeW + gap);
         return (
           <g key={`conn-${i}`}>
-            <line x1={x1} y1="26" x2={x2} y2="26" stroke="rgba(38,37,30,0.07)" strokeWidth="1" />
+            <line x1={x1} y1="26" x2={x2} y2="26" stroke="var(--c-pipeline-line)" strokeWidth="1" />
             <line
               x1={x1} y1="26" x2={x2} y2="26"
-              stroke="rgba(38,37,30,0.18)"
+              stroke="var(--c-pipeline-dash)"
               strokeWidth="1"
               strokeDasharray="3 5"
               style={{ animation: `l-dash-flow 2s linear infinite`, animationDelay: `${i * 0.4}s` }}
@@ -131,7 +133,7 @@ function PipelineSVG() {
               x={nx} y="0" width={nodeW} height={nodeW}
               rx="14"
               fill={isAccent ? "rgba(245,78,0,0.06)" : "var(--c-s100)"}
-              stroke={isAccent ? "rgba(245,78,0,0.2)" : "rgba(38,37,30,0.1)"}
+              stroke={isAccent ? "rgba(245,78,0,0.2)" : "var(--c-border)"}
               strokeWidth="1"
             />
             {/* Dot-matrix icon — centered */}
@@ -139,13 +141,13 @@ function PipelineSVG() {
               dots={step.icon}
               cx={nx + (nodeW - 6 * 3.5) / 2}
               cy={(nodeW - 6 * 3.5) / 2}
-              color={isAccent ? "#f54e00" : "rgba(38,37,30,0.55)"}
+              color={isAccent ? "#f54e00" : "var(--c-pipeline-icon)"}
             />
             {/* Step number */}
             <text
               x={nx + nodeW / 2} y="68"
               textAnchor="middle"
-              fill="rgba(38,37,30,0.2)"
+              fill="var(--c-pipeline-num)"
               fontSize="9"
               fontFamily="var(--f-mono)"
               letterSpacing="0.06em"
@@ -156,7 +158,7 @@ function PipelineSVG() {
             <text
               x={nx + nodeW / 2} y="82"
               textAnchor="middle"
-              fill="rgba(38,37,30,0.5)"
+              fill="var(--c-pipeline-label)"
               fontSize="9"
               fontFamily="var(--f-mono)"
               letterSpacing="0.06em"
@@ -172,7 +174,7 @@ function PipelineSVG() {
                 width="5"
                 height="2"
                 rx="0.5"
-                fill={s <= i ? (isAccent ? "#f54e00" : "rgba(38,37,30,0.3)") : "rgba(38,37,30,0.06)"}
+                fill={s <= i ? (isAccent ? "#f54e00" : "var(--c-pipeline-bar-on)") : "var(--c-pipeline-bar-off)"}
               />
             ))}
           </g>
@@ -201,7 +203,7 @@ function SegmentedBar({ filled, total }: { filled: number; total: number }) {
 }
 
 /* ─── Nav ─── */
-function Nav() {
+function Nav({ theme, toggleTheme }: { theme: string; toggleTheme: () => void }) {
   return (
     <nav className="l-nav fixed top-0 left-0 right-0 z-50">
       <div className="max-w-[1200px] mx-auto px-6 h-14 flex items-center justify-between">
@@ -233,6 +235,33 @@ function Nav() {
         </div>
 
         <div className="flex items-center gap-3">
+          <button
+            onClick={toggleTheme}
+            aria-label="Cambiar tema"
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              justifyContent: "center",
+              width: "36px",
+              height: "36px",
+              borderRadius: "50%",
+              border: "1px solid var(--c-border-md)",
+              background: "transparent",
+              color: "var(--c-text2)",
+              cursor: "pointer",
+              transition: "border-color 150ms ease, color 150ms ease",
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.borderColor = "var(--c-orange)";
+              e.currentTarget.style.color = "var(--c-orange)";
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.borderColor = "var(--c-border-md)";
+              e.currentTarget.style.color = "var(--c-text2)";
+            }}
+          >
+            {theme === "dark" ? <Sun size={14} /> : <Moon size={14} />}
+          </button>
           <Link href="/login" className="l-btn-secondary" style={{ padding: "8px 20px", fontSize: "11px" }}>
             ENTRAR
           </Link>
@@ -249,11 +278,11 @@ function Nav() {
 }
 
 /* ─── Hero ─── */
-function Hero() {
+function Hero({ theme }: { theme: string }) {
   const ref = useReveal();
   return (
     <section className="pt-28 pb-20 px-6 relative overflow-hidden" ref={ref}>
-      <div className="absolute inset-0 l-dot-grid-dense pointer-events-none" style={{ opacity: 0.4 }} />
+      <div className="absolute inset-0 l-dot-grid-dense pointer-events-none" style={{ opacity: 0.5 }} />
 
       <div className="max-w-[1200px] mx-auto relative">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
@@ -297,7 +326,7 @@ function Hero() {
 
           {/* Globe */}
           <div data-reveal className="hidden lg:block l-delay-2" style={{ opacity: 0 }}>
-            <GlobeCdn className="w-full max-w-[600px] mx-auto scale-110 origin-center" />
+            <GlobeCdn className="w-full max-w-[600px] mx-auto scale-110 origin-center" theme={theme as "light" | "dark"} />
           </div>
         </div>
       </div>
@@ -343,8 +372,9 @@ function Features() {
   ];
 
   return (
-    <section id="features" className="py-24 px-6">
-      <div className="max-w-[1200px] mx-auto space-y-8">
+    <section id="features" className="py-24 px-6 relative">
+      <div className="absolute inset-0 l-dot-grid-accent pointer-events-none" style={{ opacity: 0.4 }} />
+      <div className="max-w-[1200px] mx-auto space-y-8 relative">
         <FeaturesAnimatedContainer className="max-w-[500px]">
           <span className="l-label block mb-4">FUNCIONALIDADES</span>
           <h2 className="l-display-section">
@@ -408,7 +438,8 @@ function Process() {
 
   return (
     <section id="process" className="l-section-alt py-24 px-6" ref={ref}>
-      <div className="max-w-[1200px] mx-auto">
+      <div className="absolute inset-0 l-dot-grid pointer-events-none" style={{ opacity: 0.3 }} />
+      <div className="max-w-[1200px] mx-auto relative">
         <div className="mb-16" data-reveal style={{ opacity: 0 }}>
           <span className="l-label block mb-4">PROCESO</span>
           <h2 className="l-display-section max-w-[450px]">
@@ -541,7 +572,8 @@ function UseCases() {
 
   return (
     <section className="l-section-alt py-24 px-6" ref={ref}>
-      <div className="max-w-[1200px] mx-auto">
+      <div className="absolute inset-0 l-dot-grid-dense pointer-events-none" style={{ opacity: 0.25 }} />
+      <div className="max-w-[1200px] mx-auto relative">
         <div className="mb-16" data-reveal style={{ opacity: 0 }}>
           <span className="l-label block mb-4">CASOS DE USO</span>
           <h2 className="l-display-section max-w-[500px]">
@@ -796,8 +828,9 @@ function CTA() {
 /* ─── Footer ─── */
 function Footer() {
   return (
-    <footer style={{ borderTop: "1px solid var(--c-border)", padding: "24px" }}>
-      <div className="max-w-[1200px] mx-auto flex flex-col sm:flex-row items-center justify-between gap-3">
+    <footer className="relative overflow-hidden" style={{ borderTop: "1px solid var(--c-border)", padding: "24px" }}>
+      <div className="absolute inset-0 l-dot-grid-dense pointer-events-none" style={{ opacity: 0.2 }} />
+      <div className="max-w-[1200px] mx-auto flex flex-col sm:flex-row items-center justify-between gap-3 relative">
         <div className="flex items-center gap-2">
           <Zap size={14} strokeWidth={2.5} style={{ color: "var(--c-orange)" }} />
           <span style={{ fontFamily: "var(--f-gothic)", fontSize: "14px", fontWeight: 500, color: "var(--c-dark)" }}>
@@ -814,11 +847,26 @@ function Footer() {
 
 /* ─── Page ─── */
 export default function LandingPage() {
+  const [theme, setTheme] = useState<"light" | "dark">("light");
+
+  useEffect(() => {
+    const saved = localStorage.getItem("landing-theme");
+    if (saved === "dark") setTheme("dark");
+  }, []);
+
+  const toggleTheme = useCallback(() => {
+    setTheme((prev) => {
+      const next = prev === "light" ? "dark" : "light";
+      localStorage.setItem("landing-theme", next);
+      return next;
+    });
+  }, []);
+
   return (
-    <div className="landing">
-      <Nav />
-      <Hero />
-      <FeaturesDashboard />
+    <div className="landing" data-theme={theme === "dark" ? "dark" : undefined}>
+      <Nav theme={theme} toggleTheme={toggleTheme} />
+      <Hero theme={theme} />
+      <FeaturesDashboard theme={theme} />
       <SearchShowcase />
       <Features />
       <Process />

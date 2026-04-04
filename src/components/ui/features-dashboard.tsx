@@ -1,6 +1,8 @@
 import { Cpu, Lock, Sparkles, Zap } from "lucide-react";
 
-export function FeaturesDashboard() {
+export function FeaturesDashboard({ theme = "light" }: { theme?: string }) {
+  const isDark = theme === "dark";
+  const screenshot = isDark ? "/dashboard-screenshot-dark.png" : "/dashboard-screenshot.png";
   return (
     <section className="overflow-hidden py-16 md:py-32">
       <div className="mx-auto max-w-5xl space-y-8 px-6 md:space-y-12">
@@ -33,7 +35,7 @@ export function FeaturesDashboard() {
                   className="absolute left-0 right-0 top-0 z-20 pointer-events-none"
                   style={{
                     height: "25%",
-                    background: "linear-gradient(to bottom, var(--c-cream, #F5F0E8) 0%, transparent 100%)",
+                    background: "linear-gradient(to bottom, var(--c-cream) 0%, transparent 100%)",
                   }}
                 />
                 {/* Bottom fade */}
@@ -41,11 +43,11 @@ export function FeaturesDashboard() {
                   className="absolute left-0 right-0 bottom-0 z-20 pointer-events-none"
                   style={{
                     height: "30%",
-                    background: "linear-gradient(to top, var(--c-cream, #F5F0E8) 0%, transparent 100%)",
+                    background: "linear-gradient(to top, var(--c-cream) 0%, transparent 100%)",
                   }}
                 />
                 <img
-                  src="/dashboard-screenshot.png"
+                  src={screenshot}
                   className="absolute inset-0 z-10 rounded-xl shadow-2xl"
                   alt="ProspectAI dashboard con métricas de prospección"
                   width={2880}
@@ -53,7 +55,7 @@ export function FeaturesDashboard() {
                   style={{ objectFit: "cover" }}
                 />
                 <img
-                  src="/dashboard-screenshot.png"
+                  src={screenshot}
                   className="rounded-xl opacity-30"
                   alt=""
                   width={2880}

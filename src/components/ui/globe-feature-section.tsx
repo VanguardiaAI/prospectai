@@ -12,7 +12,7 @@ export default function GlobeFeatureSection() {
       id="cta"
       className="relative w-full max-w-[1200px] mx-auto overflow-hidden px-6 py-16 md:px-16 md:py-24"
       style={{
-        background: "var(--c-dark)",
+        background: "#1a1a18",
         borderRadius: "16px",
       }}
     >
@@ -35,7 +35,7 @@ export default function GlobeFeatureSection() {
             EMPIEZA HOY
           </span>
 
-          <h2 className="l-display-section mb-4" style={{ color: "var(--c-cream)" }}>
+          <h2 className="l-display-section mb-4" style={{ color: "#f0efe8" }}>
             Tu primera campaña en menos de{" "}
             <span style={{ color: "var(--c-orange)" }}>5 minutos</span>{" "}
             <span style={{ color: "rgba(242,241,237,0.5)" }}>

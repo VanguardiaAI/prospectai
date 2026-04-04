@@ -20,6 +20,7 @@ interface GlobeCdnProps {
   arcs?: CdnArc[]
   className?: string
   speed?: number
+  theme?: "light" | "dark"
 }
 
 const defaultMarkers: CdnMarker[] = [
@@ -49,6 +50,7 @@ export function GlobeCdn({
   arcs = defaultArcs,
   className = "",
   speed = 0.003,
+  theme = "light",
 }: GlobeCdnProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const pointerInteracting = useRef<{ x: number; y: number } | null>(null)
@@ -118,18 +120,22 @@ export function GlobeCdn({
       const width = canvas.offsetWidth
       if (width === 0 || globe) return
 
+      const isDark = theme === "dark"
       globe = createGlobe(canvas, {
         devicePixelRatio: Math.min(window.devicePixelRatio || 1, 2),
         width, height: width,
-        phi: 0, theta: 0.2, dark: 0, diffuse: 1.5,
-        mapSamples: 16000, mapBrightness: 10,
-        baseColor: [1, 1, 1],
+        phi: 0, theta: 0.2,
+        dark: isDark ? 1 : 0,
+        diffuse: isDark ? 2 : 1.5,
+        mapSamples: 16000,
+        mapBrightness: isDark ? 12 : 10,
+        baseColor: isDark ? [0.15, 0.15, 0.14] : [1, 1, 1],
         markerColor: [0.96, 0.31, 0],
-        glowColor: [0.94, 0.93, 0.91],
+        glowColor: isDark ? [0.08, 0.08, 0.07] : [0.94, 0.93, 0.91],
         markerElevation: 0.02,
         markers: markers.map((m) => ({ location: m.location, size: 0.012, id: m.id })),
         arcs: arcs.map((a) => ({ from: a.from, to: a.to, id: a.id })),
-        arcColor: [0, 0, 0],
+        arcColor: isDark ? [0.96, 0.31, 0] : [0, 0, 0],
         arcWidth: 0.5, arcHeight: 0.25, opacity: 0.7,
       })
       function animate() {
@@ -160,7 +166,7 @@ export function GlobeCdn({
       if (animationId) cancelAnimationFrame(animationId)
       if (globe) globe.destroy()
     }
-  }, [markers, arcs, speed])
+  }, [markers, arcs, speed, theme])
 
   const pyramidFaceStyle = (nth: number): React.CSSProperties => {
     const transforms = [
