@@ -20,6 +20,8 @@ import {
   Eye,
   Reply,
 } from "lucide-react";
+import { GlobeCdn } from "@/components/ui/cobe-globe-cdn";
+import MagnifiedBento from "@/components/ui/magnified-bento";
 
 /* ─── Scroll-reveal hook ─── */
 function useReveal() {
@@ -43,67 +45,6 @@ function useReveal() {
     return () => obs.disconnect();
   }, []);
   return ref;
-}
-
-/* ─── SVG: Animated scanning graphic for hero ─── */
-function HeroGraphic() {
-  return (
-    <svg viewBox="0 0 480 280" fill="none" className="w-full max-w-[480px]">
-      <defs>
-        <pattern id="dotgrid" x="0" y="0" width="20" height="20" patternUnits="userSpaceOnUse">
-          <circle cx="10" cy="10" r="0.8" fill="rgba(38,37,30,0.12)" />
-        </pattern>
-        <linearGradient id="scanGrad" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor="#f54e00" stopOpacity="0" />
-          <stop offset="50%" stopColor="#f54e00" stopOpacity="0.15" />
-          <stop offset="100%" stopColor="#f54e00" stopOpacity="0" />
-        </linearGradient>
-      </defs>
-
-      <rect width="480" height="280" fill="url(#dotgrid)" rx="10" />
-
-      {/* Browser mockup */}
-      <rect x="60" y="30" width="360" height="220" rx="8" fill="#f7f7f4" stroke="rgba(38,37,30,0.15)" strokeWidth="1" />
-      <rect x="60" y="30" width="360" height="28" rx="8" fill="#ebeae5" />
-      <circle cx="78" cy="44" r="4" fill="rgba(38,37,30,0.15)" />
-      <circle cx="92" cy="44" r="4" fill="rgba(38,37,30,0.10)" />
-      <circle cx="106" cy="44" r="4" fill="rgba(38,37,30,0.07)" />
-      <rect x="122" y="38" width="180" height="12" rx="6" fill="rgba(38,37,30,0.06)" />
-
-      {/* Page content lines */}
-      <rect x="80" y="74" width="140" height="10" rx="2" fill="rgba(38,37,30,0.12)" />
-      <rect x="80" y="92" width="200" height="6" rx="2" fill="rgba(38,37,30,0.06)" />
-      <rect x="80" y="104" width="180" height="6" rx="2" fill="rgba(38,37,30,0.06)" />
-      <rect x="80" y="116" width="160" height="6" rx="2" fill="rgba(38,37,30,0.06)" />
-
-      <rect x="80" y="134" width="120" height="80" rx="4" fill="rgba(38,37,30,0.04)" stroke="rgba(38,37,30,0.08)" strokeWidth="1" />
-      <rect x="220" y="134" width="180" height="24" rx="4" fill="rgba(38,37,30,0.04)" />
-      <rect x="220" y="166" width="180" height="24" rx="4" fill="rgba(38,37,30,0.04)" />
-      <rect x="220" y="198" width="100" height="16" rx="8" fill="rgba(38,37,30,0.08)" />
-
-      {/* Scanning line */}
-      <rect x="60" y="58" width="360" height="60" fill="url(#scanGrad)" className="l-scan-line" />
-
-      {/* Analysis badges — monochrome + orange only */}
-      <g className="l-fade-up l-delay-1" style={{ opacity: 0 }}>
-        <rect x="310" y="70" width="90" height="22" rx="11" fill="#f54e00" />
-        <text x="355" y="84" textAnchor="middle" fill="#fff" fontSize="9" fontFamily="var(--f-mono)" letterSpacing="0.06em">NO SEO</text>
-      </g>
-      <g className="l-fade-up l-delay-3" style={{ opacity: 0 }}>
-        <rect x="310" y="98" width="90" height="22" rx="11" fill="rgba(38,37,30,0.7)" />
-        <text x="355" y="112" textAnchor="middle" fill="#fff" fontSize="9" fontFamily="var(--f-mono)" letterSpacing="0.06em">LENTA 4.2s</text>
-      </g>
-      <g className="l-fade-up l-delay-5" style={{ opacity: 0 }}>
-        <rect x="310" y="126" width="90" height="22" rx="11" fill="#f54e00" fillOpacity="0.75" />
-        <text x="355" y="140" textAnchor="middle" fill="#fff" fontSize="9" fontFamily="var(--f-mono)" letterSpacing="0.06em">SIN HTTPS</text>
-      </g>
-
-      {/* Pulse rings */}
-      <circle cx="240" cy="150" r="30" fill="none" stroke="#f54e00" strokeWidth="1" className="l-pulse-ring" />
-      <circle cx="240" cy="150" r="30" fill="none" stroke="#f54e00" strokeWidth="1" className="l-pulse-ring" style={{ animationDelay: "0.8s" }} />
-      <circle cx="240" cy="150" r="30" fill="none" stroke="#f54e00" strokeWidth="1" className="l-pulse-ring" style={{ animationDelay: "1.6s" }} />
-    </svg>
-  );
 }
 
 /* ─── SVG: Dot-matrix pipeline animation ─── */
@@ -320,17 +261,17 @@ function Hero() {
             </div>
 
             <h1 data-reveal className="l-display-hero mb-6" style={{ opacity: 0 }}>
-              Tu próximo cliente ya tiene una web.
+              Encuentra clientes en cualquier rincón del mundo.
             </h1>
 
             <p data-reveal className="l-doto mb-8 l-delay-1" style={{ fontSize: "clamp(28px, 4vw, 48px)", color: "var(--c-orange)", opacity: 0 }}>
-              Nosotros lo encontramos.
+              La IA hace el resto.
             </p>
 
             <p data-reveal className="l-body max-w-[460px] mb-10 l-delay-2" style={{ opacity: 0 }}>
-              ProspectAI analiza miles de negocios, detecta oportunidades de mejora
-              en sus webs, y envía mensajes personalizados por email y WhatsApp.
-              Todo en autopilot.
+              ProspectAI rastrea negocios en todo el mundo, analiza sus webs,
+              y les envía mensajes personalizados por email y WhatsApp.
+              Prospección global en autopilot.
             </p>
 
             <div data-reveal className="flex flex-col sm:flex-row gap-4 mb-12 l-delay-3" style={{ opacity: 0 }}>
@@ -349,11 +290,35 @@ function Hero() {
             </div>
           </div>
 
-          {/* Hero graphic */}
+          {/* Globe */}
           <div data-reveal className="hidden lg:block l-delay-2" style={{ opacity: 0 }}>
-            <div className="l-float">
-              <HeroGraphic />
-            </div>
+            <GlobeCdn className="w-full max-w-[600px] mx-auto scale-110 origin-center" />
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+/* ─── Search Showcase ─── */
+function SearchShowcase() {
+  const ref = useReveal();
+  return (
+    <section className="l-section-alt py-20 px-6" ref={ref}>
+      <div className="max-w-[1200px] mx-auto">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
+          <div data-reveal style={{ opacity: 0 }}>
+            <span className="l-label block mb-4">MOTOR DE BÚSQUEDA</span>
+            <h2 className="l-display-section max-w-[450px] mb-6">
+              Encuentra los negocios que más necesitan tus servicios
+            </h2>
+            <p className="l-body max-w-[420px]">
+              ProspectAI analiza miles de webs en tiempo real: detecta problemas de rendimiento,
+              SEO, seguridad y diseño. Tú solo eliges la ciudad y el sector.
+            </p>
+          </div>
+          <div data-reveal className="l-delay-2" style={{ opacity: 0 }}>
+            <MagnifiedBento />
           </div>
         </div>
       </div>
@@ -660,6 +625,7 @@ export default function LandingPage() {
     <div className="landing">
       <Nav />
       <Hero />
+      <SearchShowcase />
       <Features />
       <Process />
       <Metrics />
