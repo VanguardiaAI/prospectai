@@ -652,6 +652,48 @@ body {
   animation: l-rotate 20s linear infinite;
 }
 
+/* ─── Features Grid (dashed borders) ─── */
+.features-grid {
+  border: 1px dashed var(--c-border-md);
+}
+
+.features-grid > * {
+  border-bottom: 1px dashed var(--c-border-md);
+  border-right: 1px dashed var(--c-border-md);
+}
+
+.features-grid > *:nth-child(3n) {
+  border-right: none;
+}
+
+.features-grid > *:nth-last-child(-n+3) {
+  border-bottom: none;
+}
+
+@media (max-width: 767px) {
+  .features-grid > * {
+    border-right: none;
+  }
+  .features-grid > *:last-child {
+    border-bottom: none;
+  }
+  .features-grid > *:nth-last-child(-n+3) {
+    border-bottom: 1px dashed var(--c-border-md);
+  }
+  .features-grid > *:last-child {
+    border-bottom: none;
+  }
+}
+
+@media (min-width: 640px) and (max-width: 767px) {
+  .features-grid > *:nth-child(2n) {
+    border-right: none;
+  }
+  .features-grid > *:nth-last-child(-n+2) {
+    border-bottom: none;
+  }
+}
+
 /* ─── Section alternation ─── */
 .l-section-alt {
   background: var(--c-s400);
