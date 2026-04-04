@@ -1,0 +1,76 @@
+import { db, getSetting } from "@/db";
+import { whatsappMessages, leads } from "@/db/schema";
+import { eq, and, sql } from "drizzle-orm";
+import { sendWhatsAppMessage, isWhatsAppReady } from "@/lib/whatsapp-client";
+import { logActivity } from "@/lib/activity";
+import { isWithinSendWindow } from "./warmup";
+
+export async function processWhatsAppSending() {
+  if (!isWhatsAppReady()) {
+    return { sent: 0, reason: "WhatsApp not connected" };
+  }
+
+  if (!isWithinSendWindow()) {
+    return { sent: 0, reason: "Outside send window" };
+  }
+
+  const waLimit = parseInt(getSetting("wa_daily_limit") || "20");
+  const today = new Date().toISOString().split("T")[0];
+
+  const sentToday = db.select({ count: sql<number>`count(*)` }).from(whatsappMessages)
+    .where(and(eq(whatsappMessages.status, "sent"), sql`date(${whatsappMessages.sentAt}) = ${today}`))
+    .get()?.count ?? 0;
+
+  if (sentToday >= waLimit) {
+    return { sent: 0, reason: "WhatsApp daily limit reached" };
+  }
+
+  const remaining = waLimit - sentToday;
+
+  const approvedMessages = db.select()
+    .from(whatsappMessages)
+    .where(eq(whatsappMessages.status, "approved"))
+    .limit(remaining)
+    .all();
+
+  let sent = 0;
+  for (const msg of approvedMessages) {
+    const result = await sendWhatsAppMessage(msg.toPhone, msg.body);
+
+    if (result.success) {
+      db.update(whatsappMessages).set({
+        status: "sent",
+        waMessageId: result.messageId,
+        sentAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      }).where(eq(whatsappMessages.id, msg.id)).run();
+
+      db.update(leads).set({
+        status: "wa_sent",
+        waSentAt: new Date().toISOString(),
+      }).where(eq(leads.id, msg.leadId)).run();
+
+      logActivity("wa_sent", `WhatsApp enviado a ${msg.toPhone}`, {
+        leadId: msg.leadId,
+        campaignId: msg.campaignId ?? undefined,
+      });
+
+      sent++;
+    } else {
+      db.update(whatsappMessages).set({
+        status: "failed",
+        updatedAt: new Date().toISOString(),
+      }).where(eq(whatsappMessages.id, msg.id)).run();
+
+      logActivity("wa_failed", `Error enviando WhatsApp a ${msg.toPhone}: ${result.error}`, {
+        leadId: msg.leadId,
+      });
+    }
+
+    // Stagger: wait 30-90 seconds between messages
+    const delay = 30000 + Math.random() * 60000;
+    await new Promise((r) => setTimeout(r, delay));
+  }
+
+  return { sent };
+}
