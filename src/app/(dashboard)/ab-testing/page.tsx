@@ -45,13 +45,7 @@ interface Campaign {
   name: string;
 }
 
-const TONE_OPTIONS = [
-  { value: "professional", label: "Professional" },
-  { value: "friendly", label: "Friendly" },
-  { value: "direct", label: "Direct" },
-  { value: "consultative", label: "Consultative" },
-  { value: "casual", label: "Casual" },
-];
+const TONE_KEYS = ["professional", "friendly", "direct", "consultative", "casual"] as const;
 
 function rate(num: number, den: number): string {
   if (den === 0) return "0.0";
@@ -119,7 +113,7 @@ const SIGNIFICANCE_LABELS: Record<SignificanceLevel, string> = {
 
 export default function ABTestingPage() {
   const { toast } = useToast();
-  const { t } = useT();
+  const { t, lang } = useT();
   const [tests, setTests] = useState<ABTest[]>([]);
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
   const [loading, setLoading] = useState(true);
@@ -262,7 +256,7 @@ export default function ABTestingPage() {
                         <span className="text-[11px] text-text-muted font-mono">{test.campaignName}</span>
                       )}
                       <span className="text-[11px] text-text-muted">
-                        {new Date(test.createdAt).toLocaleDateString("es-MX")}
+                        {new Date(test.createdAt).toLocaleDateString(lang === "es" ? "es-MX" : "en-US")}
                       </span>
                     </div>
                   </div>
@@ -454,7 +448,7 @@ export default function ABTestingPage() {
             <Input
               value={form.name}
               onChange={(e) => setForm({ ...form, name: e.target.value })}
-              placeholder="E.g.: Professional vs friendly tone"
+              placeholder={t("abTesting.testNamePlaceholder")}
             />
           </div>
           <div>
@@ -492,8 +486,8 @@ export default function ABTestingPage() {
                   value={form.variantA.tone}
                   onChange={(e) => setForm({ ...form, variantA: { ...form.variantA, tone: e.target.value } })}
                 >
-                  {TONE_OPTIONS.map((to) => (
-                    <option key={to.value} value={to.value}>{to.label}</option>
+                  {TONE_KEYS.map((tone) => (
+                    <option key={tone} value={tone}>{t(`tones.${tone}`)}</option>
                   ))}
                 </Select>
               </div>
@@ -520,8 +514,8 @@ export default function ABTestingPage() {
                   value={form.variantB.tone}
                   onChange={(e) => setForm({ ...form, variantB: { ...form.variantB, tone: e.target.value } })}
                 >
-                  {TONE_OPTIONS.map((to) => (
-                    <option key={to.value} value={to.value}>{to.label}</option>
+                  {TONE_KEYS.map((tone) => (
+                    <option key={tone} value={tone}>{t(`tones.${tone}`)}</option>
                   ))}
                 </Select>
               </div>

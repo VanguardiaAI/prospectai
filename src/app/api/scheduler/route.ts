@@ -1,19 +1,22 @@
 import { NextRequest, NextResponse } from "next/server";
 import { startScheduler, stopScheduler, isSchedulerRunning } from "@/lib/scheduler";
+import { validateBody, schedulerActionSchema } from "@/lib/validations";
 
 export async function GET() {
   return NextResponse.json({ running: isSchedulerRunning() });
 }
 
 export async function POST(request: NextRequest) {
-  const { action } = await request.json();
+  const body = await request.json();
+  const v = validateBody(schedulerActionSchema, body);
+  if (!v.success) return v.response;
 
-  if (action === "start") {
+  if (v.data.action === "start") {
     startScheduler();
     return NextResponse.json({ success: true, running: true });
   }
 
-  if (action === "stop") {
+  if (v.data.action === "stop") {
     stopScheduler();
     return NextResponse.json({ success: true, running: false });
   }

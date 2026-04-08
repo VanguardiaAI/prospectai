@@ -6,6 +6,7 @@ import {
   checkRateLimit,
   resetRateLimit,
 } from "@/lib/auth";
+import { logger } from "@/lib/logger";
 
 export async function POST(req: NextRequest) {
   // Get client IP for rate limiting
@@ -50,7 +51,7 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({ success: true });
   } catch (err) {
-    console.error("Login error:", err);
+    logger.error({ err }, "Login error");
     return NextResponse.json(
       { error: "Internal server error" },
       { status: 500 }

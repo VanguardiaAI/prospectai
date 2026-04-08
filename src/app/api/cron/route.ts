@@ -10,6 +10,12 @@ import { processSequences } from "@/lib/cron/sequences";
 import { setupWhatsAppReplyListener } from "@/lib/cron/wa-replies";
 
 export async function POST(req: NextRequest) {
+  // Bearer auth — cron endpoint uses its own secret, not JWT session
+  const secret = req.headers.get("x-cron-secret") || req.headers.get("authorization")?.replace("Bearer ", "");
+  if (!secret || secret !== process.env.CRON_SECRET) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
   const { searchParams } = new URL(req.url);
   const action = searchParams.get("action") || "all";
 

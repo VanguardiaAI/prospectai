@@ -8,6 +8,7 @@ import type { WebAnalysis } from "@/lib/gemini";
 import { calculateOpportunityScore } from "@/lib/scorer";
 import { logActivity } from "@/lib/activity";
 import { isBlacklisted } from "@/lib/blacklist";
+import { validateBody, outreachActionSchema } from "@/lib/validations";
 
 // POST: trigger individual outreach flow for a lead
 // Actions: "analyze" | "generate_email" | "generate_wa" | "create_email" | "create_wa"
@@ -15,7 +16,9 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   const { id } = await params;
   const leadId = Number(id);
   const body = await req.json();
-  const action = body.action as string;
+  const v = validateBody(outreachActionSchema, body);
+  if (!v.success) return v.response;
+  const action = v.data.action;
 
   const lead = db.select().from(leads).where(eq(leads.id, leadId)).get();
   if (!lead) return NextResponse.json({ error: "Lead not found" }, { status: 404 });
@@ -135,7 +138,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       ? db.select().from(campaigns).where(eq(campaigns.id, lead.campaignId)).get()
       : null;
 
-    const tone = body.tone || campaign?.defaultTone || getSetting("default_tone") || "professional";
+    const tone = v.data.tone || campaign?.defaultTone || getSetting("default_tone") || "professional";
     const fromName = getSetting("from_name") || getSetting("agency_name") || "ProspectAI";
     const fromEmail = getSetting("from_email") || "";
 
@@ -173,7 +176,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       ? db.select().from(campaigns).where(eq(campaigns.id, lead.campaignId)).get()
       : null;
 
-    const tone = body.tone || campaign?.defaultTone || getSetting("default_tone") || "professional";
+    const tone = v.data.tone || campaign?.defaultTone || getSetting("default_tone") || "professional";
     const fromName = getSetting("from_name") || getSetting("agency_name") || "ProspectAI";
 
     const generated = await generateWhatsApp(lead.name, lead.category, lead.city, lead.website, waAnalysis, tone, fromName, undefined, undefined, detectCountryFromPhone(lead.phone) || undefined);
@@ -204,10 +207,10 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       campaignId: lead.campaignId,
       toEmail,
       fromEmail,
-      subject: body.subject || "",
-      bodyHtml: body.bodyHtml || `<p>${(body.bodyText || "").replace(/\n/g, "</p><p>")}</p>`,
-      bodyText: body.bodyText || "",
-      tone: body.tone || "professional",
+      subject: v.data.subject || "",
+      bodyHtml: v.data.bodyHtml || `<p>${(v.data.bodyText || "").replace(/\n/g, "</p><p>")}</p>`,
+      bodyText: v.data.bodyText || "",
+      tone: v.data.tone || "professional",
       status: "draft",
     }).run();
 
@@ -223,8 +226,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       leadId: lead.id,
       campaignId: lead.campaignId,
       toPhone: lead.phone,
-      body: body.body || "",
-      tone: body.tone || "professional",
+      body: v.data.body || "",
+      tone: v.data.tone || "professional",
       status: "draft",
     }).run();
 

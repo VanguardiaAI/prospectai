@@ -139,7 +139,7 @@ export default function ReviewPage() {
       });
       const data = await res.json();
       if (data.success) {
-        toast(`Email de prueba enviado a ${data.sentTo}`, "success");
+        toast(t("review.testEmailSent", { email: data.sentTo }), "success");
       } else {
         toast(`Error: ${data.error}`, "error");
       }
@@ -311,7 +311,7 @@ export default function ReviewPage() {
               </Select>
               {emailStatus === "draft" && emails.length > 0 && (
                 <Button variant="secondary" size="sm" onClick={() => { setBulkMode(!bulkMode); setSelectedIds(new Set()); }}>
-                  <CheckCheck className="h-3.5 w-3.5" strokeWidth={1.5} /> {bulkMode ? "Cancelar" : "Bulk"}
+                  <CheckCheck className="h-3.5 w-3.5" strokeWidth={1.5} /> {bulkMode ? t("common.cancel") : t("common.bulk")}
                 </Button>
               )}
             </>
@@ -327,7 +327,7 @@ export default function ReviewPage() {
               </Select>
               {waStatus === "draft" && waMessages.length > 0 && (
                 <Button variant="secondary" size="sm" onClick={() => { setWaBulkMode(!waBulkMode); setWaSelectedIds(new Set()); }}>
-                  <CheckCheck className="h-3.5 w-3.5" strokeWidth={1.5} /> {waBulkMode ? "Cancelar" : "Bulk"}
+                  <CheckCheck className="h-3.5 w-3.5" strokeWidth={1.5} /> {waBulkMode ? t("common.cancel") : t("common.bulk")}
                 </Button>
               )}
             </>
@@ -502,7 +502,7 @@ export default function ReviewPage() {
                       </div>
                     )}
                     <div className="pt-3 border-t border-border">
-                      <span className="nd-label block mb-1.5">Tono</span>
+                      <span className="nd-label block mb-1.5">{t("review.tone")}</span>
                       <Badge>{current.email.tone.toUpperCase()}</Badge>
                     </div>
                   </div>
@@ -693,7 +693,7 @@ export default function ReviewPage() {
                       </div>
                     )}
                     <div className="pt-3 border-t border-border">
-                      <span className="nd-label block mb-1.5">Tono</span>
+                      <span className="nd-label block mb-1.5">{t("review.tone")}</span>
                       <Badge>{currentWA.message.tone.toUpperCase()}</Badge>
                     </div>
                   </div>

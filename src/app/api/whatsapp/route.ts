@@ -6,89 +6,58 @@ import { sendWhatsAppMessage, isWhatsAppReady } from "@/lib/whatsapp-client";
 import { generateWhatsApp, regenerateWhatsApp, detectCountryFromPhone } from "@/lib/gemini";
 import type { WebAnalysis } from "@/lib/gemini";
 import { logActivity } from "@/lib/activity";
+import { validateBody, bulkApproveWASchema, updateWASchema, waPostSchema } from "@/lib/validations";
+import * as messageService from "@/services/message.service";
+import { handleServiceError } from "@/services/api-handler";
 
 // GET: list WhatsApp messages with filters
 export async function GET(req: NextRequest) {
-  const { searchParams } = new URL(req.url);
-  const status = searchParams.get("status") || "draft";
-  const limitParam = parseInt(searchParams.get("limit") || "100");
-
-  const messages = db
-    .select({
-      message: whatsappMessages,
-      leadName: leads.name,
-      leadCategory: leads.category,
-      leadCity: leads.city,
-      leadWebsite: leads.website,
-      leadPhone: leads.phone,
-      leadScore: leads.webQualityScore,
-      leadOpportunity: leads.opportunityScore,
-      leadAnalysisSummary: leads.analysisSummary,
-    })
-    .from(whatsappMessages)
-    .leftJoin(leads, eq(whatsappMessages.leadId, leads.id))
-    .where(eq(whatsappMessages.status, status as "draft" | "approved" | "rejected" | "sent" | "failed"))
-    .orderBy(desc(whatsappMessages.createdAt))
-    .limit(limitParam)
-    .all();
-
-  return NextResponse.json({ messages });
+  try {
+    const { searchParams } = new URL(req.url);
+    const data = messageService.listWhatsAppMessages({
+      status: searchParams.get("status") || undefined,
+      limit: parseInt(searchParams.get("limit") || "100"),
+    });
+    return NextResponse.json(data);
+  } catch (err) {
+    return handleServiceError(err);
+  }
 }
 
 // PUT: update message (edit, approve, reject, bulk approve)
 export async function PUT(req: NextRequest) {
   const body = await req.json();
 
-  // Bulk approve
-  if (body.bulkApprove && body.ids) {
-    for (const id of body.ids as number[]) {
-      db.update(whatsappMessages)
-        .set({ status: "approved", updatedAt: new Date().toISOString() })
-        .where(eq(whatsappMessages.id, id))
-        .run();
+  try {
+    // Bulk approve
+    if (body.bulkApprove) {
+      const v = validateBody(bulkApproveWASchema, body);
+      if (!v.success) return v.response;
+      const result = messageService.approveWhatsApp(v.data.ids);
+      return NextResponse.json(result);
     }
-    return NextResponse.json({ success: true });
+
+    const v = validateBody(updateWASchema, body);
+    if (!v.success) return v.response;
+
+    const { id, ...updates } = v.data;
+    const result = messageService.updateWhatsApp(id, updates);
+    return NextResponse.json(result);
+  } catch (err) {
+    return handleServiceError(err);
   }
-
-  const { id, ...updates } = body;
-  if (!id) return NextResponse.json({ error: "Missing id" }, { status: 400 });
-
-  const allowedFields: Record<string, string> = {
-    body: "body",
-    status: "status",
-  };
-
-  const setData: Record<string, unknown> = { updatedAt: new Date().toISOString() };
-  for (const [key, col] of Object.entries(allowedFields)) {
-    if (updates[key] !== undefined) setData[col] = updates[key];
-  }
-
-  db.update(whatsappMessages).set(setData).where(eq(whatsappMessages.id, id)).run();
-
-  // Update lead status if approving/rejecting
-  if (updates.status === "approved" || updates.status === "rejected") {
-    const msg = db.select().from(whatsappMessages).where(eq(whatsappMessages.id, id)).get();
-    if (msg) {
-      const leadStatus = updates.status === "approved" ? "wa_approved" : "rejected";
-      db.update(leads).set({ status: leadStatus }).where(eq(leads.id, msg.leadId)).run();
-      logActivity(
-        updates.status === "approved" ? "wa_approved" : "wa_rejected",
-        `WhatsApp ${updates.status === "approved" ? "aprobado" : "rechazado"} para lead #${msg.leadId}`,
-        { leadId: msg.leadId, campaignId: msg.campaignId ?? undefined, messageKey: updates.status === "approved" ? "activityLog.waApproved" : "activityLog.waRejected" }
-      );
-    }
-  }
-
-  return NextResponse.json({ success: true });
 }
 
 // POST: generate, regenerate, or send WhatsApp message
 export async function POST(req: NextRequest) {
   const body = await req.json();
 
-  // Regenerate existing message
-  if (body.messageId) {
-    const msg = db.select().from(whatsappMessages).where(eq(whatsappMessages.id, body.messageId)).get();
+  const v = validateBody(waPostSchema, body);
+  if (!v.success) return v.response;
+
+  // Regenerate existing message (matched regenerateWASchema: has messageId, no action)
+  if ("messageId" in v.data && !("action" in v.data)) {
+    const msg = db.select().from(whatsappMessages).where(eq(whatsappMessages.id, v.data.messageId)).get();
     if (!msg) return NextResponse.json({ error: "Message not found" }, { status: 404 });
 
     const lead = db.select().from(leads).where(eq(leads.id, msg.leadId)).get();
@@ -99,14 +68,14 @@ export async function POST(req: NextRequest) {
 
     const generated = await regenerateWhatsApp(
       lead.name, lead.category, lead.city, lead.website,
-      analysis, body.tone || msg.tone, fromName,
-      msg.body, body.instructions || "",
+      analysis, v.data.tone || msg.tone, fromName,
+      msg.body, v.data.instructions || "",
       detectCountryFromPhone(lead.phone) || undefined
     );
 
     db.update(whatsappMessages).set({
       body: generated.message,
-      tone: body.tone || msg.tone,
+      tone: v.data.tone || msg.tone,
       status: "draft",
       updatedAt: new Date().toISOString(),
     }).where(eq(whatsappMessages.id, msg.id)).run();
@@ -115,8 +84,8 @@ export async function POST(req: NextRequest) {
   }
 
   // Generate new message for a lead
-  if (body.leadId && body.action === "generate") {
-    const lead = db.select().from(leads).where(eq(leads.id, body.leadId)).get();
+  if ("leadId" in v.data && "action" in v.data && v.data.action === "generate") {
+    const lead = db.select().from(leads).where(eq(leads.id, v.data.leadId)).get();
     if (!lead) return NextResponse.json({ error: "Lead not found" }, { status: 404 });
     if (!lead.phone) return NextResponse.json({ error: "Lead has no phone number" }, { status: 400 });
 
@@ -125,7 +94,7 @@ export async function POST(req: NextRequest) {
       ? db.select().from(campaigns).where(eq(campaigns.id, lead.campaignId)).get()
       : null;
 
-    const tone = body.tone || campaign?.defaultTone || getSetting("default_tone") || "professional";
+    const tone = v.data.tone || campaign?.defaultTone || getSetting("default_tone") || "professional";
     const fromName = getSetting("from_name") || getSetting("agency_name") || "ProspectAI";
 
     const generated = await generateWhatsApp(
@@ -155,8 +124,8 @@ export async function POST(req: NextRequest) {
   }
 
   // Create manual message for a lead
-  if (body.leadId && body.action === "manual") {
-    const lead = db.select().from(leads).where(eq(leads.id, body.leadId)).get();
+  if ("leadId" in v.data && "action" in v.data && v.data.action === "manual") {
+    const lead = db.select().from(leads).where(eq(leads.id, v.data.leadId)).get();
     if (!lead) return NextResponse.json({ error: "Lead not found" }, { status: 404 });
     if (!lead.phone) return NextResponse.json({ error: "Lead has no phone number" }, { status: 400 });
 
@@ -164,8 +133,8 @@ export async function POST(req: NextRequest) {
       leadId: lead.id,
       campaignId: lead.campaignId,
       toPhone: lead.phone,
-      body: body.body || "",
-      tone: body.tone || "professional",
+      body: v.data.body,
+      tone: v.data.tone || "professional",
       status: "draft",
     }).run();
 
@@ -175,8 +144,8 @@ export async function POST(req: NextRequest) {
   }
 
   // Send approved message
-  if (body.messageId && body.action === "send") {
-    const msg = db.select().from(whatsappMessages).where(eq(whatsappMessages.id, body.messageId)).get();
+  if ("messageId" in v.data && "action" in v.data && v.data.action === "send") {
+    const msg = db.select().from(whatsappMessages).where(eq(whatsappMessages.id, v.data.messageId)).get();
     if (!msg) return NextResponse.json({ error: "Message not found" }, { status: 404 });
     if (msg.status !== "approved") return NextResponse.json({ error: "Message not approved" }, { status: 400 });
 

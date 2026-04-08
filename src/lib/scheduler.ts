@@ -1,6 +1,8 @@
 // Internal cron scheduler — self-triggers /api/cron at a configurable interval.
 // Starts once on first import; runs in the Node.js process.
 
+import { logger } from "@/lib/logger";
+
 let started = false;
 let intervalId: ReturnType<typeof setInterval> | null = null;
 let running = false;
@@ -15,7 +17,7 @@ export function startScheduler() {
   const cronSecret = process.env.CRON_SECRET || "";
   const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || process.env.VERCEL_URL || "http://localhost:3000";
 
-  console.log(`[Scheduler] Starting — interval: ${intervalMs / 1000}s`);
+  logger.info(`[Scheduler] Starting — interval: ${intervalMs / 1000}s`);
 
   async function tick() {
     if (running) return;
@@ -27,7 +29,7 @@ export function startScheduler() {
         headers: { "x-cron-secret": cronSecret },
       });
     } catch (err) {
-      console.error("[Scheduler] Cron tick failed:", err instanceof Error ? err.message : err);
+      logger.error({ err: err instanceof Error ? err.message : err }, "[Scheduler] Cron tick failed");
     } finally {
       running = false;
     }

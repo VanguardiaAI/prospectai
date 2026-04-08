@@ -1,4 +1,7 @@
 import { genAI, safeParseJSON, cleanJsonResponse, getAgencyContext, getLocaleLabel, getLocaleWritingRules, SERVICE_DEFINITIONS } from "./config";
+import { withRetry } from "@/lib/ai/retry";
+import { geminiRateLimiter } from "@/lib/ai/rate-limiter";
+import { GEMINI_MAX_RETRIES, GEMINI_BASE_DELAY_MS } from "@/lib/constants";
 import type { WebAnalysis, WhatsAppGeneration } from "./types";
 
 export async function generateWhatsApp(
@@ -101,7 +104,10 @@ Respond ONLY with valid JSON (no markdown, no backticks):
   "message": "the whatsapp message"
 }`;
 
-  const result = await model.generateContent(prompt);
+  const result = await withRetry(async () => {
+    await geminiRateLimiter.acquire();
+    return model.generateContent(prompt);
+  }, { maxRetries: GEMINI_MAX_RETRIES, baseDelayMs: GEMINI_BASE_DELAY_MS, label: "generate-whatsapp" });
   const text = result.response.text().trim();
   const jsonStr = cleanJsonResponse(text);
   return safeParseJSON<WhatsAppGeneration>(jsonStr, "whatsapp");
@@ -152,7 +158,10 @@ Respond ONLY with valid JSON (no markdown, no backticks):
   "message": "the new whatsapp message"
 }`;
 
-  const result = await model.generateContent(prompt);
+  const result = await withRetry(async () => {
+    await geminiRateLimiter.acquire();
+    return model.generateContent(prompt);
+  }, { maxRetries: GEMINI_MAX_RETRIES, baseDelayMs: GEMINI_BASE_DELAY_MS, label: "regenerate-whatsapp" });
   const text = result.response.text().trim();
   const jsonStr = cleanJsonResponse(text);
   return safeParseJSON<WhatsAppGeneration>(jsonStr, "wa-regen");

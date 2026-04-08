@@ -33,13 +33,7 @@ function parseVariables(vars: string): string[] {
   }
 }
 
-const TONES = [
-  { value: "professional", label: "Professional" },
-  { value: "friendly", label: "Friendly" },
-  { value: "direct", label: "Direct" },
-  { value: "consultative", label: "Consultative" },
-  { value: "casual", label: "Casual" },
-];
+const TONE_KEYS = ["professional", "friendly", "direct", "consultative", "casual"] as const;
 
 const PURPOSES = [
   { value: "initial", key: "templates.purposes.initial" },
@@ -64,7 +58,7 @@ const INDUSTRY_KEYS = [
 ] as const;
 
 export default function TemplatesPage() {
-  const { t } = useT();
+  const { t, lang } = useT();
   const industries = INDUSTRY_KEYS.map(k => t(k));
   const { toast } = useToast();
   const [templates, setTemplates] = useState<Template[]>([]);
@@ -367,7 +361,7 @@ export default function TemplatesPage() {
                       </h3>
                     </div>
                     <p className="text-[10px] text-text-muted font-mono mt-1">
-                      {new Date(tpl.createdAt).toLocaleDateString("es-ES", {
+                      {new Date(tpl.createdAt).toLocaleDateString(lang === "es" ? "es-ES" : "en-US", {
                         day: "2-digit",
                         month: "short",
                         year: "numeric",
@@ -390,7 +384,7 @@ export default function TemplatesPage() {
                 {/* Body preview */}
                 <div className="flex-1 mb-4">
                   <span className="nd-label block mb-1">
-                    {isWhatsApp ? t("review.message") : "Preview"}
+                    {isWhatsApp ? t("review.message") : t("templates.preview")}
                   </span>
                   <p className="text-[11px] text-text-secondary leading-relaxed line-clamp-4">
                     {bodyPreview}
@@ -701,9 +695,9 @@ export default function TemplatesPage() {
                   setAiForm({ ...aiForm, tone: e.target.value })
                 }
               >
-                {TONES.map((tn) => (
-                  <option key={tn.value} value={tn.value}>
-                    {tn.label}
+                {TONE_KEYS.map((tone) => (
+                  <option key={tone} value={tone}>
+                    {t(`tones.${tone}`)}
                   </option>
                 ))}
               </Select>

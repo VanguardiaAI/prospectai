@@ -3,6 +3,7 @@ import { db } from "@/db";
 import { searchJobs, leads, blacklist, jobQueue } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import { logActivity } from "@/lib/activity";
+import { validateBody, importSearchResultsSchema } from "@/lib/validations";
 
 interface PlaceResult {
   title?: string;
@@ -70,7 +71,10 @@ export async function POST(
   try {
     const { id } = await params;
     const jobId = Number(id);
-    const { selectedIndices, campaignId: overrideCampaignId } = await req.json();
+    const body = await req.json();
+    const v = validateBody(importSearchResultsSchema, body);
+    if (!v.success) return v.response;
+    const { selectedIndices, campaignId: overrideCampaignId } = v.data;
 
     const job = db.select().from(searchJobs).where(eq(searchJobs.id, jobId)).get();
     if (!job) {

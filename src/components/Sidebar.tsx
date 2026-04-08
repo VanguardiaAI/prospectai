@@ -27,7 +27,7 @@ import { clsx } from "clsx";
 import { useT } from "@/i18n/LocaleProvider";
 
 export function Sidebar() {
-  const { t } = useT();
+  const { t, lang, setLang } = useT();
 
   const nav = [
     { href: "/overview", label: t("sidebar.dashboard"), icon: LayoutDashboard },
@@ -143,6 +143,33 @@ export function Sidebar() {
 
         {/* Footer */}
         <div className="px-5 py-4 border-t border-border space-y-3">
+          {/* Language toggle */}
+          <button
+            onClick={() => {
+              const next = lang === "en" ? "es" : "en";
+              setLang(next);
+              fetch("/api/settings", {
+                method: "PUT",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ locale: next === "en" ? "en-US" : "es-MX" }),
+              });
+            }}
+            className="flex items-center gap-2 text-[10px] text-text-muted font-mono uppercase tracking-[0.06em] hover:text-text-secondary transition-colors duration-150 cursor-pointer w-full"
+          >
+            <div className="relative w-9 h-[20px] rounded-full border border-border-light bg-transparent transition-colors duration-150">
+              <div
+                className={clsx(
+                  "absolute top-[3px] w-3.5 h-3.5 rounded-full transition-transform duration-200 flex items-center justify-center text-[7px] font-bold",
+                  lang === "es"
+                    ? "translate-x-[18px] bg-text-display text-bg-primary"
+                    : "translate-x-[3px] bg-text-muted text-bg-primary"
+                )}
+              >
+                {lang === "es" ? "ES" : "EN"}
+              </div>
+            </div>
+            {lang === "es" ? "ESPANOL" : "ENGLISH"}
+          </button>
           {/* Theme toggle */}
           <button
             onClick={toggleTheme}

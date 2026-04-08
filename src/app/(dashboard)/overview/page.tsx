@@ -96,11 +96,11 @@ export default function Dashboard() {
   const maxStatusCount = data.statusCounts.length > 0 ? Math.max(...data.statusCounts.map(s => s.count)) : 1;
 
   const serviceNames: Record<string, string> = {
-    web_development: "Web Development",
-    seo: "SEO",
-    ai_agents: "AI / Chatbots",
-    google_business: "Google Business",
-    social_media: "Social Media",
+    web_development: t("services.web_development"),
+    seo: t("services.seo"),
+    ai_agents: t("services.ai_agents"),
+    google_business: t("services.google_business"),
+    social_media: t("services.social_media"),
   };
 
   return (
@@ -117,7 +117,7 @@ export default function Dashboard() {
           )}
           {data.pendingJobs > 0 && (
             <Badge>
-              <Clock className="h-3 w-3 mr-1" strokeWidth={1.5} /> {data.pendingJobs} JOBS
+              <Clock className="h-3 w-3 mr-1" strokeWidth={1.5} /> {data.pendingJobs} {t("common.jobs")}
             </Badge>
           )}
         </div>
@@ -395,7 +395,7 @@ export default function Dashboard() {
                     stroke="#E8632B"
                     strokeWidth={2}
                     fill="url(#emailGradient)"
-                    name="Emails"
+                    name={t("overview.chartEmails")}
                     dot={{ fill: "#E8632B", r: 3, strokeWidth: 0 }}
                     activeDot={{ fill: "#E8632B", r: 5, strokeWidth: 2, stroke: "#FFFFFF" }}
                   />
@@ -405,7 +405,7 @@ export default function Dashboard() {
                     stroke="#22c55e"
                     strokeWidth={2}
                     fill="url(#waGradient)"
-                    name="WhatsApp"
+                    name={t("overview.chartWhatsApp")}
                     dot={{ fill: "#22c55e", r: 3, strokeWidth: 0 }}
                     activeDot={{ fill: "#22c55e", r: 5, strokeWidth: 2, stroke: "#FFFFFF" }}
                   />
@@ -455,7 +455,7 @@ export default function Dashboard() {
                   }}
                   cursor={{ fill: "rgba(0,0,0,0.03)" }}
                 />
-                <Bar dataKey="count" fill="#111111" radius={[0, 3, 3, 0]} name="Leads" barSize={12} />
+                <Bar dataKey="count" fill="#111111" radius={[0, 3, 3, 0]} name={t("overview.chartLeads")} barSize={12} />
               </BarChart>
             </ResponsiveContainer>
           ) : (

@@ -1,4 +1,7 @@
 import { genAI, safeParseJSON, cleanJsonResponse, getAgencyContext, getLocaleLabel } from "./config";
+import { withRetry } from "@/lib/ai/retry";
+import { geminiRateLimiter } from "@/lib/ai/rate-limiter";
+import { GEMINI_MAX_RETRIES, GEMINI_BASE_DELAY_MS } from "@/lib/constants";
 import type { WebAnalysis } from "./types";
 
 export async function analyzeWebsite(
@@ -51,7 +54,10 @@ Evaluate the website AND the overall digital presence of the business. Respond i
   "recommendedServices": ["list of recommended service keys from: ${ctx.services.map((s) => s.key).join(", ")}"]
 }`;
 
-  const result = await model.generateContent(prompt);
+  const result = await withRetry(async () => {
+    await geminiRateLimiter.acquire();
+    return model.generateContent(prompt);
+  }, { maxRetries: GEMINI_MAX_RETRIES, baseDelayMs: GEMINI_BASE_DELAY_MS, label: "analyze-website" });
   const text = result.response.text().trim();
   const jsonStr = cleanJsonResponse(text);
   const parsed = safeParseJSON<WebAnalysis>(jsonStr, "analysis");

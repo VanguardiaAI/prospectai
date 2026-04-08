@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/db";
 import { sendingDomains, emails } from "@/db/schema";
 import { eq, sql, and } from "drizzle-orm";
+import { validateBody, createDomainSchema, updateDomainSchema } from "@/lib/validations";
 
 // GET: List all sending domains with today's stats
 export async function GET() {
@@ -43,11 +44,10 @@ export async function GET() {
 // POST: Add new domain
 export async function POST(req: NextRequest) {
   const body = await req.json();
-  const { domain, fromEmail, fromName, dailyLimit, resendApiKey } = body;
+  const v = validateBody(createDomainSchema, body);
+  if (!v.success) return v.response;
 
-  if (!domain || !fromEmail || !fromName) {
-    return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
-  }
+  const { domain, fromEmail, fromName, dailyLimit, resendApiKey } = v.data;
 
   const result = db.insert(sendingDomains).values({
     domain,
@@ -63,11 +63,10 @@ export async function POST(req: NextRequest) {
 // PUT: Update domain
 export async function PUT(req: NextRequest) {
   const body = await req.json();
-  const { id, ...updates } = body;
+  const v = validateBody(updateDomainSchema, body);
+  if (!v.success) return v.response;
 
-  if (!id) {
-    return NextResponse.json({ error: "Missing domain id" }, { status: 400 });
-  }
+  const { id, ...updates } = v.data;
 
   const allowed: Record<string, unknown> = {};
   if (updates.domain !== undefined) allowed.domain = updates.domain;

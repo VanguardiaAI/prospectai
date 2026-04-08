@@ -265,7 +265,7 @@ export default function CampaignsPage() {
                     <span className="text-[11px] text-text-primary font-mono uppercase">{c.defaultTone}</span>
                   </div>
                   <div className="nd-list-item">
-                    <span className="nd-list-label">Autopilot</span>
+                    <span className="nd-list-label">{t("campaigns.autopilot")}</span>
                     <Toggle checked={c.autopilot} onChange={() => toggleAutopilot(c)} />
                   </div>
                   <div className="nd-list-item">
@@ -348,7 +348,7 @@ export default function CampaignsPage() {
             </Select>
           </div>
           <div>
-            <Toggle checked={form.autopilot} onChange={(v) => setForm({ ...form, autopilot: v })} label="Autopilot" />
+            <Toggle checked={form.autopilot} onChange={(v) => setForm({ ...form, autopilot: v })} label={t("campaigns.autopilot")} />
           </div>
           <div className="flex justify-end gap-3 pt-2">
             <Button variant="secondary" size="sm" onClick={() => setShowModal(false)}>{t("common.cancel")}</Button>

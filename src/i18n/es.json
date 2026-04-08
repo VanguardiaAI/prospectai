@@ -18,7 +18,8 @@
     "darkMode": "MODO OSCURO",
     "lightMode": "MODO CLARO",
     "logout": "CERRAR SESION",
-    "github": "GITHUB"
+    "github": "GITHUB",
+    "language": "IDIOMA"
   },
   "login": {
     "title": "[AUTENTICACION REQUERIDA]",
@@ -91,11 +92,18 @@
     "saved": "[SAVED]"
   },
   "tones": {
-    "professional": "Professional",
-    "friendly": "Friendly",
-    "direct": "Direct",
-    "consultative": "Consultative",
+    "professional": "Profesional",
+    "friendly": "Amigable",
+    "direct": "Directo",
+    "consultative": "Consultivo",
     "casual": "Casual"
+  },
+  "services": {
+    "web_development": "Desarrollo Web",
+    "seo": "SEO",
+    "ai_agents": "IA / Chatbots",
+    "google_business": "Google Business Profile",
+    "social_media": "Redes Sociales"
   },
   "validation": {
     "invalidEmail": "Email no valido",
@@ -165,7 +173,10 @@
     "sendsLast7d": "Envios · ultimos 7 dias",
     "topCities": "Top ciudades",
     "leadsByStatus": "Leads por estado",
-    "performanceByService": "Rendimiento por servicio"
+    "performanceByService": "Rendimiento por servicio",
+    "chartEmails": "Emails",
+    "chartWhatsApp": "WhatsApp",
+    "chartLeads": "Leads"
   },
   "today": {
     "title": "Cola del Dia",
@@ -195,10 +206,13 @@
     "waApproved": "WhatsApp aprobado",
     "waRejected": "WhatsApp rechazado",
     "approved": "aprobados",
-    "sendStarted": "Envio iniciado"
+    "sendStarted": "Envio iniciado",
+    "refresh": "Actualizar"
   },
   "review": {
     "title": "Revision",
+    "tone": "Tono",
+    "testEmailSent": "Email de prueba enviado a {{email}}",
     "toReview": "por revisar",
     "drafts": "Borradores",
     "approved": "Aprobados",
@@ -352,7 +366,9 @@
     "emailCreatedMsg": "Email creado como borrador.",
     "waGeneratedMsg": "WhatsApp generado. Revisalo en la seccion de Revision.",
     "waCreatedMsg": "WhatsApp creado como borrador.",
-    "processError": "Error al procesar"
+    "processError": "Error al procesar",
+    "qualityTooltip": "Calidad web: puntuacion de 0-100 basada en diseno, contenido y funcionalidad del sitio",
+    "opportunityTooltip": "Oportunidad: puntuacion de 0-100 basada en calidad web, SEO, resenas, email disponible y servicios recomendados"
   },
   "activity": {
     "title": "Actividad",
@@ -412,6 +428,7 @@
     "deleteTemplateConfirm": "Se eliminara el template \"{{name}}\". Esta accion no se puede deshacer.",
     "templateDeleted": "Template eliminado",
     "templateSaved": "Template guardado",
+    "preview": "Vista previa",
     "uses": "usos",
     "purposes": {
       "initial": "Primer contacto",
@@ -462,6 +479,7 @@
     "activeDays": "Dias activos",
     "less": "Menos",
     "more": "Mas",
+    "approved": "apr",
     "months": ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"],
     "days": ["LUN", "MAR", "MIE", "JUE", "VIE", "SAB", "DOM"]
   },
@@ -522,7 +540,8 @@
     "variantDeclaredWinner": "Variante {{variant}} declarada ganadora",
     "deleteTest": "Eliminar test A/B",
     "deleteTestConfirm": "Se eliminara este test y sus resultados. Esta accion no se puede deshacer.",
-    "testDeleted": "Test eliminado"
+    "testDeleted": "Test eliminado",
+    "testNamePlaceholder": "Ej: Tono profesional vs amigable"
   },
   "search": {
     "title": "Buscar Negocios",
@@ -653,7 +672,11 @@
     "sendEmails": "Enviar Emails",
     "sendWa": "Enviar WhatsApps",
     "processSequences": "Procesar Secuencias",
-    "runAll": "Ejecutar todo"
+    "runAll": "Ejecutar todo",
+    "emailSection": "Email",
+    "whatsappSection": "WhatsApp",
+    "warmupLabel": "Dia {{day}}: {{limit}} emails/dia",
+    "hours": "hrs"
   },
   "activityLog": {
     "campaignCreated": "Campana \"{{name}}\" creada",
@@ -689,5 +712,10 @@
     "sequenceError": "Error en secuencia paso {{step}} para {{name}}",
     "searchStarted": "Busqueda iniciada: \"{{keyword}}\"",
     "importedFromSearch": "Importados {{count}} negocios desde busqueda \"{{keyword}}\""
+  },
+  "chatbot": {
+    "welcome": "Preguntame lo que necesites sobre tus campanas",
+    "examples": "Prueba: \"lista mis campanas\" o \"cuantos emails envie hoy?\"",
+    "placeholder": "Escribe un mensaje..."
   }
 }

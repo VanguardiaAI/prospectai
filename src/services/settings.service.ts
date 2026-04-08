@@ -1,0 +1,41 @@
+import { db, getSetting, setSetting } from "@/db";
+import { settings } from "@/db/schema";
+import { logActivity } from "@/lib/activity";
+import { checkFullConfig } from "@/mcp/helpers/validators";
+
+// ─── Service Functions ──────────────────────────────────────────────
+
+export function getAllSettings() {
+  const all = db.select().from(settings).all();
+  const result: Record<string, string> = {};
+  for (const row of all) {
+    result[row.key] = row.value;
+  }
+  return result;
+}
+
+export function updateSettings(updates: Record<string, string>) {
+  const changed: string[] = [];
+
+  for (const [key, value] of Object.entries(updates)) {
+    const oldValue = getSetting(key);
+    setSetting(key, String(value));
+    if (oldValue !== String(value)) {
+      changed.push(key);
+    }
+  }
+
+  if (changed.length > 0) {
+    logActivity("setting_change", `Configuración actualizada: ${changed.join(", ")}`, {
+      metadata: updates,
+      messageKey: "activityLog.configUpdated",
+      messageVars: { fields: changed.join(", ") },
+    });
+  }
+
+  return { success: true, updated: changed };
+}
+
+export function checkConfiguration() {
+  return checkFullConfig();
+}

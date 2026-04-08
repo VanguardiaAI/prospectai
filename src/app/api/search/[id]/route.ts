@@ -3,6 +3,8 @@ import { db, getSetting } from "@/db";
 import { searchJobs } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import Papa from "papaparse";
+import * as searchService from "@/services/search.service";
+import { handleServiceError } from "@/services/api-handler";
 
 // Map scraper status ("pending","working","ok","failed") to our status
 function mapStatus(scraperStatus: string): string {
@@ -32,10 +34,7 @@ export async function GET(
     const { id } = await params;
     const jobId = Number(id);
 
-    const job = db.select().from(searchJobs).where(eq(searchJobs.id, jobId)).get();
-    if (!job) {
-      return NextResponse.json({ error: "Búsqueda no encontrada" }, { status: 404 });
-    }
+    const job = searchService.getSearchJob(jobId);
 
     // If job is still pending/running, poll the scraper for updates
     if ((job.status === "pending" || job.status === "running") && job.scraperJobId) {
@@ -93,9 +92,6 @@ export async function GET(
       },
     });
   } catch (err) {
-    return NextResponse.json(
-      { error: err instanceof Error ? err.message : "Error al obtener búsqueda" },
-      { status: 500 }
-    );
+    return handleServiceError(err);
   }
 }

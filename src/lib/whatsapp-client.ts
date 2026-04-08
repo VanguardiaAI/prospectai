@@ -18,7 +18,7 @@ let state: WAState = {
   error: null,
   phone: null,
 };
-let initializing = false;
+let initPromise: Promise<void> | null = null;
 
 function createClient(): Client {
   return new Client({
@@ -36,9 +36,14 @@ function createClient(): Client {
 }
 
 export async function initializeWhatsApp(): Promise<void> {
-  if (initializing || state.status === "ready") return;
+  if (state.status === "ready") return;
+  // Coalesce concurrent calls — only one initialization runs at a time
+  if (initPromise) return initPromise;
+  initPromise = doInitialize().finally(() => { initPromise = null; });
+  return initPromise;
+}
 
-  initializing = true;
+async function doInitialize(): Promise<void> {
   state = { status: "authenticating", qrDataUrl: null, error: null, phone: null };
 
   try {
@@ -65,18 +70,15 @@ export async function initializeWhatsApp(): Promise<void> {
         error: null,
         phone: info?.wid?.user || null,
       };
-      initializing = false;
     });
 
     client.on("auth_failure", (msg: string) => {
       state = { status: "error", qrDataUrl: null, error: `Auth failed: ${msg}`, phone: null };
-      initializing = false;
     });
 
     client.on("disconnected", (reason: string) => {
       state = { status: "disconnected", qrDataUrl: null, error: reason, phone: null };
       client = null;
-      initializing = false;
     });
 
     await client.initialize();
@@ -87,7 +89,6 @@ export async function initializeWhatsApp(): Promise<void> {
       error: err instanceof Error ? err.message : "Failed to initialize",
       phone: null,
     };
-    initializing = false;
   }
 }
 
@@ -109,7 +110,6 @@ export async function disconnectWhatsApp(): Promise<void> {
     client = null;
   }
   state = { status: "disconnected", qrDataUrl: null, error: null, phone: null };
-  initializing = false;
 }
 
 // Format phone number for WhatsApp based on configured country

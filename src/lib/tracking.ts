@@ -1,4 +1,5 @@
 import { getSetting } from "@/db";
+import { logger } from "@/lib/logger";
 
 /**
  * Inject open tracking pixel into email HTML before </body>
@@ -6,7 +7,7 @@ import { getSetting } from "@/db";
 export function injectTrackingPixel(html: string, emailId: number): string {
   const baseUrl = getSetting("tracking_base_url") || getSetting("unsubscribe_url")?.replace(/\/api\/.*$/, "") || "";
   if (!baseUrl) {
-    console.warn("[tracking] tracking_base_url no configurada — pixel de apertura no inyectado para email", emailId);
+    logger.warn({ emailId }, "[tracking] tracking_base_url no configurada — pixel de apertura no inyectado para email");
     return html;
   }
 
@@ -25,7 +26,7 @@ export function injectTrackingPixel(html: string, emailId: number): string {
 export function wrapLinksWithTracking(html: string, emailId: number): string {
   const baseUrl = getSetting("tracking_base_url") || getSetting("unsubscribe_url")?.replace(/\/api\/.*$/, "") || "";
   if (!baseUrl) {
-    console.warn("[tracking] tracking_base_url no configurada — links sin wrapping de tracking para email", emailId);
+    logger.warn({ emailId }, "[tracking] tracking_base_url no configurada — links sin wrapping de tracking para email");
     return html;
   }
 

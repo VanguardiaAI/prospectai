@@ -3,6 +3,7 @@ import { leads, blacklist, jobQueue } from "@/db/schema";
 import { sql } from "drizzle-orm";
 import Papa from "papaparse";
 import { logActivity } from "@/lib/activity";
+import { MAX_CSV_SIZE_BYTES, MAX_CSV_ROWS } from "@/lib/constants";
 
 // Common Outscraper CSV column mappings
 export const COLUMN_MAP: Record<string, string> = {
@@ -64,6 +65,10 @@ export interface ImportResult {
 }
 
 export function importLeadsFromCSV(csvText: string, campaignId?: number): ImportResult {
+  if (csvText.length > MAX_CSV_SIZE_BYTES) {
+    throw new Error(`CSV exceeds ${Math.round(MAX_CSV_SIZE_BYTES / 1024 / 1024)}MB size limit`);
+  }
+
   const { data, errors } = Papa.parse<Record<string, string>>(csvText, {
     header: true,
     skipEmptyLines: true,
@@ -71,6 +76,10 @@ export function importLeadsFromCSV(csvText: string, campaignId?: number): Import
 
   if (errors.length > 0 && data.length === 0) {
     throw new Error(`Invalid CSV: ${errors[0]?.message || "parse error"}`);
+  }
+
+  if (data.length > MAX_CSV_ROWS) {
+    throw new Error(`CSV has ${data.length} rows, maximum is ${MAX_CSV_ROWS}`);
   }
 
   // Get blacklisted domains and emails

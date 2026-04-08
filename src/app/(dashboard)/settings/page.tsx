@@ -19,33 +19,27 @@ interface WAStatus {
   phone: string | null;
 }
 
-const SERVICE_OPTIONS = [
-  { key: "web_development", label: "Web Development" },
-  { key: "seo", label: "SEO" },
-  { key: "ai_agents", label: "AI / Chatbots" },
-  { key: "google_business", label: "Google Business Profile" },
-  { key: "social_media", label: "Social Media" },
-];
+const SERVICE_KEYS = ["web_development", "seo", "ai_agents", "google_business", "social_media"] as const;
 
 const COUNTRY_OPTIONS = [
-  { code: "ES", label: "España", phoneCode: "34", phoneDigits: "9" },
-  { code: "MX", label: "México", phoneCode: "52", phoneDigits: "10" },
-  { code: "AR", label: "Argentina", phoneCode: "54", phoneDigits: "10" },
-  { code: "CO", label: "Colombia", phoneCode: "57", phoneDigits: "10" },
-  { code: "CL", label: "Chile", phoneCode: "56", phoneDigits: "9" },
-  { code: "PE", label: "Perú", phoneCode: "51", phoneDigits: "9" },
-  { code: "EC", label: "Ecuador", phoneCode: "593", phoneDigits: "9" },
-  { code: "UY", label: "Uruguay", phoneCode: "598", phoneDigits: "8" },
-  { code: "US", label: "Estados Unidos", phoneCode: "1", phoneDigits: "10" },
-  { code: "UK", label: "Reino Unido", phoneCode: "44", phoneDigits: "10" },
-  { code: "CA", label: "Canadá", phoneCode: "1", phoneDigits: "10" },
-  { code: "AU", label: "Australia", phoneCode: "61", phoneDigits: "9" },
-  { code: "BR", label: "Brasil", phoneCode: "55", phoneDigits: "11" },
-  { code: "PT", label: "Portugal", phoneCode: "351", phoneDigits: "9" },
-  { code: "FR", label: "Francia", phoneCode: "33", phoneDigits: "9" },
-  { code: "DE", label: "Alemania", phoneCode: "49", phoneDigits: "11" },
-  { code: "IT", label: "Italia", phoneCode: "39", phoneDigits: "10" },
-  { code: "NL", label: "Países Bajos", phoneCode: "31", phoneDigits: "9" },
+  { code: "ES", phoneCode: "34", phoneDigits: "9" },
+  { code: "MX", phoneCode: "52", phoneDigits: "10" },
+  { code: "AR", phoneCode: "54", phoneDigits: "10" },
+  { code: "CO", phoneCode: "57", phoneDigits: "10" },
+  { code: "CL", phoneCode: "56", phoneDigits: "9" },
+  { code: "PE", phoneCode: "51", phoneDigits: "9" },
+  { code: "EC", phoneCode: "593", phoneDigits: "9" },
+  { code: "UY", phoneCode: "598", phoneDigits: "8" },
+  { code: "US", phoneCode: "1", phoneDigits: "10" },
+  { code: "UK", phoneCode: "44", phoneDigits: "10" },
+  { code: "CA", phoneCode: "1", phoneDigits: "10" },
+  { code: "AU", phoneCode: "61", phoneDigits: "9" },
+  { code: "BR", phoneCode: "55", phoneDigits: "11" },
+  { code: "PT", phoneCode: "351", phoneDigits: "9" },
+  { code: "FR", phoneCode: "33", phoneDigits: "9" },
+  { code: "DE", phoneCode: "49", phoneDigits: "11" },
+  { code: "IT", phoneCode: "39", phoneDigits: "10" },
+  { code: "NL", phoneCode: "31", phoneDigits: "9" },
 ];
 
 // ─── Validation helpers ────────────────────────────────────────────
@@ -300,17 +294,17 @@ export default function SettingsPage() {
             <div className="md:col-span-2">
               <label className="nd-label block mb-3">{t("settings.servicesOffered")}</label>
               <div className="flex flex-wrap gap-2">
-                {SERVICE_OPTIONS.map((svc) => (
+                {SERVICE_KEYS.map((key) => (
                   <button
-                    key={svc.key}
-                    onClick={() => toggleService(svc.key)}
+                    key={key}
+                    onClick={() => toggleService(key)}
                     className={`inline-flex items-center px-3 py-1.5 rounded-full border text-[11px] font-mono uppercase tracking-[0.04em] transition-all cursor-pointer ${
-                      enabledServices.includes(svc.key)
+                      enabledServices.includes(key)
                         ? "border-accent bg-accent-subtle text-accent"
                         : "border-border text-text-muted hover:border-border-light hover:text-text-secondary"
                     }`}
                   >
-                    {svc.label}
+                    {t(`services.${key}`)}
                   </button>
                 ))}
               </div>
@@ -363,7 +357,7 @@ export default function SettingsPage() {
       {/* ─── Bento Row 2: Email + Warmup + Scraping ─── */}
       <div className="grid grid-cols-12 gap-4 nd-section">
         <Card className="col-span-12 md:col-span-4">
-          <h3 className="nd-heading mb-6">Email</h3>
+          <h3 className="nd-heading mb-6">{t("settings.emailSection")}</h3>
           <div className="space-y-5">
             <div>
               <label className="nd-label block mb-2">{t("settings.senderEmail")}</label>
@@ -430,7 +424,7 @@ export default function SettingsPage() {
                 )}
                 <ProgressBar
                   value={warmupPct}
-                  label={`Dia ${settings.warmup_day || "1"}: ${warmupEffective} emails/dia`}
+                  label={t("settings.warmupLabel", { day: settings.warmup_day || "1", limit: String(warmupEffective) })}
                   color={warmupPct >= 100 ? "success" : "warning"}
                   size="sm"
                 />
@@ -447,7 +441,7 @@ export default function SettingsPage() {
                 <label className="nd-label block mb-1">{t("settings.to")}</label>
                 <Input type="number" value={settings.send_window_end || "18"} onChange={(e) => setSettings({ ...settings, send_window_end: e.target.value })} className={`w-16 ${getError("send_window_end") ? "border-red-500" : ""}`} onBlur={() => markTouched("send_window_end")} />
               </div>
-              <span className="text-[11px] text-text-muted mt-5">hrs</span>
+              <span className="text-[11px] text-text-muted mt-5">{t("settings.hours")}</span>
             </div>
             {(getError("send_window_start") || getError("send_window_end")) && (
               <p className="text-[11px] text-red-500">{t("settings.hoursValidation")}</p>
@@ -488,7 +482,7 @@ export default function SettingsPage() {
         <Card className="col-span-12 lg:col-span-5">
           <h3 className="nd-heading mb-6">
             <MessageCircle className="h-4 w-4 inline mr-2" strokeWidth={1.5} />
-            WhatsApp
+            {t("settings.whatsappSection")}
           </h3>
           <div className="space-y-5">
             <div className="flex items-center justify-between">

@@ -2,6 +2,7 @@ import { db, getSetting } from "@/db";
 import { unsubscribes } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import crypto from "crypto";
+import { logger } from "@/lib/logger";
 
 /**
  * Generate an unsubscribe token for an email/lead and store it.
@@ -34,7 +35,7 @@ function buildUrl(token: string): string {
   // Use tracking_base_url for absolute URL (required for email clients)
   const baseUrl = getSetting("tracking_base_url") || "";
   if (!baseUrl) {
-    console.warn("[unsubscribe] No tracking_base_url configured — unsubscribe links will be broken in emails. Set tracking_base_url in settings.");
+    logger.warn("[unsubscribe] No tracking_base_url configured — unsubscribe links will be broken in emails. Set tracking_base_url in settings.");
   }
   return `${baseUrl}/api/unsubscribe?token=${token}`;
 }

@@ -3,13 +3,15 @@ import { sendEmail } from "@/lib/resend-client";
 import { db, getSetting } from "@/db";
 import { emails } from "@/db/schema";
 import { eq } from "drizzle-orm";
+import { validateBody, testEmailSchema } from "@/lib/validations";
 
 export async function POST(request: NextRequest) {
   try {
-    const { emailId } = await request.json();
-    if (!emailId) {
-      return NextResponse.json({ success: false, error: "emailId requerido" }, { status: 400 });
-    }
+    const body = await request.json();
+    const v = validateBody(testEmailSchema, body);
+    if (!v.success) return v.response;
+
+    const { emailId } = v.data;
 
     const testTo = getSetting("reply_to_email") || getSetting("from_email");
     if (!testTo) {

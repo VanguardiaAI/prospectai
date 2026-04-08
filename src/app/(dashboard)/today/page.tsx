@@ -270,7 +270,7 @@ export default function TodayPage() {
         <div className="flex items-center gap-3">
           {data.pendingJobs > 0 && (
             <Badge>
-              <Clock className="h-3 w-3 mr-1" strokeWidth={1.5} /> {data.pendingJobs} JOBS
+              <Clock className="h-3 w-3 mr-1" strokeWidth={1.5} /> {data.pendingJobs} {t("common.jobs")}
             </Badge>
           )}
           <Button
@@ -278,7 +278,7 @@ export default function TodayPage() {
             size="sm"
             onClick={() => { setLoading(true); fetchData(); }}
           >
-            <RefreshCw className="h-3.5 w-3.5" strokeWidth={1.5} /> Refresh
+            <RefreshCw className="h-3.5 w-3.5" strokeWidth={1.5} /> {t("today.refresh")}
           </Button>
         </div>
       </div>

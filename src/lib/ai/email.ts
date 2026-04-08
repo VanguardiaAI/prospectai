@@ -1,4 +1,7 @@
 import { genAI, safeParseJSON, cleanJsonResponse, getAgencyContext, getLocaleLabel, getLocaleWritingRules } from "./config";
+import { withRetry } from "@/lib/ai/retry";
+import { geminiRateLimiter } from "@/lib/ai/rate-limiter";
+import { GEMINI_MAX_RETRIES, GEMINI_BASE_DELAY_MS } from "@/lib/constants";
 import type { EmailGeneration, WebAnalysis } from "./types";
 
 export async function generateEmail(
@@ -100,7 +103,10 @@ Respond ONLY with valid JSON (no markdown, no backticks):
   "bodyText": "plain text version of the email"
 }`;
 
-  const result = await model.generateContent(prompt);
+  const result = await withRetry(async () => {
+    await geminiRateLimiter.acquire();
+    return model.generateContent(prompt);
+  }, { maxRetries: GEMINI_MAX_RETRIES, baseDelayMs: GEMINI_BASE_DELAY_MS, label: "generate-email" });
   const text = result.response.text().trim();
   const jsonStr = cleanJsonResponse(text);
   return safeParseJSON<EmailGeneration>(jsonStr, "email");
@@ -161,7 +167,10 @@ Generate a different version of the email. Respond ONLY with valid JSON (no mark
   "bodyText": "new plain text version"
 }`;
 
-  const result = await model.generateContent(prompt);
+  const result = await withRetry(async () => {
+    await geminiRateLimiter.acquire();
+    return model.generateContent(prompt);
+  }, { maxRetries: GEMINI_MAX_RETRIES, baseDelayMs: GEMINI_BASE_DELAY_MS, label: "regenerate-email" });
   const text = result.response.text().trim();
   const jsonStr = cleanJsonResponse(text);
   return safeParseJSON<EmailGeneration>(jsonStr, "email-regen");

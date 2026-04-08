@@ -18,7 +18,8 @@
     "darkMode": "DARK MODE",
     "lightMode": "LIGHT MODE",
     "logout": "LOG OUT",
-    "github": "GITHUB"
+    "github": "GITHUB",
+    "language": "LANGUAGE"
   },
   "login": {
     "title": "[AUTHENTICATION REQUIRED]",
@@ -97,6 +98,13 @@
     "consultative": "Consultative",
     "casual": "Casual"
   },
+  "services": {
+    "web_development": "Web Development",
+    "seo": "SEO",
+    "ai_agents": "AI / Chatbots",
+    "google_business": "Google Business Profile",
+    "social_media": "Social Media"
+  },
   "validation": {
     "invalidEmail": "Invalid email",
     "invalidUrl": "Invalid URL",
@@ -165,7 +173,10 @@
     "sendsLast7d": "Sends · last 7 days",
     "topCities": "Top cities",
     "leadsByStatus": "Leads by status",
-    "performanceByService": "Performance by service"
+    "performanceByService": "Performance by service",
+    "chartEmails": "Emails",
+    "chartWhatsApp": "WhatsApp",
+    "chartLeads": "Leads"
   },
   "today": {
     "title": "Daily Queue",
@@ -195,10 +206,13 @@
     "waApproved": "WhatsApp approved",
     "waRejected": "WhatsApp rejected",
     "approved": "approved",
-    "sendStarted": "Send started"
+    "sendStarted": "Send started",
+    "refresh": "Refresh"
   },
   "review": {
     "title": "Review",
+    "tone": "Tone",
+    "testEmailSent": "Test email sent to {{email}}",
     "toReview": "to review",
     "drafts": "Drafts",
     "approved": "Approved",
@@ -352,7 +366,9 @@
     "emailCreatedMsg": "Email created as draft.",
     "waGeneratedMsg": "WhatsApp generated. Review it in the Review section.",
     "waCreatedMsg": "WhatsApp created as draft.",
-    "processError": "Error processing"
+    "processError": "Error processing",
+    "qualityTooltip": "Web quality: 0-100 score based on design, content and site functionality",
+    "opportunityTooltip": "Opportunity: 0-100 score based on web quality, SEO, reviews, available email and recommended services"
   },
   "activity": {
     "title": "Activity",
@@ -412,6 +428,7 @@
     "deleteTemplateConfirm": "Template \"{{name}}\" will be deleted. This action cannot be undone.",
     "templateDeleted": "Template deleted",
     "templateSaved": "Template saved",
+    "preview": "Preview",
     "uses": "uses",
     "purposes": {
       "initial": "First contact",
@@ -462,6 +479,7 @@
     "activeDays": "Active days",
     "less": "Less",
     "more": "More",
+    "approved": "apr",
     "months": ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"],
     "days": ["MON", "TUE", "WED", "THU", "FRI", "SAT", "SUN"]
   },
@@ -522,7 +540,8 @@
     "variantDeclaredWinner": "Variant {{variant}} declared winner",
     "deleteTest": "Delete A/B test",
     "deleteTestConfirm": "This test and its results will be deleted. This action cannot be undone.",
-    "testDeleted": "Test deleted"
+    "testDeleted": "Test deleted",
+    "testNamePlaceholder": "E.g.: Professional vs friendly tone"
   },
   "search": {
     "title": "Search Businesses",
@@ -653,7 +672,11 @@
     "sendEmails": "Send Emails",
     "sendWa": "Send WhatsApps",
     "processSequences": "Process Sequences",
-    "runAll": "Run all"
+    "runAll": "Run all",
+    "emailSection": "Email",
+    "whatsappSection": "WhatsApp",
+    "warmupLabel": "Day {{day}}: {{limit}} emails/day",
+    "hours": "hrs"
   },
   "activityLog": {
     "campaignCreated": "Campaign \"{{name}}\" created",
@@ -689,5 +712,10 @@
     "sequenceError": "Sequence error step {{step}} for {{name}}",
     "searchStarted": "Search started: \"{{keyword}}\"",
     "importedFromSearch": "Imported {{count}} businesses from search \"{{keyword}}\""
+  },
+  "chatbot": {
+    "welcome": "Ask me anything about your campaigns",
+    "examples": "Try: \"list my campaigns\" or \"how many emails sent today?\"",
+    "placeholder": "Type a message..."
   }
 }

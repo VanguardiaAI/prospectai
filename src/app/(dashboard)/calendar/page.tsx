@@ -178,12 +178,12 @@ export default function CalendarPage() {
 
                       {day.approved > 0 && (
                         <span className="text-[9px] font-mono text-success tabular-nums leading-none flex items-center gap-0.5">
-                          <Mail className="h-2.5 w-2.5" strokeWidth={1.5} /> {day.approved} apr
+                          <Mail className="h-2.5 w-2.5" strokeWidth={1.5} /> {day.approved} {t("calendar.approved")}
                         </span>
                       )}
                       {day.waApproved > 0 && (
                         <span className="text-[9px] font-mono text-green-500/70 tabular-nums leading-none flex items-center gap-0.5">
-                          <MessageCircle className="h-2.5 w-2.5" strokeWidth={1.5} /> {day.waApproved} apr
+                          <MessageCircle className="h-2.5 w-2.5" strokeWidth={1.5} /> {day.waApproved} {t("calendar.approved")}
                         </span>
                       )}
                     </div>

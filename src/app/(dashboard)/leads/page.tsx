@@ -519,8 +519,8 @@ function LeadsPageInner() {
                   </th>
                   <th>{t("leads.business")}</th>
                   <th>{t("common.city")}</th>
-                  <th><span className="inline-flex items-center gap-1">{t("leads.quality")} <Tooltip text="Calidad web: puntuacion de 0-100 basada en diseno, contenido y funcionalidad del sitio"><Info className="h-3 w-3 text-text-muted" strokeWidth={1.5} /></Tooltip></span></th>
-                  <th><span className="inline-flex items-center gap-1">{t("leads.opportunity")} <Tooltip text="Oportunidad: puntuacion de 0-100 basada en calidad web, SEO, reviews, email disponible y servicios recomendados"><Info className="h-3 w-3 text-text-muted" strokeWidth={1.5} /></Tooltip></span></th>
+                  <th><span className="inline-flex items-center gap-1">{t("leads.quality")} <Tooltip text={t("leads.qualityTooltip")}><Info className="h-3 w-3 text-text-muted" strokeWidth={1.5} /></Tooltip></span></th>
+                  <th><span className="inline-flex items-center gap-1">{t("leads.opportunity")} <Tooltip text={t("leads.opportunityTooltip")}><Info className="h-3 w-3 text-text-muted" strokeWidth={1.5} /></Tooltip></span></th>
                   <th>{t("common.status")}</th>
                   <th>{t("leads.contact")}</th>
                   <th style={{ width: 60 }}></th>
@@ -547,8 +547,8 @@ function LeadsPageInner() {
                       <div className="text-[10px] text-text-muted font-mono uppercase tracking-wider mt-0.5">{lead.category}</div>
                     </td>
                     <td className="text-sm text-text-secondary">{lead.city || "—"}</td>
-                    <td><Tooltip text="Calidad web: puntuacion de 0-100 basada en diseno, contenido y funcionalidad del sitio"><QualityBar score={lead.webQualityScore} size="sm" /></Tooltip></td>
-                    <td><Tooltip text="Oportunidad: puntuacion de 0-100 basada en calidad web, SEO, reviews, email disponible y servicios recomendados"><QualityBar score={lead.opportunityScore} size="sm" /></Tooltip></td>
+                    <td><Tooltip text={t("leads.qualityTooltip")}><QualityBar score={lead.webQualityScore} size="sm" /></Tooltip></td>
+                    <td><Tooltip text={t("leads.opportunityTooltip")}><QualityBar score={lead.opportunityScore} size="sm" /></Tooltip></td>
                     <td><StatusBadge status={lead.status} /></td>
                     <td>
                       <div className="flex items-center gap-2">
@@ -729,12 +729,12 @@ function LeadsPageInner() {
             {/* Scores */}
             <div className="grid grid-cols-2 gap-4">
               <div className="border border-border rounded-lg px-4 py-3">
-                <span className="nd-label mb-2 inline-flex items-center gap-1">{t("leads.webQuality")} <Tooltip text="Calidad web: puntuacion de 0-100 basada en diseno, contenido y funcionalidad del sitio"><Info className="h-3 w-3 text-text-muted" strokeWidth={1.5} /></Tooltip></span>
-                <Tooltip text="Calidad web: puntuacion de 0-100 basada en diseno, contenido y funcionalidad del sitio"><QualityBar score={selectedLead.webQualityScore} /></Tooltip>
+                <span className="nd-label mb-2 inline-flex items-center gap-1">{t("leads.webQuality")} <Tooltip text={t("leads.qualityTooltip")}><Info className="h-3 w-3 text-text-muted" strokeWidth={1.5} /></Tooltip></span>
+                <Tooltip text={t("leads.qualityTooltip")}><QualityBar score={selectedLead.webQualityScore} /></Tooltip>
               </div>
               <div className="border border-border rounded-lg px-4 py-3">
-                <span className="nd-label mb-2 inline-flex items-center gap-1">{t("leads.opportunity")} <Tooltip text="Oportunidad: puntuacion de 0-100 basada en calidad web, SEO, reviews, email disponible y servicios recomendados"><Info className="h-3 w-3 text-text-muted" strokeWidth={1.5} /></Tooltip></span>
-                <Tooltip text="Oportunidad: puntuacion de 0-100 basada en calidad web, SEO, reviews, email disponible y servicios recomendados"><QualityBar score={selectedLead.opportunityScore} /></Tooltip>
+                <span className="nd-label mb-2 inline-flex items-center gap-1">{t("leads.opportunity")} <Tooltip text={t("leads.opportunityTooltip")}><Info className="h-3 w-3 text-text-muted" strokeWidth={1.5} /></Tooltip></span>
+                <Tooltip text={t("leads.opportunityTooltip")}><QualityBar score={selectedLead.opportunityScore} /></Tooltip>
               </div>
             </div>
 

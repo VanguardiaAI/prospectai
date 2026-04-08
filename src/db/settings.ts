@@ -43,6 +43,10 @@ const defaultSettings: Record<string, string> = {
   // CRM
   crm_webhook_url: "",
   crm_webhook_on: "replied",
+  // Chatbot
+  chatbot_provider: "gemini",
+  // WhatsApp
+  wa_daily_limit: "20",
 };
 
 export function initializeDefaultSettings(): void {

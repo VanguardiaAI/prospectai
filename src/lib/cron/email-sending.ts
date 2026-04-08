@@ -6,6 +6,7 @@ import { logActivity } from "@/lib/activity";
 import { isUnsubscribed, generateUnsubscribeUrl, injectUnsubscribeLink, appendUnsubscribeText } from "@/lib/unsubscribe";
 import { injectTrackingPixel, wrapLinksWithTracking } from "@/lib/tracking";
 import { getEffectiveDailyLimit, isWithinSendWindow, incrementWarmupDay } from "./warmup";
+import { logger } from "@/lib/logger";
 
 function getBounceRate7d(): number {
   const sentLast7 = db.select({ count: sql<number>`count(*)` }).from(emails)
@@ -26,7 +27,7 @@ export async function processEmailSending() {
   // Auto-pause if bounce rate exceeds 5% over last 7 days
   const bounceRate = getBounceRate7d();
   if (bounceRate >= 5) {
-    console.warn(`[cron] Bounce rate ${bounceRate.toFixed(1)}% >= 5% — envíos pausados automáticamente`);
+    logger.warn(`[cron] Bounce rate ${bounceRate.toFixed(1)}% >= 5% — envíos pausados automáticamente`);
     return { sent: 0, reason: `Bounce rate too high (${bounceRate.toFixed(1)}%)` };
   }
 

@@ -1,24 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { generateEmailTemplate, generateWhatsAppTemplate } from "@/lib/gemini";
+import { validateBody, generateTemplateSchema } from "@/lib/validations";
 
 export async function POST(req: NextRequest) {
   const body = await req.json();
-  const { channel, industry, purpose, tone, customInstructions } = body;
+  const v = validateBody(generateTemplateSchema, body);
+  if (!v.success) return v.response;
 
-  if (!channel || !industry || !purpose || !tone) {
-    return NextResponse.json(
-      { error: "Missing required fields: channel, industry, purpose, tone" },
-      { status: 400 }
-    );
-  }
-
-  if (!["email", "whatsapp"].includes(channel)) {
-    return NextResponse.json({ error: "Invalid channel" }, { status: 400 });
-  }
-
-  if (!["initial", "follow_up", "breakup"].includes(purpose)) {
-    return NextResponse.json({ error: "Invalid purpose" }, { status: 400 });
-  }
+  const { channel, industry, purpose, tone, customInstructions } = v.data;
 
   try {
     if (channel === "email") {
