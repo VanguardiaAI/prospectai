@@ -193,12 +193,16 @@ export default function SettingsPage() {
     }
 
     setSaving(true);
-    await fetch("/api/settings", {
+    const res = await fetch("/api/settings", {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(settings),
     });
     setSaving(false);
+    if (!res.ok) {
+      toast(t("validation.saveFailed"), "error");
+      return;
+    }
     setSaved(true);
     setLang(getLang(settings.locale));
     setTimeout(() => setSaved(false), 2000);

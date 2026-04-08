@@ -151,6 +151,7 @@ function CampaignRow({
   const { toast } = useToast();
   const [expanded, setExpanded] = useState(true);
   const [executingPhase, setExecutingPhase] = useState<CampaignPhase | null>(null);
+  const [executeTotal, setExecuteTotal] = useState(0);
   const [missingConfig, setMissingConfig] = useState<{
     items: ConfigItem[];
     warnings: string[];
@@ -161,9 +162,20 @@ function CampaignRow({
   const completedPhases = campaign.currentPhaseIndex;
   const progressPct = Math.round((completedPhases / totalPhases) * 100);
 
+  const handlePhaseComplete = useCallback(() => {
+    const phase = executingPhase;
+    setExecutingPhase(null);
+    setExecuteTotal(0);
+    if (phase) {
+      toast(t(`shortcuts.phaseComplete.${phase}`) || "Done", "success");
+    }
+    onRefresh();
+  }, [executingPhase, t, toast, onRefresh]);
+
   const executePhase = useCallback(
     async (phase: CampaignPhase, keyword?: string) => {
       setExecutingPhase(phase);
+      setExecuteTotal(0);
       try {
         const res = await fetch(`/api/campaigns/${campaign.id}/execute`, {
           method: "POST",
@@ -172,23 +184,29 @@ function CampaignRow({
         });
         const data = await res.json();
 
-        if (data.success) {
-          toast(t(`shortcuts.phaseComplete.${phase}`) || "Done", "success");
-          onRefresh();
+        if (data.success && data.started) {
+          // Fire-and-forget: API returned immediately, PhaseLoader will track progress
+          setExecuteTotal(data.total ?? 0);
+          // For search with total=0, auto-complete after a short delay
+          if (phase === "search") {
+            setTimeout(handlePhaseComplete, 3000);
+          }
         } else if (data.error === "missing_config") {
+          setExecutingPhase(null);
           setMissingConfig({ items: data.missing, warnings: data.warnings || [] });
         } else if (data.error === "no_drafts") {
+          setExecutingPhase(null);
           toast(t("shortcuts.noDrafts") || data.message, "warning");
         } else {
+          setExecutingPhase(null);
           toast(data.message || data.error || t("shortcuts.phaseError"), "error");
         }
       } catch {
-        toast(t("shortcuts.phaseError"), "error");
-      } finally {
         setExecutingPhase(null);
+        toast(t("shortcuts.phaseError"), "error");
       }
     },
-    [campaign.id, t, toast, onRefresh]
+    [campaign.id, t, toast, handlePhaseComplete]
   );
 
   const handlePhaseClick = useCallback(
@@ -299,7 +317,13 @@ function CampaignRow({
 
           {/* Phase loader overlay */}
           {executingPhase && executingPhase !== "review" && (
-            <PhaseLoader phase={executingPhase} visible />
+            <PhaseLoader
+              phase={executingPhase}
+              campaignId={campaign.id}
+              total={executeTotal}
+              visible
+              onComplete={handlePhaseComplete}
+            />
           )}
         </div>
       )}

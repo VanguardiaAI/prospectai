@@ -14,6 +14,8 @@ const ALLOWED_SETTINGS_KEYS = [
   "gmaps_scraper_url", "gmaps_scraper_api_key",
   "wa_daily_limit",
   "chatbot_provider",
+  "tracking_base_url",
+  "crm_webhook_url", "crm_webhook_on",
 ] as const;
 
 export const updateSettingsSchema = z.record(z.string(), z.string()).refine(

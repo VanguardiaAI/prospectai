@@ -109,7 +109,8 @@
     "invalidEmail": "Invalid email",
     "invalidUrl": "Invalid URL",
     "mustBePositiveInt": "Must be a positive integer",
-    "fixErrors": "Fix fields with errors before saving"
+    "fixErrors": "Fix fields with errors before saving",
+    "saveFailed": "Failed to save settings"
   },
   "countries": {
     "ES": "Spain",
@@ -731,12 +732,12 @@
     "sent": "Sent",
     "openRate": "Open",
     "replies": "Replies",
-    "loading": {
-      "search": ["Connecting to scraper...", "Searching Google Maps...", "Gathering business data...", "Importing results..."],
-      "analysis": ["Scraping websites...", "Extracting contact info...", "Analyzing web quality...", "Scoring opportunities..."],
-      "generation": ["Analyzing lead profiles...", "Crafting personalized emails...", "Generating WhatsApp messages...", "Optimizing copy..."],
-      "sending": ["Fetching draft messages...", "Approving messages...", "Queuing for delivery...", "Processing send queue..."],
-      "engagement": ["Checking reply status...", "Identifying follow-up targets...", "Generating follow-ups...", "Scheduling sequences..."]
+    "progress": {
+      "search": "Searching Google Maps",
+      "analysis": "Analyzing leads",
+      "generation": "Generating messages",
+      "sending": "Sending messages",
+      "engagement": "Processing follow-ups"
     },
     "phaseComplete": {
       "search": "Search started successfully",

@@ -109,7 +109,8 @@
     "invalidEmail": "Email no valido",
     "invalidUrl": "URL no valida",
     "mustBePositiveInt": "Debe ser un entero positivo",
-    "fixErrors": "Corrige los campos con errores antes de guardar"
+    "fixErrors": "Corrige los campos con errores antes de guardar",
+    "saveFailed": "Error al guardar la configuración"
   },
   "countries": {
     "ES": "Espana",
@@ -731,12 +732,12 @@
     "sent": "Enviados",
     "openRate": "Apertura",
     "replies": "Respuestas",
-    "loading": {
-      "search": ["Conectando con scraper...", "Buscando en Google Maps...", "Recopilando datos...", "Importando resultados..."],
-      "analysis": ["Scrapeando sitios web...", "Extrayendo contactos...", "Analizando calidad web...", "Puntuando oportunidades..."],
-      "generation": ["Analizando perfiles...", "Creando emails personalizados...", "Generando mensajes WhatsApp...", "Optimizando copy..."],
-      "sending": ["Obteniendo borradores...", "Aprobando mensajes...", "Encolando para envio...", "Procesando cola de envio..."],
-      "engagement": ["Verificando respuestas...", "Identificando seguimientos...", "Generando follow-ups...", "Programando secuencias..."]
+    "progress": {
+      "search": "Buscando en Google Maps",
+      "analysis": "Analizando leads",
+      "generation": "Generando mensajes",
+      "sending": "Enviando mensajes",
+      "engagement": "Procesando seguimientos"
     },
     "phaseComplete": {
       "search": "Busqueda iniciada correctamente",
