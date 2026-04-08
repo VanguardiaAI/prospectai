@@ -715,7 +715,21 @@
   },
   "chatbot": {
     "welcome": "Preguntame lo que necesites sobre tus campanas",
-    "examples": "Prueba: \"lista mis campanas\" o \"cuantos emails envie hoy?\"",
-    "placeholder": "Escribe un mensaje..."
+    "examples": "Puedo gestionar campanas, buscar leads, revisar emails y mas",
+    "placeholder": "Escribe un mensaje...",
+    "thinking": "Pensando...",
+    "status": "Asistente IA"
+  },
+  "shortcuts": {
+    "title": "Acciones de Campana",
+    "search": "Buscar",
+    "analyze": "Analizar",
+    "generate": "Generar",
+    "review": "Revisar",
+    "send": "Enviar",
+    "engagement": "Seguimiento",
+    "sent": "Enviados",
+    "openRate": "Apertura",
+    "replies": "Respuestas"
   }
 }

@@ -1,6 +1,6 @@
 import { db } from "@/db";
-import { campaigns, emails, replies, leads } from "@/db/schema";
-import { eq, and, sql, isNotNull, desc } from "drizzle-orm";
+import { campaigns, emails, replies, leads, whatsappMessages } from "@/db/schema";
+import { eq, and, sql, isNotNull, inArray } from "drizzle-orm";
 import { logActivity } from "@/lib/activity";
 import { NotFoundError } from "./errors";
 
@@ -169,4 +169,146 @@ export function getCampaignPerformance(campaignId: number) {
     leadCount,
     statusBreakdown,
   };
+}
+
+// ─── Campaign Phases ────────────────────────────────────────────────
+
+export type CampaignPhase = "search" | "analysis" | "generation" | "review" | "sending" | "engagement";
+
+const ANALYSIS_STATUSES = ["imported", "queued", "scraping", "scraped", "analyzing"];
+const ANALYZED_STATUSES = ["analyzed"];
+const DRAFT_STATUSES = ["email_generated", "wa_generated"];
+const SENT_STATUSES = ["email_sent", "wa_sent", "contacted"];
+const REPLY_STATUSES = ["replied"];
+
+function detectPhase(
+  leadCount: number,
+  statusMap: Record<string, number>,
+  pendingEmailDrafts: number,
+  pendingWaDrafts: number,
+): CampaignPhase {
+  if (leadCount === 0) return "search";
+
+  const inAnalysis = ANALYSIS_STATUSES.reduce((s, k) => s + (statusMap[k] ?? 0), 0);
+  const analyzed = ANALYZED_STATUSES.reduce((s, k) => s + (statusMap[k] ?? 0), 0);
+  const hasDrafts = pendingEmailDrafts > 0 || pendingWaDrafts > 0;
+  const sent = SENT_STATUSES.reduce((s, k) => s + (statusMap[k] ?? 0), 0);
+  const replied = REPLY_STATUSES.reduce((s, k) => s + (statusMap[k] ?? 0), 0);
+
+  // Work backwards from engagement
+  if (replied > 0 && sent > 0) return "engagement";
+  if (sent > 0) return "engagement";
+  if (hasDrafts) return "review";
+  if (analyzed > 0) return "generation";
+  if (inAnalysis > 0) return "analysis";
+
+  return "search";
+}
+
+function phaseIndex(phase: CampaignPhase): number {
+  const order: CampaignPhase[] = ["search", "analysis", "generation", "review", "sending", "engagement"];
+  return order.indexOf(phase);
+}
+
+export function getCampaignsWithPhases() {
+  const activeCampaigns = db
+    .select()
+    .from(campaigns)
+    .where(inArray(campaigns.status, ["active", "paused"]))
+    .all();
+
+  if (activeCampaigns.length === 0) return [];
+
+  return activeCampaigns.map((campaign) => {
+    const leadCount =
+      db.select({ count: sql<number>`count(*)` })
+        .from(leads)
+        .where(eq(leads.campaignId, campaign.id))
+        .get()?.count ?? 0;
+
+    const statusBreakdown = db
+      .select({ status: leads.status, count: sql<number>`count(*)` })
+      .from(leads)
+      .where(eq(leads.campaignId, campaign.id))
+      .groupBy(leads.status)
+      .all();
+
+    const statusMap: Record<string, number> = {};
+    for (const row of statusBreakdown) {
+      statusMap[row.status] = row.count;
+    }
+
+    const pendingEmailDrafts =
+      db.select({ count: sql<number>`count(*)` })
+        .from(emails)
+        .where(and(eq(emails.campaignId, campaign.id), eq(emails.status, "draft")))
+        .get()?.count ?? 0;
+
+    const pendingWaDrafts =
+      db.select({ count: sql<number>`count(*)` })
+        .from(whatsappMessages)
+        .where(and(eq(whatsappMessages.campaignId, campaign.id), eq(whatsappMessages.status, "draft")))
+        .get()?.count ?? 0;
+
+    const approvedEmails =
+      db.select({ count: sql<number>`count(*)` })
+        .from(emails)
+        .where(and(eq(emails.campaignId, campaign.id), eq(emails.status, "approved")))
+        .get()?.count ?? 0;
+
+    const approvedWa =
+      db.select({ count: sql<number>`count(*)` })
+        .from(whatsappMessages)
+        .where(and(eq(whatsappMessages.campaignId, campaign.id), eq(whatsappMessages.status, "approved")))
+        .get()?.count ?? 0;
+
+    const sentEmails =
+      db.select({ count: sql<number>`count(*)` })
+        .from(emails)
+        .where(and(eq(emails.campaignId, campaign.id), eq(emails.status, "sent")))
+        .get()?.count ?? 0;
+
+    const currentPhase = detectPhase(leadCount, statusMap, pendingEmailDrafts, pendingWaDrafts);
+    const currentIndex = phaseIndex(currentPhase);
+
+    const metricsMap = getCampaignMetrics([campaign.id]);
+
+    return {
+      id: campaign.id,
+      name: campaign.name,
+      status: campaign.status,
+      leadCount,
+      currentPhase,
+      currentPhaseIndex: currentIndex,
+      phases: {
+        search: { done: leadCount > 0, count: leadCount },
+        analysis: {
+          done: (statusMap["analyzed"] ?? 0) > 0 || currentIndex > 1,
+          pending: ANALYSIS_STATUSES.reduce((s, k) => s + (statusMap[k] ?? 0), 0),
+          analyzed: statusMap["analyzed"] ?? 0,
+        },
+        generation: {
+          done: pendingEmailDrafts > 0 || pendingWaDrafts > 0 || sentEmails > 0 || currentIndex > 2,
+          emailDrafts: pendingEmailDrafts,
+          waDrafts: pendingWaDrafts,
+        },
+        review: {
+          done: approvedEmails > 0 || approvedWa > 0 || sentEmails > 0 || currentIndex > 3,
+          pendingEmail: pendingEmailDrafts,
+          pendingWa: pendingWaDrafts,
+        },
+        sending: {
+          done: sentEmails > 0 || currentIndex > 4,
+          approved: approvedEmails + approvedWa,
+          sent: sentEmails,
+        },
+        engagement: {
+          done: (metricsMap[campaign.id]?.replies ?? 0) > 0,
+          replied: metricsMap[campaign.id]?.replies ?? 0,
+          sent: sentEmails,
+        },
+      },
+      metrics: metricsMap[campaign.id] ?? { sent: 0, opened: 0, openRate: 0, replies: 0 },
+    };
+  });
 }

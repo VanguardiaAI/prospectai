@@ -2,6 +2,7 @@
 
 import { Sidebar } from "@/components/Sidebar";
 import { CommandPalette } from "@/components/CommandPalette";
+import { ChatbotProvider } from "@/components/ChatbotProvider";
 import { Chatbot } from "@/components/Chatbot";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { useT } from "@/i18n/LocaleProvider";
@@ -25,7 +26,7 @@ export default function DashboardLayout({
   children: React.ReactNode;
 }) {
   return (
-    <>
+    <ChatbotProvider>
       <Sidebar />
       <CommandPalette />
       <Chatbot />
@@ -34,6 +35,6 @@ export default function DashboardLayout({
           <TranslatedErrorBoundary>{children}</TranslatedErrorBoundary>
         </div>
       </main>
-    </>
+    </ChatbotProvider>
   );
 }

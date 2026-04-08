@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { Card, Badge, Spinner, ProgressBar, MetricRing, ListRow } from "@/components/ui";
+import { CampaignShortcuts } from "@/components/CampaignShortcuts";
 import { Users, BarChart3, Mail, Send, Clock, TrendingUp, Zap, Activity, ArrowUpRight, MessageCircle } from "lucide-react";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, AreaChart, Area } from "recharts";
 import { useT } from "@/i18n/LocaleProvider";
@@ -134,6 +135,9 @@ export default function Dashboard() {
           {t("overview.bounceWarning")} {data.bounceRate7d}%
         </div>
       )}
+
+      {/* ─── Campaign Shortcuts ─── */}
+      <CampaignShortcuts />
 
       {/* ─── Bento Row 1: Key Metrics ─── */}
       <div className="grid grid-cols-12 gap-4 nd-section">

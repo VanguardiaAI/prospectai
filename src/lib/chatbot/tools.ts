@@ -1,4 +1,5 @@
-import type { ToolDefinition } from "./types";
+import { tool, zodSchema } from "ai";
+import { z } from "zod";
 import * as campaignService from "@/services/campaign.service";
 import * as leadService from "@/services/lead.service";
 import * as messageService from "@/services/message.service";
@@ -7,397 +8,343 @@ import * as settingsService from "@/services/settings.service";
 import * as blacklistService from "@/services/blacklist.service";
 import * as searchService from "@/services/search.service";
 
-export const chatbotTools: ToolDefinition[] = [
+/* eslint-disable @typescript-eslint/no-explicit-any */
+
+// Helper to create tool with zodSchema wrapper for Zod v4 compat
+function zTool<T extends z.ZodObject<any>>(opts: {
+  description: string;
+  parameters: T;
+  execute: (args: z.infer<T>) => Promise<unknown>;
+}) {
+  return tool({
+    description: opts.description,
+    inputSchema: zodSchema(opts.parameters) as any,
+    execute: opts.execute as any,
+  });
+}
+
+export const chatbotTools = {
   // ─── Campaigns ─────────────────────────────────────────────────────
-  {
-    name: "list_campaigns",
+  list_campaigns: zTool({
     description:
       "List all outreach campaigns with summary metrics (leads, emails sent, open rate, replies).",
-    parameters: {
-      type: "object",
-      properties: {
-        status: {
-          type: "string",
-          description: "Filter by status: active, paused, or archived",
-          enum: ["active", "paused", "archived"],
-        },
-      },
-    },
-    handler: async (args) => {
-      const status = args.status as string | undefined;
+    parameters: z.object({
+      status: z
+        .enum(["active", "paused", "archived"])
+        .optional()
+        .describe("Filter by status: active, paused, or archived"),
+    }),
+    execute: async ({ status }) => {
       return campaignService.listCampaigns(status ? { status } : undefined);
     },
-  },
-  {
-    name: "create_campaign",
+  }),
+
+  create_campaign: zTool({
     description: "Create a new outreach campaign.",
-    parameters: {
-      type: "object",
-      properties: {
-        name: { type: "string", description: "Campaign name" },
-        description: { type: "string", description: "Campaign description" },
-        dailyLimit: {
-          type: "integer",
-          description: "Daily email send limit (default 20)",
-        },
-        qualityThreshold: {
-          type: "integer",
-          description:
-            "Max web quality score to contact — lower means worse websites get outreach (default 40)",
-        },
-        autopilot: {
-          type: "boolean",
-          description: "Auto-approve generated messages",
-        },
-        defaultTone: {
-          type: "string",
-          description:
-            "Default tone for messages (e.g. professional, casual, friendly)",
-        },
-      },
-      required: ["name"],
+    parameters: z.object({
+      name: z.string().describe("Campaign name"),
+      description: z.string().optional().describe("Campaign description"),
+      dailyLimit: z
+        .number()
+        .int()
+        .optional()
+        .describe("Daily email send limit (default 20)"),
+      qualityThreshold: z
+        .number()
+        .int()
+        .optional()
+        .describe(
+          "Max web quality score to contact — lower means worse websites get outreach (default 40)"
+        ),
+      autopilot: z
+        .boolean()
+        .optional()
+        .describe("Auto-approve generated messages"),
+      defaultTone: z
+        .string()
+        .optional()
+        .describe(
+          "Default tone for messages (e.g. professional, casual, friendly)"
+        ),
+    }),
+    execute: async (args) => {
+      return campaignService.createCampaign(args);
     },
-    handler: async (args) => {
-      return campaignService.createCampaign({
-        name: args.name as string,
-        description: args.description as string | undefined,
-        dailyLimit: args.dailyLimit as number | undefined,
-        qualityThreshold: args.qualityThreshold as number | undefined,
-        autopilot: args.autopilot as boolean | undefined,
-        defaultTone: args.defaultTone as string | undefined,
-      });
-    },
-  },
-  {
-    name: "update_campaign",
+  }),
+
+  update_campaign: zTool({
     description: "Update an existing campaign's settings or status.",
-    parameters: {
-      type: "object",
-      properties: {
-        campaignId: { type: "integer", description: "Campaign ID to update" },
-        name: { type: "string", description: "New campaign name" },
-        description: { type: "string", description: "New description" },
-        dailyLimit: { type: "integer", description: "New daily email limit" },
-        qualityThreshold: {
-          type: "integer",
-          description: "New quality threshold",
-        },
-        autopilot: { type: "boolean", description: "Enable/disable autopilot" },
-        defaultTone: { type: "string", description: "New default tone" },
-        status: {
-          type: "string",
-          description: "Campaign status",
-          enum: ["active", "paused", "archived"],
-        },
-      },
-      required: ["campaignId"],
+    parameters: z.object({
+      campaignId: z.number().int().describe("Campaign ID to update"),
+      name: z.string().optional().describe("New campaign name"),
+      description: z.string().optional().describe("New description"),
+      dailyLimit: z
+        .number()
+        .int()
+        .optional()
+        .describe("New daily email limit"),
+      qualityThreshold: z
+        .number()
+        .int()
+        .optional()
+        .describe("New quality threshold"),
+      autopilot: z
+        .boolean()
+        .optional()
+        .describe("Enable/disable autopilot"),
+      defaultTone: z.string().optional().describe("New default tone"),
+      status: z
+        .enum(["active", "paused", "archived"])
+        .optional()
+        .describe("Campaign status"),
+    }),
+    execute: async ({ campaignId, ...updates }) => {
+      return campaignService.updateCampaign(campaignId, updates);
     },
-    handler: async (args) => {
-      const { campaignId, ...updates } = args as Record<string, unknown>;
-      return campaignService.updateCampaign(
-        campaignId as number,
-        updates as campaignService.UpdateCampaignInput
-      );
-    },
-  },
-  {
-    name: "get_campaign_performance",
+  }),
+
+  get_campaign_performance: zTool({
     description:
       "Get performance metrics for a specific campaign: lead funnel, send/open/click/reply counts, status breakdown.",
-    parameters: {
-      type: "object",
-      properties: {
-        campaignId: { type: "integer", description: "Campaign ID" },
-      },
-      required: ["campaignId"],
+    parameters: z.object({
+      campaignId: z.number().int().describe("Campaign ID"),
+    }),
+    execute: async ({ campaignId }) => {
+      return campaignService.getCampaignPerformance(campaignId);
     },
-    handler: async (args) => {
-      return campaignService.getCampaignPerformance(args.campaignId as number);
-    },
-  },
+  }),
 
   // ─── Leads ─────────────────────────────────────────────────────────
-  {
-    name: "search_leads",
+  search_leads: zTool({
     description:
       "Search and filter leads across campaigns. Returns summarized data.",
-    parameters: {
-      type: "object",
-      properties: {
-        campaignId: { type: "integer", description: "Filter by campaign ID" },
-        city: { type: "string", description: "Filter by city name" },
-        status: {
-          type: "string",
-          description:
-            "Filter by status (imported, analyzed, email_generated, email_sent, etc.)",
-        },
-        search: { type: "string", description: "Search by name or category" },
-        page: { type: "integer", description: "Page number (default 1)" },
-        limit: {
-          type: "integer",
-          description: "Items per page (default 50)",
-        },
-      },
+    parameters: z.object({
+      campaignId: z.number().int().optional().describe("Filter by campaign ID"),
+      city: z.string().optional().describe("Filter by city name"),
+      status: z
+        .string()
+        .optional()
+        .describe(
+          "Filter by status (imported, analyzed, email_generated, email_sent, etc.)"
+        ),
+      search: z.string().optional().describe("Search by name or category"),
+      page: z.number().int().optional().describe("Page number (default 1)"),
+      limit: z
+        .number()
+        .int()
+        .optional()
+        .describe("Items per page (default 50)"),
+    }),
+    execute: async (args) => {
+      return leadService.searchLeads(args as leadService.SearchLeadsFilters);
     },
-    handler: async (args) => {
-      return leadService.searchLeads(
-        args as leadService.SearchLeadsFilters
-      );
-    },
-  },
-  {
-    name: "get_lead_details",
+  }),
+
+  get_lead_details: zTool({
     description:
       "Get complete details for a single lead including web analysis, recommended services, issues, and message history.",
-    parameters: {
-      type: "object",
-      properties: {
-        leadId: { type: "integer", description: "Lead ID" },
-      },
-      required: ["leadId"],
+    parameters: z.object({
+      leadId: z.number().int().describe("Lead ID"),
+    }),
+    execute: async ({ leadId }) => {
+      return leadService.getLeadDetails(leadId);
     },
-    handler: async (args) => {
-      return leadService.getLeadDetails(args.leadId as number);
-    },
-  },
-  {
-    name: "update_lead",
+  }),
+
+  update_lead: zTool({
     description:
       "Update a lead's notes, contact email override, status, or campaign assignment.",
-    parameters: {
-      type: "object",
-      properties: {
-        leadId: { type: "integer", description: "Lead ID" },
-        contactEmail: {
-          type: "string",
-          description: "Override the contact email",
-        },
-        notes: { type: "string", description: "Notes to add/update" },
-        status: { type: "string", description: "Manually set lead status" },
-      },
-      required: ["leadId"],
-    },
-    handler: async (args) => {
-      const { leadId, ...updates } = args as Record<string, unknown>;
+    parameters: z.object({
+      leadId: z.number().int().describe("Lead ID"),
+      contactEmail: z
+        .string()
+        .optional()
+        .describe("Override the contact email"),
+      notes: z.string().optional().describe("Notes to add/update"),
+      status: z.string().optional().describe("Manually set lead status"),
+    }),
+    execute: async ({ leadId, ...updates }) => {
       return leadService.updateLead(
-        leadId as number,
+        leadId,
         updates as leadService.UpdateLeadInput
       );
     },
-  },
+  }),
 
   // ─── Messages ──────────────────────────────────────────────────────
-  {
-    name: "list_draft_messages",
+  list_draft_messages: zTool({
     description:
       "List email drafts pending review. Returns summary info for quick scanning.",
-    parameters: {
-      type: "object",
-      properties: {
-        campaignId: { type: "integer", description: "Filter by campaign" },
-        page: { type: "integer", description: "Page number (default 1)" },
-        limit: { type: "integer", description: "Items per page (default 20)" },
-      },
-    },
-    handler: async (args) => {
+    parameters: z.object({
+      campaignId: z.number().int().optional().describe("Filter by campaign"),
+      page: z.number().int().optional().describe("Page number (default 1)"),
+      limit: z
+        .number()
+        .int()
+        .optional()
+        .describe("Items per page (default 20)"),
+    }),
+    execute: async (args) => {
       return messageService.listEmails({
         status: "draft",
-        campaignId: args.campaignId as number | undefined,
-        page: args.page as number | undefined,
-        limit: args.limit as number | undefined,
+        campaignId: args.campaignId,
+        page: args.page,
+        limit: args.limit,
       });
     },
-  },
-  {
-    name: "approve_messages",
+  }),
+
+  approve_messages: zTool({
     description:
       "Approve draft email messages for sending. Approved messages are sent by the background scheduler.",
-    parameters: {
-      type: "object",
-      properties: {
-        emailIds: {
-          type: "array",
-          items: { type: "integer" },
-          description: "Email IDs to approve",
-        },
-      },
-      required: ["emailIds"],
+    parameters: z.object({
+      emailIds: z
+        .array(z.number().int())
+        .describe("Email IDs to approve"),
+    }),
+    execute: async ({ emailIds }) => {
+      return messageService.approveEmails(emailIds);
     },
-    handler: async (args) => {
-      return messageService.approveEmails(args.emailIds as number[]);
-    },
-  },
+  }),
 
   // ─── Analytics ─────────────────────────────────────────────────────
-  {
-    name: "get_dashboard",
+  get_dashboard: zTool({
     description:
       "Get comprehensive dashboard metrics: total leads, sends today, open/click/reply rates, active campaigns, pending jobs, warmup status.",
-    parameters: {
-      type: "object",
-      properties: {},
-    },
-    handler: async () => {
+    parameters: z.object({}),
+    execute: async () => {
       return analyticsService.getDashboardMetrics();
     },
-  },
-  {
-    name: "get_recent_activity",
+  }),
+
+  get_recent_activity: zTool({
     description:
       "Get recent activity log entries showing what the system has been doing (imports, scrapes, emails, errors, etc.).",
-    parameters: {
-      type: "object",
-      properties: {
-        type: {
-          type: "string",
-          description:
-            "Filter by activity type (import, scrape, email_sent, error, etc.)",
-        },
-        limit: {
-          type: "integer",
-          description: "Max entries to return (default 50)",
-        },
-        page: { type: "integer", description: "Page number (default 1)" },
-      },
-    },
-    handler: async (args) => {
+    parameters: z.object({
+      type: z
+        .string()
+        .optional()
+        .describe(
+          "Filter by activity type (import, scrape, email_sent, error, etc.)"
+        ),
+      limit: z
+        .number()
+        .int()
+        .optional()
+        .describe("Max entries to return (default 50)"),
+      page: z.number().int().optional().describe("Page number (default 1)"),
+    }),
+    execute: async (args) => {
       return analyticsService.getRecentActivity(
         args as analyticsService.RecentActivityOpts
       );
     },
-  },
+  }),
 
   // ─── Blacklist ─────────────────────────────────────────────────────
-  {
-    name: "manage_blacklist",
+  manage_blacklist: zTool({
     description:
       "Add, remove, or list blacklisted domains/emails/businesses. Essential for compliance.",
-    parameters: {
-      type: "object",
-      properties: {
-        action: {
-          type: "string",
-          description: "Action to perform",
-          enum: ["add", "remove", "list"],
-        },
-        type: {
-          type: "string",
-          description: "Type of blacklist entry (required for add)",
-          enum: ["domain", "email", "business"],
-        },
-        value: {
-          type: "string",
-          description:
-            "Value to add (e.g. 'spam.com', 'user@spam.com', 'Spam Corp')",
-        },
-        reason: {
-          type: "string",
-          description: "Reason for blacklisting (add only)",
-        },
-        id: {
-          type: "integer",
-          description: "Blacklist entry ID (required for remove)",
-        },
-      },
-      required: ["action"],
-    },
-    handler: async (args) => {
-      const action = args.action as string;
-      if (action === "list") {
+    parameters: z.object({
+      action: z
+        .enum(["add", "remove", "list"])
+        .describe("Action to perform"),
+      type: z
+        .enum(["domain", "email", "business"])
+        .optional()
+        .describe("Type of blacklist entry (required for add)"),
+      value: z
+        .string()
+        .optional()
+        .describe(
+          "Value to add (e.g. 'spam.com', 'user@spam.com', 'Spam Corp')"
+        ),
+      reason: z
+        .string()
+        .optional()
+        .describe("Reason for blacklisting (add only)"),
+      id: z
+        .number()
+        .int()
+        .optional()
+        .describe("Blacklist entry ID (required for remove)"),
+    }),
+    execute: async (args) => {
+      if (args.action === "list") {
         return blacklistService.listBlacklist();
-      } else if (action === "add") {
+      } else if (args.action === "add") {
         return blacklistService.addToBlacklist({
           type: args.type as "domain" | "email" | "business",
           value: args.value as string,
-          reason: args.reason as string | undefined,
+          reason: args.reason,
         });
-      } else if (action === "remove") {
+      } else if (args.action === "remove") {
         return blacklistService.removeFromBlacklist(args.id as number);
       }
       return { error: "Invalid action" };
     },
-  },
+  }),
 
   // ─── Settings ──────────────────────────────────────────────────────
-  {
-    name: "check_configuration",
+  check_configuration: zTool({
     description:
       "Check system configuration completeness. Reports missing API keys, settings, and integration status.",
-    parameters: {
-      type: "object",
-      properties: {},
-    },
-    handler: async () => {
+    parameters: z.object({}),
+    execute: async () => {
       return settingsService.checkConfiguration();
     },
-  },
-  {
-    name: "update_settings",
+  }),
+
+  update_settings: zTool({
     description:
       "Update operational settings (agency name, tone, daily limits, etc.). Cannot modify API keys or secrets.",
-    parameters: {
-      type: "object",
-      properties: {
-        settings: {
-          type: "object",
-          description:
-            "Key-value pairs to update. Allowed keys include: agency_name, agency_url, agency_description, agency_services, target_country, default_tone, global_daily_limit, wa_daily_limit, from_email, from_name",
-        },
-      },
-      required: ["settings"],
+    parameters: z.object({
+      settings: z
+        .record(z.string(), z.string())
+        .describe(
+          "Key-value pairs to update. Allowed keys include: agency_name, agency_url, agency_description, agency_services, target_country, default_tone, global_daily_limit, wa_daily_limit, from_email, from_name"
+        ),
+    }),
+    execute: async ({ settings }) => {
+      return settingsService.updateSettings(settings);
     },
-    handler: async (args) => {
-      const updates = args.settings as Record<string, string>;
-      return settingsService.updateSettings(updates);
-    },
-  },
+  }),
 
   // ─── Search (Google Maps) ──────────────────────────────────────────
-  {
-    name: "start_search",
+  start_search: zTool({
     description:
       "Start a Google Maps search for businesses. Results are imported as leads into a campaign.",
-    parameters: {
-      type: "object",
-      properties: {
-        keyword: {
-          type: "string",
-          description:
-            "Google Maps search term (e.g. 'restaurantes en Madrid')",
-        },
-        campaignId: {
-          type: "integer",
-          description: "Campaign to import leads into",
-        },
-      },
-      required: ["keyword"],
+    parameters: z.object({
+      keyword: z
+        .string()
+        .describe(
+          "Google Maps search term (e.g. 'restaurantes en Madrid')"
+        ),
+      campaignId: z
+        .number()
+        .int()
+        .optional()
+        .describe("Campaign to import leads into"),
+    }),
+    execute: async (args) => {
+      return searchService.startSearch(args);
     },
-    handler: async (args) => {
-      return searchService.startSearch({
-        keyword: args.keyword as string,
-        campaignId: args.campaignId as number | undefined,
-      });
-    },
-  },
+  }),
 
   // ─── Job Processing ────────────────────────────────────────────────
-  {
-    name: "process_jobs",
+  process_jobs: zTool({
     description:
       "Trigger background job processing for scraping, email/WhatsApp generation, and sending. This kicks off the cron pipeline.",
-    parameters: {
-      type: "object",
-      properties: {
-        action: {
-          type: "string",
-          description:
-            "Which jobs to process: 'all', 'scrape', 'generate', 'send', 'send_wa', 'sequences'",
-          enum: ["all", "scrape", "generate", "send", "send_wa", "sequences"],
-        },
-      },
-    },
-    handler: async (args) => {
-      const action = (args.action as string) || "all";
+    parameters: z.object({
+      action: z
+        .enum(["all", "scrape", "generate", "send", "send_wa", "sequences"])
+        .optional()
+        .describe(
+          "Which jobs to process: 'all', 'scrape', 'generate', 'send', 'send_wa', 'sequences'"
+        ),
+    }),
+    execute: async ({ action }) => {
+      const jobAction = action || "all";
       const cronSecret = process.env.CRON_SECRET || "";
       const baseUrl =
         process.env.NEXTAUTH_URL ||
@@ -405,7 +352,7 @@ export const chatbotTools: ToolDefinition[] = [
         "http://localhost:3000";
 
       const res = await fetch(
-        `${baseUrl}/api/cron?action=${encodeURIComponent(action)}`,
+        `${baseUrl}/api/cron?action=${encodeURIComponent(jobAction)}`,
         {
           method: "POST",
           headers: {
@@ -422,5 +369,5 @@ export const chatbotTools: ToolDefinition[] = [
 
       return res.json();
     },
-  },
-];
+  }),
+};

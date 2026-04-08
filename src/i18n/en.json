@@ -715,7 +715,21 @@
   },
   "chatbot": {
     "welcome": "Ask me anything about your campaigns",
-    "examples": "Try: \"list my campaigns\" or \"how many emails sent today?\"",
-    "placeholder": "Type a message..."
+    "examples": "I can manage campaigns, search leads, review emails, and more",
+    "placeholder": "Type a message...",
+    "thinking": "Thinking...",
+    "status": "AI Assistant"
+  },
+  "shortcuts": {
+    "title": "Campaign Actions",
+    "search": "Search",
+    "analyze": "Analyze",
+    "generate": "Generate",
+    "review": "Review",
+    "send": "Send",
+    "engagement": "Follow-up",
+    "sent": "Sent",
+    "openRate": "Open",
+    "replies": "Replies"
   }
 }
