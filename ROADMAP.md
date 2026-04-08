@@ -78,7 +78,7 @@ CREATE TABLE ab_results (
 
 2. En el HTML del email, reemplazar URLs con URLs de tracking:
 ```
-https://tudominio.com/api/track/click?id=123&url=https%3A%2F%2Fvanguardia.dev
+https://yourdomain.com/api/track/click?id=123&url=https%3A%2F%2Fexample.com
 ```
 
 ### Reply Tracking

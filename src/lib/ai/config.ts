@@ -62,9 +62,9 @@ export interface AgencyContext {
 
 export function getAgencyContext(): AgencyContext {
   return {
-    name: getSetting("agency_name") || "VanguardIA",
-    url: getSetting("agency_url") || "vanguardia.dev",
-    description: getSetting("agency_description") || "Agencia de desarrollo web y soluciones digitales",
+    name: getSetting("agency_name") || "ProspectAI",
+    url: getSetting("agency_url") || "",
+    description: getSetting("agency_description") || "",
     services: getEnabledServices(),
     country: getSetting("target_country") || "ES",
     locale: getSetting("locale") || "es-ES",

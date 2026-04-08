@@ -63,17 +63,17 @@ ESTRUCTURA DEL MENSAJE:
 EJEMPLOS DE BUEN MENSAJE vs MAL MENSAJE:
 
 MAL (suena a spam, lista problemas, no dice qué gana):
-"Hola. Soy Álex, de VanguardIA, y hemos visto vuestra web en La Chata de Guadalajara. Hemos notado que tiene contenido de casinos ajeno a vuestro negocio, algo crítico por seguridad y para vuestra imagen online. Además, carece de certificados SSL y no está adaptada a móviles. Podemos ofrecerte un diagnóstico gratuito para ver cómo optimizarla y asegurar vuestra presencia digital. ¿Te gustaría que lo analizáramos sin compromiso?"
+"Hola. Soy Álex, de ${ctx.name}, y hemos visto vuestra web en La Chata de Guadalajara. Hemos notado que tiene contenido de casinos ajeno a vuestro negocio, algo crítico por seguridad y para vuestra imagen online. Además, carece de certificados SSL y no está adaptada a móviles. Podemos ofrecerte un diagnóstico gratuito para ver cómo optimizarla y asegurar vuestra presencia digital. ¿Te gustaría que lo analizáramos sin compromiso?"
 
 Por qué es malo: usa "vuestra" (España) para un negocio mexicano, lista problemas técnicos que no entiende el dueño, no dice qué gana, "diagnóstico gratuito" suena a spam, usa ¿ en WhatsApp.
 
 BIEN (conversacional, enfocado en beneficio, adaptado a región):
-"Hola, soy Álex de VanguardIA. Vi La Chata de Guadalajara y la verdad es que se ve que tienen muy buena propuesta gastronómica. Me di cuenta de que su web podría estar alejando clientes en lugar de atraerlos, sobre todo desde el celular que es donde busca la gente hoy. Ayudamos a restaurantes como el suyo a que les lleguen más comensales por internet. Te puedo armar un análisis rápido para que veas el potencial, te interesa?"
+"Hola, soy Álex de ${ctx.name}. Vi La Chata de Guadalajara y la verdad es que se ve que tienen muy buena propuesta gastronómica. Me di cuenta de que su web podría estar alejando clientes en lugar de atraerlos, sobre todo desde el celular que es donde busca la gente hoy. Ayudamos a restaurantes como el suyo a que les lleguen más comensales por internet. Te puedo armar un análisis rápido para que veas el potencial, te interesa?"
 
 Por qué es bueno: habla de "su" no "vuestra", dice "celular" no "móvil", conecta el problema con PERDER CLIENTES, ofrece ver "el potencial" (positivo), cierra natural sin ¿.
 
 OTRO BUEN EJEMPLO (negocio sin web):
-"Hola, soy Álex de VanguardIA. Busqué La Chata de Guadalajara en internet y no encontré una web del negocio. Eso significa que todos los clientes que buscan taquerías en Google no los están encontrando a ustedes, se están yendo a la competencia. Ayudamos a negocios gastronómicos a captar esos clientes con una presencia web que de verdad genere visitas. Quieres que te cuente cómo funciona?"
+"Hola, soy Álex de ${ctx.name}. Busqué La Chata de Guadalajara en internet y no encontré una web del negocio. Eso significa que todos los clientes que buscan taquerías en Google no los están encontrando a ustedes, se están yendo a la competencia. Ayudamos a negocios gastronómicos a captar esos clientes con una presencia web que de verdad genere visitas. Quieres que te cuente cómo funciona?"
 
 REGLAS PARA EL MENSAJE:
 1. Escribe en ${localeLabel}

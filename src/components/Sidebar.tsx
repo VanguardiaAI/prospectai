@@ -103,7 +103,7 @@ export function Sidebar() {
                 ProspectAI
               </h1>
               <p className="text-[9px] text-text-muted font-mono uppercase tracking-[0.12em]">
-                by VanguardIA
+                open source
               </p>
             </div>
           </Link>
@@ -175,12 +175,12 @@ export function Sidebar() {
             Cerrar sesion
           </button>
           <a
-            href="https://vanguardia.dev"
+            href="https://github.com/VanguardiaAI/ProspectAI"
             target="_blank"
             rel="noopener noreferrer"
             className="block text-[9px] text-text-muted font-mono uppercase tracking-[0.1em] hover:text-text-secondary transition-colors duration-150"
           >
-            vanguardia.dev
+            github
           </a>
         </div>
       </aside>

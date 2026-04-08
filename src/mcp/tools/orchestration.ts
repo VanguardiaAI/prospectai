@@ -265,8 +265,8 @@ export function registerOrchestrationTools(server: McpServer) {
       const { isBlacklisted } = await import("@/lib/blacklist");
       const { isUnsubscribed } = await import("@/lib/unsubscribe");
 
-      const fromName = getSetting("from_name") || getSetting("agency_name") || "VanguardIA";
-      const fromEmail = getSetting("from_email") || "hola@vanguardia.dev";
+      const fromName = getSetting("from_name") || getSetting("agency_name") || "ProspectAI";
+      const fromEmail = getSetting("from_email") || "";
       const defaultTone = tone || getSetting("default_tone") || "profesional";
 
       const previews: string[] = [];

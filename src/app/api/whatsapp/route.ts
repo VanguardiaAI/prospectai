@@ -95,7 +95,7 @@ export async function POST(req: NextRequest) {
     if (!lead) return NextResponse.json({ error: "Lead not found" }, { status: 404 });
 
     const analysis: WebAnalysis | null = lead.analysisJson ? JSON.parse(lead.analysisJson) : null;
-    const fromName = getSetting("from_name") || "VanguardIA";
+    const fromName = getSetting("from_name") || getSetting("agency_name") || "ProspectAI";
 
     const generated = await regenerateWhatsApp(
       lead.name, lead.category, lead.city, lead.website,
@@ -126,7 +126,7 @@ export async function POST(req: NextRequest) {
       : null;
 
     const tone = body.tone || campaign?.defaultTone || getSetting("default_tone") || "profesional";
-    const fromName = getSetting("from_name") || "VanguardIA";
+    const fromName = getSetting("from_name") || getSetting("agency_name") || "ProspectAI";
 
     const generated = await generateWhatsApp(
       lead.name, lead.category, lead.city, lead.website, analysis, tone, fromName,

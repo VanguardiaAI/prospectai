@@ -21,31 +21,31 @@ Diagnóstico realizado: 2026-04-02
 
 ### Por qué
 
-Usar `vanguardia.dev` para cold outreach pone en riesgo la reputación del dominio principal.
-Si acumula bounces o spam reports, afecta a todos los emails (transaccionales, facturas, clientes).
+Using your main domain for cold outreach risks its reputation.
+If you accumulate bounces or spam reports, it affects all emails (transactional, invoices, clients).
 
-### Qué hacer
+### What to do
 
-1. **Crear subdominio** `mail.vanguardia.dev` (o `outreach.vanguardia.dev`)
-2. **Verificar en Resend** → Domain Settings → Add domain → `mail.vanguardia.dev`
-3. **Añadir registros DNS** que Resend proporcione:
-   - SPF: `mail.vanguardia.dev TXT "v=spf1 include:amazonses.com ~all"`
-   - DKIM: el que Resend genere (registro CNAME o TXT)
-   - MX: si quieres recibir respuestas en el subdominio
-4. **Configurar DMARC** en el dominio raíz (si no existe):
+1. **Create subdomain** `mail.yourdomain.com` (or `outreach.yourdomain.com`)
+2. **Verify in Resend** → Domain Settings → Add domain → `mail.yourdomain.com`
+3. **Add DNS records** provided by Resend:
+   - SPF: `mail.yourdomain.com TXT "v=spf1 include:amazonses.com ~all"`
+   - DKIM: the one Resend generates (CNAME or TXT record)
+   - MX: if you want to receive replies on the subdomain
+4. **Configure DMARC** on root domain (if not exists):
    ```
-   _dmarc.vanguardia.dev TXT "v=DMARC1; p=none; rua=mailto:dmarc@vanguardia.dev; pct=100"
+   _dmarc.yourdomain.com TXT "v=DMARC1; p=none; rua=mailto:dmarc@yourdomain.com; pct=100"
    ```
-   Empezar con `p=none` para monitorear, luego subir a `p=quarantine`.
-5. **Actualizar sendingDomains** en la app: añadir `mail.vanguardia.dev` con su fromEmail y API key
-6. **Warmup** el subdominio desde 5 emails/día incrementando gradualmente (ya soportado por el sistema)
+   Start with `p=none` to monitor, then upgrade to `p=quarantine`.
+5. **Update sendingDomains** in the app: add `mail.yourdomain.com` with its fromEmail and API key
+6. **Warmup** the subdomain from 5 emails/day increasing gradually (already supported by the system)
 
-### Estructura final
+### Target structure
 
-| Uso                      | Dominio              | From                          |
-|--------------------------|----------------------|-------------------------------|
-| Cold outreach            | mail.vanguardia.dev  | hola@mail.vanguardia.dev      |
-| Transaccional / clientes | vanguardia.dev       | hola@vanguardia.dev           |
+| Use                      | Domain               | From                           |
+|--------------------------|----------------------|--------------------------------|
+| Cold outreach            | mail.yourdomain.com  | hello@mail.yourdomain.com      |
+| Transactional / clients  | yourdomain.com       | hello@yourdomain.com           |
 
 ---
 

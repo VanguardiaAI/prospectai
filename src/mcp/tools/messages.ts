@@ -298,7 +298,7 @@ export function registerMessageTools(server: McpServer) {
         if (!lead) return { content: [{ type: "text", text: `Lead not found for this email.` }], isError: true };
 
         const { regenerateEmail, defaultWebAnalysis } = await import("@/lib/gemini");
-        const fromName = getSetting("from_name") || getSetting("agency_name") || "VanguardIA";
+        const fromName = getSetting("from_name") || getSetting("agency_name") || "ProspectAI";
         const result = await regenerateEmail(
           lead.name, lead.category, lead.city, lead.website,
           lead.analysisJson ? JSON.parse(lead.analysisJson) : defaultWebAnalysis(lead.website, lead.webQualityScore ?? 0, lead.analysisSummary ?? ""),
@@ -325,7 +325,7 @@ export function registerMessageTools(server: McpServer) {
         if (!lead) return { content: [{ type: "text", text: `Lead not found.` }], isError: true };
 
         const { regenerateWhatsApp, defaultWebAnalysis } = await import("@/lib/gemini");
-        const waFromName = getSetting("from_name") || getSetting("agency_name") || "VanguardIA";
+        const waFromName = getSetting("from_name") || getSetting("agency_name") || "ProspectAI";
         const result = await regenerateWhatsApp(
           lead.name, lead.category, lead.city, lead.website,
           lead.analysisJson ? JSON.parse(lead.analysisJson) : defaultWebAnalysis(lead.website, lead.webQualityScore ?? 0, lead.analysisSummary ?? ""),

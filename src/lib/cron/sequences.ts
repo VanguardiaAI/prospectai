@@ -44,7 +44,7 @@ export async function processSequences() {
       ? JSON.parse(lead.analysisJson)
       : defaultWebAnalysis(lead.website, lead.webQualityScore || 0, lead.analysisSummary || "");
 
-    const fromName = getSetting("from_name") || getSetting("agency_name") || "VanguardIA";
+    const fromName = getSetting("from_name") || getSetting("agency_name") || "ProspectAI";
 
     try {
       if (step.channel === "email") {
@@ -63,7 +63,7 @@ export async function processSequences() {
           detectCountryFromPhone(lead.phone) || undefined
         );
 
-        const fromEmail = getSetting("from_email") || "hola@vanguardia.dev";
+        const fromEmail = getSetting("from_email") || "";
         db.insert(emails).values({
           leadId: lead.id,
           campaignId: enrollment.campaignId,

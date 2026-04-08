@@ -219,7 +219,7 @@ function Nav({ theme, toggleTheme }: { theme: string; toggleTheme: () => void })
             { href: "#features", text: "FUNCIONALIDADES" },
             { href: "#process", text: "PROCESO" },
             { href: "#metrics", text: "RESULTADOS" },
-            { href: "#pricing", text: "PRICING" },
+            { href: "https://github.com/VanguardiaAI/ProspectAI", text: "GITHUB" },
           ].map((l) => (
             <a
               key={l.href}
@@ -266,8 +266,8 @@ function Nav({ theme, toggleTheme }: { theme: string; toggleTheme: () => void })
             ENTRAR
           </Link>
           <span className="hidden sm:inline-flex">
-            <a href="#cta" className="l-btn-primary" style={{ padding: "8px 20px", fontSize: "11px" }}>
-              EMPEZAR
+            <a href="https://github.com/VanguardiaAI/ProspectAI" target="_blank" rel="noopener noreferrer" className="l-btn-primary" style={{ padding: "8px 20px", fontSize: "11px" }}>
+              GITHUB
               <ArrowRight size={12} />
             </a>
           </span>
@@ -603,219 +603,6 @@ function UseCases() {
   );
 }
 
-/* ─── Pricing ─── */
-function Pricing() {
-  const ref = useReveal();
-
-  const plans = [
-    {
-      name: "STARTER",
-      price: "0",
-      period: "GRATIS PARA SIEMPRE",
-      desc: "Para probar el motor de prospección sin compromiso.",
-      bar: 2,
-      features: [
-        "50 leads / mes",
-        "Análisis web básico",
-        "10 emails personalizados",
-        "Pipeline visual",
-        "1 búsqueda simultánea",
-      ],
-      cta: "EMPEZAR GRATIS",
-      ctaStyle: "secondary" as const,
-      accent: false,
-    },
-    {
-      name: "PRO",
-      price: "49",
-      period: "/ MES",
-      desc: "Para freelancers y agencias que quieren escalar su prospección.",
-      bar: 6,
-      features: [
-        "2,000 leads / mes",
-        "Análisis web completo",
-        "500 emails personalizados",
-        "WhatsApp integrado",
-        "Seguimiento automático",
-        "Métricas en tiempo real",
-        "3 búsquedas simultáneas",
-      ],
-      cta: "EMPEZAR CON PRO",
-      ctaStyle: "primary" as const,
-      accent: true,
-    },
-    {
-      name: "SCALE",
-      price: "149",
-      period: "/ MES",
-      desc: "Para equipos que necesitan volumen y funcionalidades avanzadas.",
-      bar: 10,
-      features: [
-        "10,000 leads / mes",
-        "Análisis web + auditoría SEO",
-        "Emails ilimitados",
-        "WhatsApp + seguimiento",
-        "API access",
-        "Usuarios ilimitados",
-        "Soporte prioritario",
-      ],
-      cta: "CONTACTAR VENTAS",
-      ctaStyle: "secondary" as const,
-      accent: false,
-    },
-  ];
-
-  return (
-    <section id="pricing" className="py-24 px-6 relative" ref={ref}>
-      <div className="absolute inset-0 l-dot-grid pointer-events-none" style={{ opacity: 0.25 }} />
-
-      <div className="max-w-[1200px] mx-auto relative">
-        <div className="mb-16" data-reveal style={{ opacity: 0 }}>
-          <span className="l-label block mb-4">PRICING</span>
-          <h2 className="l-display-section max-w-[500px]">
-            Planes que crecen contigo
-          </h2>
-          <p className="l-body mt-4 max-w-[420px]">
-            Sin sorpresas. Sin contratos. Cancela cuando quieras.
-          </p>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-px" style={{ background: "var(--c-border)", borderRadius: "12px", overflow: "hidden" }}>
-          {plans.map((plan, i) => (
-            <div
-              key={i}
-              data-reveal
-              className={`l-delay-${i + 1}`}
-              style={{
-                opacity: 0,
-                background: plan.accent ? "var(--c-cream)" : "var(--c-s100)",
-                padding: "40px 32px",
-                display: "flex",
-                flexDirection: "column",
-                position: "relative",
-              }}
-            >
-              {/* Accent top line for featured plan */}
-              {plan.accent && (
-                <div
-                  style={{
-                    position: "absolute",
-                    top: 0,
-                    left: "32px",
-                    right: "32px",
-                    height: "2px",
-                    background: "var(--c-orange)",
-                  }}
-                />
-              )}
-
-              {/* Plan header */}
-              <div className="flex items-center justify-between mb-6">
-                <span className="l-label" style={{ color: plan.accent ? "var(--c-orange)" : "var(--c-text3)" }}>
-                  {plan.name}
-                </span>
-                {plan.accent && (
-                  <span
-                    className="l-pill"
-                    style={{
-                      padding: "4px 10px",
-                      fontSize: "9px",
-                      borderColor: "var(--c-orange)",
-                      color: "var(--c-orange)",
-                    }}
-                  >
-                    POPULAR
-                  </span>
-                )}
-              </div>
-
-              {/* Price */}
-              <div className="flex items-baseline gap-2 mb-2">
-                <span className="l-doto" style={{ fontSize: "56px", color: plan.accent ? "var(--c-orange)" : "var(--c-dark)" }}>
-                  {plan.price === "0" ? "Free" : `€${plan.price}`}
-                </span>
-                {plan.price !== "0" && (
-                  <span className="l-label" style={{ color: "var(--c-text3)" }}>
-                    {plan.period}
-                  </span>
-                )}
-              </div>
-
-              {/* Period for free plan */}
-              {plan.price === "0" && (
-                <span className="l-label mb-4" style={{ color: "var(--c-text3)" }}>
-                  {plan.period}
-                </span>
-              )}
-
-              {/* Description */}
-              <p className="l-body-sm mb-6" style={{ minHeight: "48px" }}>
-                {plan.desc}
-              </p>
-
-              {/* Segmented bar */}
-              <div className="mb-8">
-                <SegmentedBar filled={plan.bar} total={10} />
-              </div>
-
-              {/* Features */}
-              <ul style={{ listStyle: "none", padding: 0, margin: 0, flex: 1 }}>
-                {plan.features.map((f, j) => (
-                  <li
-                    key={j}
-                    style={{
-                      display: "flex",
-                      alignItems: "center",
-                      gap: "10px",
-                      padding: "8px 0",
-                      borderBottom: j < plan.features.length - 1 ? "1px solid var(--c-border)" : "none",
-                    }}
-                  >
-                    <span
-                      style={{
-                        width: "4px",
-                        height: "4px",
-                        borderRadius: "50%",
-                        background: plan.accent ? "var(--c-orange)" : "var(--c-text3)",
-                        flexShrink: 0,
-                      }}
-                    />
-                    <span className="l-body-sm" style={{ fontSize: "14px" }}>{f}</span>
-                  </li>
-                ))}
-              </ul>
-
-              {/* CTA */}
-              <div className="mt-8">
-                <a
-                  href="#cta"
-                  className={plan.ctaStyle === "primary" ? "l-btn-primary" : "l-btn-secondary"}
-                  style={{
-                    width: "100%",
-                    justifyContent: "center",
-                    padding: "14px 24px",
-                    fontSize: "12px",
-                  }}
-                >
-                  {plan.cta}
-                  <ArrowRight size={13} />
-                </a>
-              </div>
-            </div>
-          ))}
-        </div>
-
-        {/* Bottom note */}
-        <div data-reveal className="mt-8 text-center l-delay-4" style={{ opacity: 0 }}>
-          <p className="l-label" style={{ color: "var(--c-text3)" }}>
-            TODOS LOS PLANES INCLUYEN SSL, GDPR COMPLIANCE Y SOPORTE POR EMAIL
-          </p>
-        </div>
-      </div>
-    </section>
-  );
-}
-
 /* ─── CTA ─── */
 function CTA() {
   return (
@@ -838,7 +625,7 @@ function Footer() {
           </span>
         </div>
         <span className="l-label" style={{ fontSize: "10px" }}>
-          &copy; {new Date().getFullYear()} VANGUARDIA — PROSPECCIÓN INTELIGENTE PARA AGENCIAS DIGITALES
+          &copy; {new Date().getFullYear()} PROSPECT AI — OPEN SOURCE &middot; MIT LICENSE
         </span>
       </div>
     </footer>
@@ -872,7 +659,6 @@ export default function LandingPage() {
       <Process />
       <Metrics />
       <UseCases />
-      <Pricing />
       <CTA />
       <Footer />
     </div>

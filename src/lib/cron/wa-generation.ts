@@ -43,7 +43,7 @@ export async function processWhatsAppGenerationJobs() {
         : null;
 
       let tone = campaign?.defaultTone || getSetting("default_tone") || "profesional";
-      const fromName = getSetting("from_name") || getSetting("agency_name") || "VanguardIA";
+      const fromName = getSetting("from_name") || getSetting("agency_name") || "ProspectAI";
 
       // A/B Testing: Check if campaign has active WA test
       let abVariantGroup: "A" | "B" | null = null;

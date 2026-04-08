@@ -2,26 +2,26 @@ import { sqlite } from "./connection";
 
 // Insert default settings if not exist
 const defaultSettings: Record<string, string> = {
-  // Agency identity
-  agency_name: "VanguardIA",
-  agency_url: "vanguardia.dev",
-  agency_description: "Agencia de desarrollo web y soluciones digitales",
+  // Agency identity — configure these in Settings after first login
+  agency_name: "",
+  agency_url: "",
+  agency_description: "",
   // Services offered (comma-separated)
-  agency_services: "web_development,seo,ai_agents,google_business,social_media",
+  agency_services: "",
   // Country & locale
-  target_country: "ES",
-  phone_country_code: "34",
-  phone_digits: "9",
-  locale: "es-ES",
-  currency: "EUR",
+  target_country: "",
+  phone_country_code: "",
+  phone_digits: "",
+  locale: "en-US",
+  currency: "USD",
   // Email settings
-  from_email: "hola@vanguardia.dev",
-  from_name: "VanguardIA",
+  from_email: "",
+  from_name: "",
   global_daily_limit: "50",
   default_tone: "profesional",
-  // RGPD / compliance
+  // Compliance
   unsubscribe_url: "",
-  legal_footer: "Este email se envía en base a interés legítimo profesional (Art. 6.1.f RGPD).",
+  legal_footer: "",
   // Warmup
   warmup_enabled: "true",
   warmup_day: "1",

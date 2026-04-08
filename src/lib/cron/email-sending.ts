@@ -90,8 +90,8 @@ export async function processEmailSending() {
     }
 
     // Domain rotation: pick domain with fewest sends today
-    let fromName = getSetting("from_name") || getSetting("agency_name") || "VanguardIA";
-    let fromEmail = row.email.fromEmail || getSetting("from_email") || "hola@vanguardia.dev";
+    let fromName = getSetting("from_name") || getSetting("agency_name") || "ProspectAI";
+    let fromEmail = row.email.fromEmail || getSetting("from_email") || "";
     let sendApiKey: string | undefined;
 
     const activeDomains = db.select().from(sendingDomains)

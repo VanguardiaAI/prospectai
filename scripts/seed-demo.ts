@@ -151,7 +151,7 @@ for (let i = 0; i < 68; i++) {
     leadId,
     pick([1, 2, 3]),
     `+34 ${rand(600, 699)} ${rand(100, 999)} ${rand(100, 999)}`,
-    `Hola! Somos VanguardIA, hemos analizado tu web y encontramos oportunidades de mejora.`,
+    `Hola! Hemos analizado tu web y encontramos oportunidades de mejora.`,
     "amigable",
     status,
     status === "sent" ? dateAgo(daysAgo) : null

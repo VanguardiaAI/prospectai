@@ -40,8 +40,8 @@ export async function processEmailGenerationJobs() {
         : null;
 
       let tone = campaign?.defaultTone || getSetting("default_tone") || "profesional";
-      const fromName = getSetting("from_name") || getSetting("agency_name") || "VanguardIA";
-      const fromEmail = getSetting("from_email") || "hola@vanguardia.dev";
+      const fromName = getSetting("from_name") || getSetting("agency_name") || "ProspectAI";
+      const fromEmail = getSetting("from_email") || "";
       const toEmail = lead.contactEmail || lead.extractedEmail || lead.email;
 
       if (!toEmail) {

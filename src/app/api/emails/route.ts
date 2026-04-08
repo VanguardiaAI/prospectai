@@ -109,7 +109,7 @@ export async function POST(req: NextRequest) {
   };
 
   const tone = body.tone || existingEmail.tone;
-  const fromName = getSetting("from_name") || "VanguardIA";
+  const fromName = getSetting("from_name") || getSetting("agency_name") || "ProspectAI";
 
   const generated = await regenerateEmail(
     lead.name,

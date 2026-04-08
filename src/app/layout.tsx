@@ -3,7 +3,7 @@ import { Space_Grotesk, Space_Mono, Crimson_Pro } from "next/font/google";
 import { ToastProvider } from "@/components/Toast";
 import "./globals.css";
 
-const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "https://agentes.email";
+const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
 
 const spaceGrotesk = Space_Grotesk({
   variable: "--font-space-grotesk",
@@ -27,41 +27,36 @@ const crimsonPro = Crimson_Pro({
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
   title: {
-    default: "Agentes.email — Prospección Inteligente con IA",
-    template: "%s | Agentes.email",
+    default: "ProspectAI — Open Source B2B Prospecting Engine",
+    template: "%s | ProspectAI",
   },
   description:
-    "Automatiza la prospección B2B para tu agencia digital. Busca negocios, analiza sus webs con IA y envía emails y WhatsApp personalizados en autopilot.",
+    "Self-hosted B2B prospecting automation. Find businesses, analyze websites with AI, and send personalized emails and WhatsApp messages on autopilot.",
   keywords: [
-    "prospección B2B",
-    "email marketing automatizado",
-    "agencia digital",
-    "automatización ventas",
-    "generación de leads",
+    "B2B prospecting",
+    "email automation",
+    "lead generation",
     "cold email",
-    "WhatsApp marketing",
-    "inteligencia artificial",
-    "análisis web",
-    "outreach automatizado",
+    "WhatsApp outreach",
+    "AI",
+    "open source",
+    "self-hosted",
   ],
-  authors: [{ name: "VanguardIA.dev", url: "https://vanguardia.dev" }],
-  creator: "VanguardIA.dev",
-  publisher: "SOLUCIONES IA PROCURSA SAS",
   alternates: { canonical: "/" },
   openGraph: {
     type: "website",
     locale: "es_ES",
     url: SITE_URL,
-    siteName: "Agentes.email",
-    title: "Agentes.email — Prospección Inteligente con IA",
+    siteName: "ProspectAI",
+    title: "ProspectAI — Open Source B2B Prospecting Engine",
     description:
-      "Automatiza la prospección B2B para tu agencia digital. Busca negocios, analiza sus webs con IA y envía emails y WhatsApp personalizados en autopilot.",
+      "Self-hosted B2B prospecting automation. Find businesses, analyze websites with AI, and send personalized emails and WhatsApp messages on autopilot.",
   },
   twitter: {
     card: "summary_large_image",
-    title: "Agentes.email — Prospección Inteligente con IA",
+    title: "ProspectAI — Open Source B2B Prospecting Engine",
     description:
-      "Automatiza la prospección B2B para tu agencia digital. Busca negocios, analiza webs con IA y envía mensajes personalizados.",
+      "Self-hosted B2B prospecting automation with AI-powered email and WhatsApp outreach.",
   },
   robots: {
     index: true,
@@ -73,42 +68,19 @@ export const metadata: Metadata = {
 
 const jsonLd = {
   "@context": "https://schema.org",
-  "@graph": [
-    {
-      "@type": "Organization",
-      name: "SOLUCIONES IA PROCURSA SAS",
-      alternateName: "VanguardIA.dev",
-      url: SITE_URL,
-      logo: `${SITE_URL}/favicon.ico`,
-      address: {
-        "@type": "PostalAddress",
-        streetAddress: "Av. de la Cantera 2550",
-        addressLocality: "Querétaro",
-        addressCountry: "MX",
-      },
-      contactPoint: {
-        "@type": "ContactPoint",
-        email: "contacto@agentes.email",
-        contactType: "customer service",
-        availableLanguage: ["Spanish", "English"],
-      },
-    },
-    {
-      "@type": "SoftwareApplication",
-      name: "Agentes.email",
-      applicationCategory: "BusinessApplication",
-      operatingSystem: "Web",
-      description:
-        "Plataforma SaaS de prospección B2B automatizada con IA. Busca negocios, analiza sus webs y envía mensajes personalizados.",
-      url: SITE_URL,
-      author: { "@type": "Organization", name: "VanguardIA.dev" },
-      offers: [
-        { "@type": "Offer", name: "Starter", price: "29", priceCurrency: "EUR", billingDuration: "P1M" },
-        { "@type": "Offer", name: "Pro", price: "79", priceCurrency: "EUR", billingDuration: "P1M" },
-        { "@type": "Offer", name: "Scale", price: "149", priceCurrency: "EUR", billingDuration: "P1M" },
-      ],
-    },
-  ],
+  "@type": "SoftwareApplication",
+  name: "ProspectAI",
+  applicationCategory: "BusinessApplication",
+  operatingSystem: "Web",
+  description:
+    "Open source B2B prospecting engine. Find businesses, analyze websites with AI, and send personalized outreach on autopilot.",
+  url: SITE_URL,
+  license: "https://opensource.org/licenses/MIT",
+  offers: {
+    "@type": "Offer",
+    price: "0",
+    priceCurrency: "USD",
+  },
 };
 
 export default function RootLayout({

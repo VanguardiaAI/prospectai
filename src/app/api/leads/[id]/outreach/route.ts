@@ -136,8 +136,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       : null;
 
     const tone = body.tone || campaign?.defaultTone || getSetting("default_tone") || "profesional";
-    const fromName = getSetting("from_name") || "VanguardIA";
-    const fromEmail = getSetting("from_email") || "hola@vanguardia.dev";
+    const fromName = getSetting("from_name") || getSetting("agency_name") || "ProspectAI";
+    const fromEmail = getSetting("from_email") || "";
 
     const generated = await generateEmail(lead.name, lead.category, lead.city, lead.website, analysis, tone, fromName, undefined, undefined, detectCountryFromPhone(lead.phone) || undefined);
 
@@ -174,7 +174,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       : null;
 
     const tone = body.tone || campaign?.defaultTone || getSetting("default_tone") || "profesional";
-    const fromName = getSetting("from_name") || "VanguardIA";
+    const fromName = getSetting("from_name") || getSetting("agency_name") || "ProspectAI";
 
     const generated = await generateWhatsApp(lead.name, lead.category, lead.city, lead.website, waAnalysis, tone, fromName, undefined, undefined, detectCountryFromPhone(lead.phone) || undefined);
 
@@ -197,7 +197,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     const toEmail = lead.contactEmail || lead.extractedEmail || lead.email;
     if (!toEmail) return NextResponse.json({ error: "No email available" }, { status: 400 });
 
-    const fromEmail = getSetting("from_email") || "hola@vanguardia.dev";
+    const fromEmail = getSetting("from_email") || "";
 
     db.insert(emails).values({
       leadId: lead.id,
