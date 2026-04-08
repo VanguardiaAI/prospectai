@@ -224,7 +224,11 @@ export function Chatbot() {
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
-  const { messages, sendMessage, status, setMessages } = useChat();
+  const { messages, sendMessage, status, setMessages, error } = useChat({
+    onError: (err) => {
+      console.error("[Chatbot] error:", err);
+    },
+  });
 
   const isLoading = status === "streaming" || status === "submitted";
 

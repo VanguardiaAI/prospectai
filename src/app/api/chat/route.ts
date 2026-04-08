@@ -1,4 +1,9 @@
-import { streamText, stepCountIs } from "ai";
+import {
+  streamText,
+  stepCountIs,
+  convertToModelMessages,
+  type UIMessage,
+} from "ai";
 import { createGoogleGenerativeAI } from "@ai-sdk/google";
 import { chatbotTools } from "@/lib/chatbot/tools";
 
@@ -14,15 +19,21 @@ const google = createGoogleGenerativeAI({
 });
 
 export async function POST(req: Request) {
-  const { messages } = await req.json();
+  const { messages } = (await req.json()) as { messages: UIMessage[] };
+
+  const modelMessages = await convertToModelMessages(messages, {
+    tools: chatbotTools,
+  });
 
   const result = streamText({
-    model: google("gemini-2.5-flash-preview-05-20"),
+    model: google("gemini-2.5-flash"),
     system: SYSTEM_PROMPT,
-    messages,
+    messages: modelMessages,
     tools: chatbotTools,
     stopWhen: stepCountIs(10),
   });
 
-  return result.toUIMessageStreamResponse();
+  return result.toUIMessageStreamResponse({
+    originalMessages: messages,
+  });
 }
