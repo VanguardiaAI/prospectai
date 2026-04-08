@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback } from "react";
 import { Card, Spinner } from "@/components/ui";
 import { ChevronLeft, ChevronRight, Calendar, Mail, MessageCircle } from "lucide-react";
 import { clsx } from "clsx";
+import { useT } from "@/i18n/LocaleProvider";
 
 interface DayData {
   date: string;
@@ -12,13 +13,6 @@ interface DayData {
   waSent: number;
   waApproved: number;
 }
-
-const DAY_LABELS = ["LUN", "MAR", "MIE", "JUE", "VIE", "SAB", "DOM"];
-
-const MONTH_NAMES = [
-  "Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio",
-  "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre",
-];
 
 function getHeatColor(count: number): string {
   if (count === 0) return "";
@@ -30,6 +24,9 @@ function getHeatColor(count: number): string {
 }
 
 export default function CalendarPage() {
+  const { t, tArray } = useT();
+  const MONTH_NAMES = tArray("calendar.months");
+  const DAY_LABELS = tArray("calendar.days");
   const now = new Date();
   const [month, setMonth] = useState(now.getMonth() + 1);
   const [year, setYear] = useState(now.getFullYear());
@@ -84,8 +81,8 @@ export default function CalendarPage() {
       {/* Header */}
       <div className="nd-page-header">
         <div>
-          <h1>Calendario</h1>
-          <p className="nd-label mt-2">Vista mensual de envios</p>
+          <h1>{t("calendar.title")}</h1>
+          <p className="nd-label mt-2">{t("calendar.subtitle")}</p>
         </div>
       </div>
 
@@ -202,7 +199,7 @@ export default function CalendarPage() {
               <div className="flex items-center gap-6">
                 <div className="flex items-center gap-2">
                   <Calendar className="h-4 w-4 text-accent" strokeWidth={1.5} />
-                  <span className="nd-label">Resumen del mes</span>
+                  <span className="nd-label">{t("calendar.monthSummary")}</span>
                 </div>
               </div>
               <div className="flex flex-wrap items-center gap-6">
@@ -210,35 +207,35 @@ export default function CalendarPage() {
                   <p className="text-[18px] font-mono font-light text-accent tabular-nums leading-none">
                     {totalSent}
                   </p>
-                  <p className="nd-label text-[9px] mt-1">Email enviados</p>
+                  <p className="nd-label text-[9px] mt-1">{t("calendar.emailsSent")}</p>
                 </div>
                 <div className="w-px h-8 bg-border" />
                 <div className="text-center">
                   <p className="text-[18px] font-mono font-light text-green-500 tabular-nums leading-none">
                     {totalWaSent}
                   </p>
-                  <p className="nd-label text-[9px] mt-1">WA enviados</p>
+                  <p className="nd-label text-[9px] mt-1">{t("calendar.waSent")}</p>
                 </div>
                 <div className="w-px h-8 bg-border" />
                 <div className="text-center">
                   <p className="text-[18px] font-mono font-light text-text-display tabular-nums leading-none">
                     {avgDaily}
                   </p>
-                  <p className="nd-label text-[9px] mt-1">Promedio diario</p>
+                  <p className="nd-label text-[9px] mt-1">{t("calendar.dailyAverage")}</p>
                 </div>
                 <div className="w-px h-8 bg-border" />
                 <div className="text-center">
                   <p className="text-[18px] font-mono font-light text-success tabular-nums leading-none">
                     {totalApproved}
                   </p>
-                  <p className="nd-label text-[9px] mt-1">Aprobados pendientes</p>
+                  <p className="nd-label text-[9px] mt-1">{t("calendar.pendingApproved")}</p>
                 </div>
                 <div className="w-px h-8 bg-border" />
                 <div className="text-center">
                   <p className="text-[18px] font-mono font-light text-text-display tabular-nums leading-none">
                     {daysWithSends}
                   </p>
-                  <p className="nd-label text-[9px] mt-1">Dias activos</p>
+                  <p className="nd-label text-[9px] mt-1">{t("calendar.activeDays")}</p>
                 </div>
               </div>
             </div>
@@ -246,7 +243,7 @@ export default function CalendarPage() {
 
           {/* Heat map legend */}
           <div className="flex items-center justify-end gap-2 mt-3">
-            <span className="text-[9px] font-mono text-text-muted uppercase tracking-wider">Menos</span>
+            <span className="text-[9px] font-mono text-text-muted uppercase tracking-wider">{t("calendar.less")}</span>
             <div className="flex gap-0.5">
               <div className="w-3 h-3 rounded-sm border border-border" />
               <div className="w-3 h-3 rounded-sm bg-accent/10" />
@@ -255,7 +252,7 @@ export default function CalendarPage() {
               <div className="w-3 h-3 rounded-sm bg-accent/50" />
               <div className="w-3 h-3 rounded-sm bg-accent/70" />
             </div>
-            <span className="text-[9px] font-mono text-text-muted uppercase tracking-wider">Mas</span>
+            <span className="text-[9px] font-mono text-text-muted uppercase tracking-wider">{t("calendar.more")}</span>
           </div>
         </>
       )}

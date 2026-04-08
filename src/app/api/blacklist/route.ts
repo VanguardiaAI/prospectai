@@ -24,6 +24,8 @@ export async function POST(req: NextRequest) {
 
     logActivity("blacklist", `Añadido a blacklist: ${body.value}`, {
       metadata: { type: body.type, value: body.value },
+      messageKey: "activityLog.leadBlacklisted",
+      messageVars: { name: body.value },
     });
 
     return NextResponse.json(result, { status: 201 });

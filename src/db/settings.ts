@@ -18,7 +18,7 @@ const defaultSettings: Record<string, string> = {
   from_email: "",
   from_name: "",
   global_daily_limit: "50",
-  default_tone: "profesional",
+  default_tone: "professional",
   // Compliance
   unsubscribe_url: "",
   legal_footer: "",

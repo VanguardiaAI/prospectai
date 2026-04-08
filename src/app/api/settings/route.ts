@@ -48,6 +48,8 @@ export async function PUT(req: NextRequest) {
   if (updated.length > 0) {
     logActivity("setting_change", `Configuración actualizada: ${updated.join(", ")}`, {
       metadata: body,
+      messageKey: "activityLog.configUpdated",
+      messageVars: { fields: updated.join(", ") },
     });
   }
 

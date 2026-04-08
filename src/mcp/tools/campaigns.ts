@@ -128,11 +128,13 @@ export function registerCampaignTools(server: McpServer) {
         dailyLimit: dailyLimit ?? 20,
         qualityThreshold: qualityThreshold ?? 40,
         autopilot: autopilot ?? false,
-        defaultTone: defaultTone ?? "profesional",
+        defaultTone: defaultTone ?? "professional",
       }).returning().get();
 
       logActivity("campaign_change", `Campaign created via MCP: "${name}"`, {
         campaignId: campaign.id,
+        messageKey: "activityLog.campaignCreated",
+        messageVars: { name },
       });
 
       return {
@@ -179,6 +181,8 @@ export function registerCampaignTools(server: McpServer) {
 
       logActivity("campaign_change", `Campaign "${campaign.name}" updated via MCP: ${changed.join(", ")}`, {
         campaignId,
+        messageKey: "activityLog.campaignUpdated",
+        messageVars: { name: campaign.name },
       });
 
       return { content: [{ type: "text", text: `Campaign [ID:${campaignId}] "${campaign.name}" updated: ${changed.join(", ")}` }] };

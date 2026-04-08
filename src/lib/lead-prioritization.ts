@@ -35,5 +35,7 @@ export function prioritizeLeadOnReply(leadId: number): void {
       previousScore: currentScore,
       newScore: boostedScore,
     },
+    messageKey: "activityLog.campaignUpdated",
+    messageVars: { name: lead.name ?? "" },
   });
 }

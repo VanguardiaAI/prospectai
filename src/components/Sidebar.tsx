@@ -24,24 +24,26 @@ import {
   Calendar,
 } from "lucide-react";
 import { clsx } from "clsx";
-
-const nav = [
-  { href: "/overview", label: "DASHBOARD", icon: LayoutDashboard },
-  { href: "/today", label: "HOY", icon: CalendarCheck },
-  { href: "/campaigns", label: "CAMPANAS", icon: Megaphone },
-  { href: "/search", label: "BUSCAR", icon: MapPin },
-  { href: "/leads", label: "LEADS", icon: Users },
-  { href: "/pipeline", label: "PIPELINE", icon: Kanban },
-  { href: "/review", label: "REVISION", icon: Mail },
-  { href: "/ab-testing", label: "A/B TESTING", icon: FlaskConical },
-  { href: "/templates", label: "TEMPLATES", icon: FileText },
-  { href: "/settings", label: "CONFIG", icon: Settings },
-  { href: "/activity", label: "ACTIVIDAD", icon: Activity },
-  { href: "/calendar", label: "CALENDARIO", icon: Calendar },
-  { href: "/blacklist", label: "BLACKLIST", icon: ShieldBan },
-];
+import { useT } from "@/i18n/LocaleProvider";
 
 export function Sidebar() {
+  const { t } = useT();
+
+  const nav = [
+    { href: "/overview", label: t("sidebar.dashboard"), icon: LayoutDashboard },
+    { href: "/today", label: t("sidebar.today"), icon: CalendarCheck },
+    { href: "/campaigns", label: t("sidebar.campaigns"), icon: Megaphone },
+    { href: "/search", label: t("sidebar.search"), icon: MapPin },
+    { href: "/leads", label: t("sidebar.leads"), icon: Users },
+    { href: "/pipeline", label: t("sidebar.pipeline"), icon: Kanban },
+    { href: "/review", label: t("sidebar.review"), icon: Mail },
+    { href: "/ab-testing", label: t("sidebar.abTesting"), icon: FlaskConical },
+    { href: "/templates", label: t("sidebar.templates"), icon: FileText },
+    { href: "/settings", label: t("sidebar.config"), icon: Settings },
+    { href: "/activity", label: t("sidebar.activity"), icon: Activity },
+    { href: "/calendar", label: t("sidebar.calendar"), icon: Calendar },
+    { href: "/blacklist", label: t("sidebar.blacklist"), icon: ShieldBan },
+  ];
   const pathname = usePathname();
   const [theme, setTheme] = useState<"light" | "dark">("light");
   const [open, setOpen] = useState(false);
@@ -71,7 +73,7 @@ export function Sidebar() {
       <button
         onClick={() => setOpen(true)}
         className="fixed top-4 left-4 z-[60] lg:hidden p-2 rounded-lg bg-bg-secondary border border-border"
-        aria-label="Abrir menu"
+        aria-label={t("sidebar.openMenu")}
       >
         <Menu className="h-5 w-5 text-text-primary" strokeWidth={1.5} />
       </button>
@@ -110,7 +112,7 @@ export function Sidebar() {
           <button
             onClick={() => setOpen(false)}
             className="lg:hidden p-1 rounded text-text-muted hover:text-text-primary"
-            aria-label="Cerrar menu"
+            aria-label={t("sidebar.closeMenu")}
           >
             <X className="h-4 w-4" strokeWidth={1.5} />
           </button>
@@ -162,7 +164,7 @@ export function Sidebar() {
                 )}
               </div>
             </div>
-            {theme === "dark" ? "Modo oscuro" : "Modo claro"}
+            {theme === "dark" ? t("sidebar.darkMode") : t("sidebar.lightMode")}
           </button>
           <button
             onClick={async () => {
@@ -172,7 +174,7 @@ export function Sidebar() {
             className="flex items-center gap-2 text-[10px] text-text-muted font-mono uppercase tracking-[0.06em] hover:text-accent transition-colors duration-150 cursor-pointer"
           >
             <LogOut className="h-3 w-3" strokeWidth={1.5} />
-            Cerrar sesion
+            {t("sidebar.logout")}
           </button>
           <a
             href="https://github.com/VanguardiaAI/ProspectAI"

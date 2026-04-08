@@ -56,6 +56,8 @@ export async function GET(req: NextRequest) {
 
   logActivity("blacklist", `${record.email} se dio de baja via link`, {
     leadId: record.leadId ?? undefined,
+    messageKey: "activityLog.leadUnsubscribed",
+    messageVars: { name: record.email },
   });
 
   return new NextResponse(renderPage("Baja confirmada", "Has sido dado de baja correctamente. No recibirás más comunicaciones de nuestra parte."), {

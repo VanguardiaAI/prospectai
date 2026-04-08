@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback } from "react";
 import { Card, Button, Badge, Modal, Input, Textarea, Select, EmptyState, Spinner, ConfirmDialog } from "@/components/ui";
 import { useToast } from "@/components/Toast";
+import { useT } from "@/i18n/LocaleProvider";
 import { FileText, Plus, Edit, Trash2, Mail, Eye, Sparkles, MessageCircle, Copy } from "lucide-react";
 
 interface Template {
@@ -33,36 +34,38 @@ function parseVariables(vars: string): string[] {
 }
 
 const TONES = [
-  { value: "profesional", label: "Profesional" },
-  { value: "cercano", label: "Cercano" },
-  { value: "directo", label: "Directo" },
-  { value: "consultivo", label: "Consultivo" },
+  { value: "professional", label: "Professional" },
+  { value: "friendly", label: "Friendly" },
+  { value: "direct", label: "Direct" },
+  { value: "consultative", label: "Consultative" },
   { value: "casual", label: "Casual" },
 ];
 
 const PURPOSES = [
-  { value: "initial", label: "Primer contacto" },
-  { value: "follow_up", label: "Follow-up" },
-  { value: "breakup", label: "Despedida" },
-];
+  { value: "initial", key: "templates.purposes.initial" },
+  { value: "follow_up", key: "templates.purposes.follow_up" },
+  { value: "breakup", key: "templates.purposes.breakup" },
+] as const;
 
-const INDUSTRIES = [
-  "Restaurantes y hostelería",
-  "Clínicas y salud",
-  "Inmobiliarias",
-  "Tiendas y retail",
-  "Gimnasios y fitness",
-  "Peluquerías y estética",
-  "Hoteles y turismo",
-  "Despachos y asesorías",
-  "Talleres y automoción",
-  "Academias y formación",
-  "Veterinarias",
-  "Construcción y reformas",
-  "Otro",
-];
+const INDUSTRY_KEYS = [
+  "templates.industries.restaurants",
+  "templates.industries.clinics",
+  "templates.industries.realEstate",
+  "templates.industries.retail",
+  "templates.industries.gyms",
+  "templates.industries.hairdressers",
+  "templates.industries.hotels",
+  "templates.industries.offices",
+  "templates.industries.workshops",
+  "templates.industries.academies",
+  "templates.industries.veterinaries",
+  "templates.industries.construction",
+  "templates.industries.other",
+] as const;
 
 export default function TemplatesPage() {
+  const { t } = useT();
+  const industries = INDUSTRY_KEYS.map(k => t(k));
   const { toast } = useToast();
   const [templates, setTemplates] = useState<Template[]>([]);
   const [loading, setLoading] = useState(true);
@@ -88,10 +91,10 @@ export default function TemplatesPage() {
   const [generating, setGenerating] = useState(false);
   const [aiForm, setAiForm] = useState({
     channel: "email" as "email" | "whatsapp",
-    industry: INDUSTRIES[0],
+    industry: "",
     customIndustry: "",
     purpose: "initial" as "initial" | "follow_up" | "breakup",
-    tone: "profesional",
+    tone: "professional",
     customInstructions: "",
   });
   const [aiResult, setAiResult] = useState<{
@@ -187,7 +190,7 @@ export default function TemplatesPage() {
 
   const remove = async (id: number) => {
     await fetch(`/api/templates?id=${id}`, { method: "DELETE" });
-    toast("Template eliminado", "success");
+    toast(t("templates.templateDeleted"), "success");
     fetchTemplates();
   };
 
@@ -195,10 +198,10 @@ export default function TemplatesPage() {
   const openAiGenerate = () => {
     setAiForm({
       channel: activeTab,
-      industry: INDUSTRIES[0],
+      industry: industries[0],
       customIndustry: "",
       purpose: "initial",
-      tone: "profesional",
+      tone: "professional",
       customInstructions: "",
     });
     setAiResult(null);
@@ -209,7 +212,8 @@ export default function TemplatesPage() {
     setGenerating(true);
     setAiResult(null);
     try {
-      const industry = aiForm.industry === "Otro" ? aiForm.customIndustry : aiForm.industry;
+      const otherLabel = t("templates.industries.other");
+      const industry = aiForm.industry === otherLabel ? aiForm.customIndustry : aiForm.industry;
       const res = await fetch("/api/templates/generate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -223,13 +227,13 @@ export default function TemplatesPage() {
       });
       if (!res.ok) {
         const err = await res.json();
-        alert(err.error || "Error generando template");
+        alert(err.error || t("common.error"));
         return;
       }
       const data = await res.json();
       setAiResult(data);
     } catch {
-      alert("Error de conexión");
+      alert(t("common.error"));
     } finally {
       setGenerating(false);
     }
@@ -242,7 +246,7 @@ export default function TemplatesPage() {
     const payload = {
       name: aiResult.name,
       channel: aiResult.channel,
-      category: aiForm.industry === "Otro" ? aiForm.customIndustry : aiForm.industry,
+      category: aiForm.industry === t("templates.industries.other") ? aiForm.customIndustry : aiForm.industry,
       subjectTemplate: aiResult.subject || "-",
       bodyHtmlTemplate: aiResult.bodyHtml || aiResult.message || "",
       bodyTextTemplate: aiResult.bodyText || aiResult.message || "",
@@ -277,18 +281,18 @@ export default function TemplatesPage() {
       {/* Header */}
       <div className="nd-page-header">
         <div>
-          <h1 className="nd-heading">Templates</h1>
+          <h1 className="nd-heading">{t("templates.title")}</h1>
           <p className="nd-label mt-2">
-            {filteredTemplates.length} template{filteredTemplates.length !== 1 ? "s" : ""} de{" "}
-            {activeTab === "email" ? "email" : "WhatsApp"}
+            {filteredTemplates.length} {t("templates.templateOf")}{filteredTemplates.length !== 1 ? "s" : ""} {t("common.of")}{" "}
+            {activeTab === "email" ? t("common.email") : t("common.whatsapp")}
           </p>
         </div>
         <div className="flex items-center gap-2">
           <Button size="sm" variant="secondary" onClick={openAiGenerate}>
-            <Sparkles className="h-3.5 w-3.5" strokeWidth={1.5} /> Generar con IA
+            <Sparkles className="h-3.5 w-3.5" strokeWidth={1.5} /> {t("templates.generateWithAi")}
           </Button>
           <Button size="sm" onClick={openCreate}>
-            <Plus className="h-3.5 w-3.5" strokeWidth={1.5} /> Nuevo template
+            <Plus className="h-3.5 w-3.5" strokeWidth={1.5} /> {t("templates.newTemplate")}
           </Button>
         </div>
       </div>
@@ -329,26 +333,26 @@ export default function TemplatesPage() {
               <MessageCircle className="h-10 w-10" strokeWidth={1.5} />
             )
           }
-          title={`Sin templates de ${activeTab === "email" ? "email" : "WhatsApp"}`}
-          description={`Crea tu primer template de ${activeTab === "email" ? "email" : "WhatsApp"} manualmente o genera uno con IA`}
+          title={t("templates.noTemplates").replace("{{channel}}", activeTab === "email" ? t("common.email") : t("common.whatsapp"))}
+          description={t("templates.noTemplatesDesc").replace("{{channel}}", activeTab === "email" ? t("common.email") : t("common.whatsapp"))}
           action={
             <div className="flex gap-3">
-              <Button size="sm" onClick={openCreate}><Plus className="h-3.5 w-3.5" strokeWidth={1.5} /> Crear manual</Button>
-              <Button size="sm" variant="secondary" onClick={() => setShowAiModal(true)}><Sparkles className="h-3.5 w-3.5" strokeWidth={1.5} /> Generar con IA</Button>
+              <Button size="sm" onClick={openCreate}><Plus className="h-3.5 w-3.5" strokeWidth={1.5} /> {t("templates.createManual")}</Button>
+              <Button size="sm" variant="secondary" onClick={() => setShowAiModal(true)}><Sparkles className="h-3.5 w-3.5" strokeWidth={1.5} /> {t("templates.generateWithAi")}</Button>
             </div>
           }
         />
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-          {filteredTemplates.map((t) => {
-            const vars = parseVariables(t.variables);
-            const isWhatsApp = t.channel === "whatsapp";
+          {filteredTemplates.map((tpl) => {
+            const vars = parseVariables(tpl.variables);
+            const isWhatsApp = tpl.channel === "whatsapp";
             const bodyPreview = stripHtml(
-              isWhatsApp ? t.bodyTextTemplate : (t.bodyHtmlTemplate || t.bodyTextTemplate)
+              isWhatsApp ? tpl.bodyTextTemplate : (tpl.bodyHtmlTemplate || tpl.bodyTextTemplate)
             ).slice(0, 200);
 
             return (
-              <Card key={t.id} className="flex flex-col">
+              <Card key={tpl.id} className="flex flex-col">
                 {/* Card header */}
                 <div className="flex items-start justify-between mb-4">
                   <div className="min-w-0 flex-1">
@@ -359,26 +363,26 @@ export default function TemplatesPage() {
                         <Mail className="h-3.5 w-3.5 text-text-muted flex-shrink-0" strokeWidth={1.5} />
                       )}
                       <h3 className="text-[15px] text-text-display font-medium truncate">
-                        {t.name}
+                        {tpl.name}
                       </h3>
                     </div>
                     <p className="text-[10px] text-text-muted font-mono mt-1">
-                      {new Date(t.createdAt).toLocaleDateString("es-ES", {
+                      {new Date(tpl.createdAt).toLocaleDateString("es-ES", {
                         day: "2-digit",
                         month: "short",
                         year: "numeric",
                       })}
                     </p>
                   </div>
-                  {t.category && <Badge>{t.category}</Badge>}
+                  {tpl.category && <Badge>{tpl.category}</Badge>}
                 </div>
 
                 {/* Subject preview (email only) */}
                 {!isWhatsApp && (
                   <div className="mb-3">
-                    <span className="nd-label block mb-1">Asunto</span>
+                    <span className="nd-label block mb-1">{t("common.subject")}</span>
                     <p className="text-[12px] text-text-primary font-mono truncate">
-                      {t.subjectTemplate}
+                      {tpl.subjectTemplate}
                     </p>
                   </div>
                 )}
@@ -386,16 +390,16 @@ export default function TemplatesPage() {
                 {/* Body preview */}
                 <div className="flex-1 mb-4">
                   <span className="nd-label block mb-1">
-                    {isWhatsApp ? "Mensaje" : "Preview"}
+                    {isWhatsApp ? t("review.message") : "Preview"}
                   </span>
                   <p className="text-[11px] text-text-secondary leading-relaxed line-clamp-4">
                     {bodyPreview}
-                    {(isWhatsApp ? t.bodyTextTemplate : (t.bodyHtmlTemplate || t.bodyTextTemplate)).length > 200 && "..."}
+                    {(isWhatsApp ? tpl.bodyTextTemplate : (tpl.bodyHtmlTemplate || tpl.bodyTextTemplate)).length > 200 && "..."}
                   </p>
                 </div>
 
                 {/* Stats */}
-                {(t.usageCount > 0 || t.avgOpenRate !== null) && (
+                {(tpl.usageCount > 0 || tpl.avgOpenRate !== null) && (
                   <div className="flex items-center gap-4 mb-4">
                     <div className="flex items-center gap-1.5">
                       {isWhatsApp ? (
@@ -404,14 +408,14 @@ export default function TemplatesPage() {
                         <Mail className="h-3 w-3 text-text-muted" strokeWidth={1.5} />
                       )}
                       <span className="text-[10px] font-mono text-text-secondary">
-                        {t.usageCount} usos
+                        {tpl.usageCount} {t("templates.uses")}
                       </span>
                     </div>
-                    {t.avgOpenRate !== null && !isWhatsApp && (
+                    {tpl.avgOpenRate !== null && !isWhatsApp && (
                       <div className="flex items-center gap-1.5">
                         <Eye className="h-3 w-3 text-text-muted" strokeWidth={1.5} />
                         <span className="text-[10px] font-mono text-text-secondary">
-                          {(t.avgOpenRate * 100).toFixed(1)}% apertura
+                          {(tpl.avgOpenRate * 100).toFixed(1)}% {t("campaigns.openRate")}
                         </span>
                       </div>
                     )}
@@ -434,22 +438,22 @@ export default function TemplatesPage() {
 
                 {/* Actions */}
                 <div className="flex items-center gap-2 pt-4 border-t border-border">
-                  <Button size="sm" variant="ghost" onClick={() => openEdit(t)}>
-                    <Edit className="h-3 w-3" strokeWidth={1.5} /> Editar
+                  <Button size="sm" variant="ghost" onClick={() => openEdit(tpl)}>
+                    <Edit className="h-3 w-3" strokeWidth={1.5} /> {t("common.edit")}
                   </Button>
                   <Button
                     size="sm"
                     variant="ghost"
                     onClick={() =>
                       copyToClipboard(
-                        isWhatsApp ? t.bodyTextTemplate : t.bodyTextTemplate
+                        isWhatsApp ? tpl.bodyTextTemplate : tpl.bodyTextTemplate
                       )
                     }
                   >
-                    <Copy className="h-3 w-3" strokeWidth={1.5} /> Copiar
+                    <Copy className="h-3 w-3" strokeWidth={1.5} /> {t("templates.copy")}
                   </Button>
-                  <Button size="sm" variant="ghost" onClick={() => setConfirmDelete({ id: t.id, name: t.name })}>
-                    <Trash2 className="h-3 w-3 text-accent" strokeWidth={1.5} /> Eliminar
+                  <Button size="sm" variant="ghost" onClick={() => setConfirmDelete({ id: tpl.id, name: tpl.name })}>
+                    <Trash2 className="h-3 w-3 text-accent" strokeWidth={1.5} /> {t("common.delete")}
                   </Button>
                 </div>
               </Card>
@@ -462,21 +466,21 @@ export default function TemplatesPage() {
       <Modal
         open={showModal}
         onClose={() => setShowModal(false)}
-        title={editing ? "Editar template" : "Nuevo template"}
+        title={editing ? t("templates.editTemplate") : t("templates.newTemplate")}
         maxWidth="max-w-2xl"
       >
         <div className="space-y-5">
           <div className="flex items-center gap-4">
             <div className="flex-1">
-              <label className="nd-label block mb-2">Nombre</label>
+              <label className="nd-label block mb-2">{t("common.name")}</label>
               <Input
                 value={form.name}
                 onChange={(e) => setForm({ ...form, name: e.target.value })}
-                placeholder="Nombre del template"
+                placeholder={t("templates.namePlaceholder")}
               />
             </div>
             <div className="w-40">
-              <label className="nd-label block mb-2">Canal</label>
+              <label className="nd-label block mb-2">{t("templates.channel")}</label>
               <Select
                 value={form.channel}
                 onChange={(e) =>
@@ -489,52 +493,52 @@ export default function TemplatesPage() {
             </div>
           </div>
           <div>
-            <label className="nd-label block mb-2">Categoria (opcional)</label>
+            <label className="nd-label block mb-2">{t("templates.categoryOptional")}</label>
             <Input
               value={form.category}
               onChange={(e) => setForm({ ...form, category: e.target.value })}
-              placeholder="restaurantes, clinicas, general..."
+              placeholder={t("templates.categoryPlaceholder")}
             />
           </div>
 
           {form.channel === "email" ? (
             <>
               <div>
-                <label className="nd-label block mb-2">Asunto</label>
+                <label className="nd-label block mb-2">{t("common.subject")}</label>
                 <Input
                   value={form.subjectTemplate}
                   onChange={(e) =>
                     setForm({ ...form, subjectTemplate: e.target.value })
                   }
-                  placeholder="Asunto del email con {{variables}}"
+                  placeholder={t("templates.subjectPlaceholder")}
                 />
               </div>
               <div>
-                <label className="nd-label block mb-2">Body HTML</label>
+                <label className="nd-label block mb-2">{t("templates.bodyHtml")}</label>
                 <Textarea
                   rows={10}
                   value={form.bodyHtmlTemplate}
                   onChange={(e) =>
                     setForm({ ...form, bodyHtmlTemplate: e.target.value })
                   }
-                  placeholder="<p>Hola {{business_name}},</p>..."
+                  placeholder={t("templates.bodyHtmlPlaceholder")}
                 />
               </div>
               <div>
-                <label className="nd-label block mb-2">Body texto plano</label>
+                <label className="nd-label block mb-2">{t("templates.bodyText")}</label>
                 <Textarea
                   rows={5}
                   value={form.bodyTextTemplate}
                   onChange={(e) =>
                     setForm({ ...form, bodyTextTemplate: e.target.value })
                   }
-                  placeholder="Version texto plano del email..."
+                  placeholder={t("templates.bodyTextPlaceholder")}
                 />
               </div>
             </>
           ) : (
             <div>
-              <label className="nd-label block mb-2">Mensaje WhatsApp</label>
+              <label className="nd-label block mb-2">{t("templates.waMessage")}</label>
               <Textarea
                 rows={8}
                 value={form.bodyTextTemplate}
@@ -546,28 +550,28 @@ export default function TemplatesPage() {
                     subjectTemplate: "-",
                   })
                 }
-                placeholder="Hola {{business_name}}, vi que..."
+                placeholder={t("templates.waMessagePlaceholder")}
                 maxLength={500}
               />
               <p className="text-[10px] text-text-muted font-mono mt-1">
-                {form.bodyTextTemplate.length}/500 caracteres
+                {form.bodyTextTemplate.length}/500 {t("common.characters")}
               </p>
             </div>
           )}
 
           <div>
             <label className="nd-label block mb-2">
-              Variables (separadas por coma)
+              {t("templates.variables")}
             </label>
             <Input
               value={form.variables}
               onChange={(e) =>
                 setForm({ ...form, variables: e.target.value })
               }
-              placeholder="business_name, city, issue"
+              placeholder={t("templates.variablesPlaceholder")}
             />
             <p className="text-[10px] text-text-muted font-mono mt-2 leading-relaxed">
-              Usa {"{{variable}}"} para campos dinamicos: {"{{business_name}}"},{" "}
+              {t("templates.variablesHint")} {"{{business_name}}"},{" "}
               {"{{city}}"}, {"{{issue}}"}
             </p>
           </div>
@@ -577,7 +581,7 @@ export default function TemplatesPage() {
               size="sm"
               onClick={() => setShowModal(false)}
             >
-              Cancelar
+              {t("common.cancel")}
             </Button>
             <Button
               size="sm"
@@ -589,10 +593,10 @@ export default function TemplatesPage() {
               }
             >
               {saving
-                ? "[GUARDANDO...]"
+                ? t("common.saving")
                 : editing
-                  ? "Guardar cambios"
-                  : "Crear template"}
+                  ? t("templates.saveChanges")
+                  : t("templates.createTemplate")}
             </Button>
           </div>
         </div>
@@ -605,14 +609,14 @@ export default function TemplatesPage() {
           setShowAiModal(false);
           setAiResult(null);
         }}
-        title="Generar template con IA"
+        title={t("templates.generateTitle")}
         maxWidth="max-w-3xl"
       >
         {!aiResult ? (
           <div className="space-y-5">
             {/* Channel selector */}
             <div>
-              <label className="nd-label block mb-3">Canal</label>
+              <label className="nd-label block mb-3">{t("templates.channel")}</label>
               <div className="flex gap-2">
                 <button
                   onClick={() => setAiForm({ ...aiForm, channel: "email" })}
@@ -641,34 +645,34 @@ export default function TemplatesPage() {
 
             {/* Industry */}
             <div>
-              <label className="nd-label block mb-2">Industria / sector</label>
+              <label className="nd-label block mb-2">{t("templates.industry")}</label>
               <Select
                 value={aiForm.industry}
                 onChange={(e) =>
                   setAiForm({ ...aiForm, industry: e.target.value })
                 }
               >
-                {INDUSTRIES.map((ind) => (
+                {industries.map((ind) => (
                   <option key={ind} value={ind}>
                     {ind}
                   </option>
                 ))}
               </Select>
-              {aiForm.industry === "Otro" && (
+              {aiForm.industry === t("templates.industries.other") && (
                 <Input
                   className="mt-2"
                   value={aiForm.customIndustry}
                   onChange={(e) =>
                     setAiForm({ ...aiForm, customIndustry: e.target.value })
                   }
-                  placeholder="Especifica la industria..."
+                  placeholder={t("templates.specifyIndustry")}
                 />
               )}
             </div>
 
             {/* Purpose */}
             <div>
-              <label className="nd-label block mb-3">Tipo de mensaje</label>
+              <label className="nd-label block mb-3">{t("templates.messageType")}</label>
               <div className="flex gap-2 flex-wrap">
                 {PURPOSES.map((p) => (
                   <button
@@ -682,7 +686,7 @@ export default function TemplatesPage() {
                         : "border-border text-text-muted hover:border-border-light"
                     }`}
                   >
-                    {p.label}
+                    {t(p.key)}
                   </button>
                 ))}
               </div>
@@ -690,16 +694,16 @@ export default function TemplatesPage() {
 
             {/* Tone */}
             <div>
-              <label className="nd-label block mb-2">Tono</label>
+              <label className="nd-label block mb-2">{t("common.tone")}</label>
               <Select
                 value={aiForm.tone}
                 onChange={(e) =>
                   setAiForm({ ...aiForm, tone: e.target.value })
                 }
               >
-                {TONES.map((t) => (
-                  <option key={t.value} value={t.value}>
-                    {t.label}
+                {TONES.map((tn) => (
+                  <option key={tn.value} value={tn.value}>
+                    {tn.label}
                   </option>
                 ))}
               </Select>
@@ -708,7 +712,7 @@ export default function TemplatesPage() {
             {/* Custom instructions */}
             <div>
               <label className="nd-label block mb-2">
-                Instrucciones adicionales (opcional)
+                {t("templates.additionalInstructions")}
               </label>
               <Textarea
                 rows={3}
@@ -716,27 +720,14 @@ export default function TemplatesPage() {
                 onChange={(e) =>
                   setAiForm({ ...aiForm, customInstructions: e.target.value })
                 }
-                placeholder="Ej: Enfocate en el servicio de SEO, menciona que hacemos auditorias gratuitas..."
+                placeholder={t("templates.instructionsPlaceholder")}
               />
             </div>
 
             {/* Best practices info */}
             <div className="bg-bg-tertiary border border-border rounded-lg px-4 py-3">
               <p className="text-[10px] text-text-muted font-mono leading-relaxed">
-                {aiForm.channel === "email" ? (
-                  <>
-                    La IA generara un email de 75-125 palabras en texto plano,
-                    sin palabras spam, con un CTA suave y personalizable con
-                    variables. Optimizado para deliverability y cumplimiento
-                    RGPD/LSSI.
-                  </>
-                ) : (
-                  <>
-                    La IA generara un mensaje de WhatsApp de max 500
-                    caracteres, conversacional y natural, sin formato HTML,
-                    optimizado para evitar bloqueos y reportes.
-                  </>
-                )}
+                {aiForm.channel === "email" ? t("templates.emailAiDesc") : t("templates.waAiDesc")}
               </p>
             </div>
 
@@ -746,14 +737,14 @@ export default function TemplatesPage() {
                 size="sm"
                 onClick={() => setShowAiModal(false)}
               >
-                Cancelar
+                {t("common.cancel")}
               </Button>
               <Button
                 size="sm"
                 onClick={generate}
                 disabled={
                   generating ||
-                  (aiForm.industry === "Otro" && !aiForm.customIndustry)
+                  (aiForm.industry === t("templates.industries.other") && !aiForm.customIndustry)
                 }
               >
                 {generating ? (
@@ -767,12 +758,12 @@ export default function TemplatesPage() {
                         />
                       ))}
                     </span>
-                    Generando...
+                    {t("common.generating")}
                   </>
                 ) : (
                   <>
                     <Sparkles className="h-3.5 w-3.5" strokeWidth={1.5} />
-                    Generar template
+                    {t("templates.generateTemplate")}
                   </>
                 )}
               </Button>
@@ -783,14 +774,14 @@ export default function TemplatesPage() {
           <div className="space-y-5">
             <div className="flex items-center justify-between">
               <h3 className="text-[13px] text-text-display font-mono uppercase tracking-[0.06em]">
-                {aiResult.channel === "email" ? "Email" : "WhatsApp"} generado
+                {aiResult.channel === "email" ? t("templates.emailGenerated") : t("templates.waGenerated")}
               </h3>
               <Badge color="success">IA</Badge>
             </div>
 
             {/* Name */}
             <div>
-              <label className="nd-label block mb-2">Nombre</label>
+              <label className="nd-label block mb-2">{t("common.name")}</label>
               <Input
                 value={aiResult.name}
                 onChange={(e) =>
@@ -803,7 +794,7 @@ export default function TemplatesPage() {
               <>
                 {/* Subject */}
                 <div>
-                  <label className="nd-label block mb-2">Asunto</label>
+                  <label className="nd-label block mb-2">{t("common.subject")}</label>
                   <div className="bg-bg-tertiary border border-border rounded-lg px-4 py-3">
                     <p className="text-sm text-text-primary font-mono">
                       {aiResult.subject}
@@ -813,7 +804,7 @@ export default function TemplatesPage() {
 
                 {/* Body preview */}
                 <div>
-                  <label className="nd-label block mb-2">Cuerpo del email</label>
+                  <label className="nd-label block mb-2">{t("templates.bodyHtml")}</label>
                   <div className="bg-bg-tertiary border border-border rounded-lg px-4 py-4">
                     <div
                       className="text-sm text-text-primary leading-relaxed prose-sm"
@@ -826,7 +817,7 @@ export default function TemplatesPage() {
 
                 {/* Text version */}
                 <div>
-                  <label className="nd-label block mb-2">Texto plano</label>
+                  <label className="nd-label block mb-2">{t("templates.bodyText")}</label>
                   <div className="bg-bg-tertiary border border-border rounded-lg px-4 py-3">
                     <p className="text-[12px] text-text-secondary font-mono whitespace-pre-wrap leading-relaxed">
                       {aiResult.bodyText}
@@ -837,14 +828,14 @@ export default function TemplatesPage() {
             ) : (
               /* WhatsApp preview */
               <div>
-                <label className="nd-label block mb-2">Mensaje</label>
+                <label className="nd-label block mb-2">{t("review.message")}</label>
                 <div className="bg-bg-tertiary border border-border rounded-lg px-4 py-4">
                   <p className="text-sm text-text-primary whitespace-pre-wrap leading-relaxed">
                     {aiResult.message}
                   </p>
                 </div>
                 <p className="text-[10px] text-text-muted font-mono mt-1">
-                  {(aiResult.message || "").length}/500 caracteres
+                  {(aiResult.message || "").length}/500 {t("common.characters")}
                 </p>
               </div>
             )}
@@ -852,7 +843,7 @@ export default function TemplatesPage() {
             {/* Variables */}
             {aiResult.variables.length > 0 && (
               <div>
-                <label className="nd-label block mb-2">Variables detectadas</label>
+                <label className="nd-label block mb-2">{t("templates.detectedVariables")}</label>
                 <div className="flex flex-wrap gap-1.5">
                   {aiResult.variables.map((v) => (
                     <span
@@ -873,7 +864,7 @@ export default function TemplatesPage() {
                 size="sm"
                 onClick={() => setAiResult(null)}
               >
-                Regenerar
+                {t("templates.regenerate")}
               </Button>
               <div className="flex gap-2">
                 <Button
@@ -887,14 +878,14 @@ export default function TemplatesPage() {
                     )
                   }
                 >
-                  <Copy className="h-3 w-3" strokeWidth={1.5} /> Copiar
+                  <Copy className="h-3 w-3" strokeWidth={1.5} /> {t("templates.copy")}
                 </Button>
                 <Button
                   size="sm"
                   onClick={saveAiResult}
                   disabled={savingAi}
                 >
-                  {savingAi ? "[GUARDANDO...]" : "Guardar template"}
+                  {savingAi ? t("common.saving") : t("templates.saveTemplate")}
                 </Button>
               </div>
             </div>
@@ -906,9 +897,9 @@ export default function TemplatesPage() {
         open={!!confirmDelete}
         onClose={() => setConfirmDelete(null)}
         onConfirm={() => confirmDelete && remove(confirmDelete.id)}
-        title="Eliminar template"
-        message={`Se eliminara el template "${confirmDelete?.name ?? ""}". Esta accion no se puede deshacer.`}
-        confirmLabel="Eliminar"
+        title={t("templates.deleteTemplate")}
+        message={t("templates.deleteTemplateConfirm").replace("{{name}}", confirmDelete?.name ?? "")}
+        confirmLabel={t("common.delete")}
         variant="danger"
       />
     </div>

@@ -50,12 +50,14 @@ export function registerOrchestrationTools(server: McpServer) {
           dailyLimit: dailyLimit ?? 20,
           qualityThreshold: qualityThreshold ?? 40,
           autopilot: autopilot ?? false,
-          defaultTone: tone ?? "profesional",
+          defaultTone: tone ?? "professional",
         }).returning().get();
         created = true;
 
         logActivity("campaign_change", `Campaign created via MCP: "${campaignName}"`, {
           campaignId: campaign.id,
+          messageKey: "activityLog.campaignCreated",
+          messageVars: { name: campaignName },
         });
       }
 
@@ -153,6 +155,8 @@ export function registerOrchestrationTools(server: McpServer) {
           logActivity("import", `Imported ${imported} leads from search into campaign "${campaign.name}"`, {
             campaignId,
             metadata: { searchJobId, imported, total: results.length },
+            messageKey: "activityLog.importedFromSearch",
+            messageVars: { count: imported, keyword: campaign.name },
           });
 
           return {
@@ -267,7 +271,7 @@ export function registerOrchestrationTools(server: McpServer) {
 
       const fromName = getSetting("from_name") || getSetting("agency_name") || "ProspectAI";
       const fromEmail = getSetting("from_email") || "";
-      const defaultTone = tone || getSetting("default_tone") || "profesional";
+      const defaultTone = tone || getSetting("default_tone") || "professional";
 
       const previews: string[] = [];
       let emailCount = 0;
@@ -311,7 +315,7 @@ export function registerOrchestrationTools(server: McpServer) {
               }).run();
 
               db.update(leads).set({ status: "email_generated" }).where(eq(leads.id, lead.id)).run();
-              logActivity("email_generated", `Email generated via MCP for ${lead.name}`, { leadId: lead.id, campaignId: lead.campaignId ?? undefined });
+              logActivity("email_generated", `Email generated via MCP for ${lead.name}`, { leadId: lead.id, campaignId: lead.campaignId ?? undefined, messageKey: "activityLog.emailGeneratedFor", messageVars: { name: lead.name } });
               previews.push(`[EMAIL] ${lead.name}: "${result.subject}"`);
               emailCount++;
             } catch (e) {
@@ -342,7 +346,7 @@ export function registerOrchestrationTools(server: McpServer) {
                 status: "draft",
               }).run();
 
-              logActivity("wa_generated", `WhatsApp generated via MCP for ${lead.name}`, { leadId: lead.id, campaignId: lead.campaignId ?? undefined });
+              logActivity("wa_generated", `WhatsApp generated via MCP for ${lead.name}`, { leadId: lead.id, campaignId: lead.campaignId ?? undefined, messageKey: "activityLog.waGeneratedFor", messageVars: { name: lead.name } });
               previews.push(`[WA] ${lead.name}: "${result.message.slice(0, 80)}..."`);
               waCount++;
             } catch (e) {

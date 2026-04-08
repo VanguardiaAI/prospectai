@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback } from "react";
 import { Card, Button, Input, Select, EmptyState, Spinner, Badge, Modal } from "@/components/ui";
 import { ShieldBan, Plus, Trash2 } from "lucide-react";
+import { useT } from "@/i18n/LocaleProvider";
 
 interface BlacklistEntry {
   id: number;
@@ -13,6 +14,7 @@ interface BlacklistEntry {
 }
 
 export default function BlacklistPage() {
+  const { t } = useT();
   const [entries, setEntries] = useState<BlacklistEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [showAdd, setShowAdd] = useState(false);
@@ -56,16 +58,16 @@ export default function BlacklistPage() {
       {/* Header */}
       <div className="nd-page-header">
         <div>
-          <h1>Blacklist</h1>
-          <p className="nd-label mt-2">Dominios, emails y negocios excluidos</p>
+          <h1>{t("blacklist.title")}</h1>
+          <p className="nd-label mt-2">{t("blacklist.subtitle")}</p>
         </div>
         <Button size="sm" onClick={() => setShowAdd(true)}>
-          <Plus className="h-3.5 w-3.5" strokeWidth={1.5} /> Agregar
+          <Plus className="h-3.5 w-3.5" strokeWidth={1.5} /> {t("blacklist.add")}
         </Button>
       </div>
 
       {entries.length === 0 ? (
-        <EmptyState icon={<ShieldBan className="h-10 w-10" strokeWidth={1.5} />} title="Blacklist vacia" description="Agrega dominios o emails que no quieres contactar" />
+        <EmptyState icon={<ShieldBan className="h-10 w-10" strokeWidth={1.5} />} title={t("blacklist.empty")} description={t("blacklist.emptyDesc")} />
       ) : (
         <Card>
           <div>
@@ -91,31 +93,31 @@ export default function BlacklistPage() {
       )}
 
       {/* Add Modal */}
-      <Modal open={showAdd} onClose={() => setShowAdd(false)} title="Agregar a blacklist">
+      <Modal open={showAdd} onClose={() => setShowAdd(false)} title={t("blacklist.addToBlacklist")}>
         <div className="space-y-5">
           <div>
-            <label className="nd-label block mb-2">Tipo</label>
+            <label className="nd-label block mb-2">{t("blacklist.type")}</label>
             <Select value={form.type} onChange={(e) => setForm({ ...form, type: e.target.value })}>
-              <option value="domain">Dominio</option>
-              <option value="email">Email</option>
-              <option value="business">Negocio</option>
+              <option value="domain">{t("blacklist.domain")}</option>
+              <option value="email">{t("common.email")}</option>
+              <option value="business">{t("blacklist.business")}</option>
             </Select>
           </div>
           <div>
-            <label className="nd-label block mb-2">Valor</label>
+            <label className="nd-label block mb-2">{t("blacklist.value")}</label>
             <Input value={form.value} onChange={(e) => setForm({ ...form, value: e.target.value })}
-              placeholder={form.type === "domain" ? "ejemplo.com" : form.type === "email" ? "correo@ejemplo.com" : "Nombre del negocio"} />
+              placeholder={form.type === "domain" ? t("blacklist.domainPlaceholder") : form.type === "email" ? t("blacklist.emailPlaceholder") : t("blacklist.businessPlaceholder")} />
           </div>
           <div>
-            <label className="nd-label block mb-2">Razon (opcional)</label>
-            <Input value={form.reason} onChange={(e) => setForm({ ...form, reason: e.target.value })} placeholder="Por que esta en la blacklist" />
+            <label className="nd-label block mb-2">{t("blacklist.reasonOptional")}</label>
+            <Input value={form.reason} onChange={(e) => setForm({ ...form, reason: e.target.value })} placeholder={t("blacklist.reasonPlaceholder")} />
           </div>
           {error && (
             <p className="text-[11px] text-accent font-mono">[ERROR] {error}</p>
           )}
           <div className="flex justify-end gap-3 pt-2">
-            <Button variant="secondary" size="sm" onClick={() => setShowAdd(false)}>Cancelar</Button>
-            <Button size="sm" onClick={add} disabled={!form.value}>Agregar</Button>
+            <Button variant="secondary" size="sm" onClick={() => setShowAdd(false)}>{t("common.cancel")}</Button>
+            <Button size="sm" onClick={add} disabled={!form.value}>{t("blacklist.add")}</Button>
           </div>
         </div>
       </Modal>

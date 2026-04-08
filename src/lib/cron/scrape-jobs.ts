@@ -103,6 +103,8 @@ export async function processScrapeJobs(concurrency: number, delayMs: number) {
         logActivity("scrape", `Scrapeado y analizado: ${lead.name} (calidad: ${analysis.qualityScore}/100, SEO: ${analysis.seoScore ?? "N/A"}/100)`, {
           leadId: lead.id,
           campaignId: lead.campaignId ?? undefined,
+          messageKey: "activityLog.scrapeAnalyzed",
+          messageVars: { name: lead.name, score: analysis.qualityScore, seo: analysis.seoScore ?? "N/A" },
         });
 
         db.update(jobQueue).set({ status: "completed", processedAt: new Date().toISOString() }).where(eq(jobQueue.id, job.id)).run();
@@ -116,7 +118,7 @@ export async function processScrapeJobs(concurrency: number, delayMs: number) {
       if (attempts >= job.maxAttempts) {
         db.update(jobQueue).set({ status: "failed", attempts, errorMessage: errorMsg }).where(eq(jobQueue.id, job.id)).run();
         db.update(leads).set({ status: "error", errorMessage: errorMsg }).where(eq(leads.id, job.leadId)).run();
-        logActivity("error", `Error scrapeando ${lead.name}: ${errorMsg}`, { leadId: lead.id });
+        logActivity("error", `Error scrapeando ${lead.name}: ${errorMsg}`, { leadId: lead.id, messageKey: "activityLog.errorScraping", messageVars: { name: lead.name } });
       } else {
         db.update(jobQueue).set({ status: "pending", attempts, errorMessage: errorMsg }).where(eq(jobQueue.id, job.id)).run();
         db.update(leads).set({ status: "imported" }).where(eq(leads.id, job.leadId)).run();

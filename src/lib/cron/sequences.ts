@@ -79,6 +79,8 @@ export async function processSequences() {
         logActivity("email_generated", `Follow-up #${step.stepNumber} email generado para ${lead.name}`, {
           leadId: lead.id,
           campaignId: enrollment.campaignId,
+          messageKey: "activityLog.followUpEmail",
+          messageVars: { step: step.stepNumber, name: lead.name },
         });
       } else {
         // WhatsApp
@@ -108,6 +110,8 @@ export async function processSequences() {
         logActivity("wa_generated", `Follow-up #${step.stepNumber} WhatsApp generado para ${lead.name}`, {
           leadId: lead.id,
           campaignId: enrollment.campaignId,
+          messageKey: "activityLog.followUpWa",
+          messageVars: { step: step.stepNumber, name: lead.name },
         });
       }
 
@@ -141,6 +145,8 @@ export async function processSequences() {
       logActivity("error", `Error en secuencia paso ${step.stepNumber} para ${lead.name}: ${errorMsg}`, {
         leadId: lead.id,
         campaignId: enrollment.campaignId,
+        messageKey: "activityLog.sequenceError",
+        messageVars: { step: step.stepNumber, name: lead.name },
       });
     }
   }

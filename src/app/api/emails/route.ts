@@ -52,7 +52,7 @@ export async function PUT(req: NextRequest) {
       const email = db.select().from(emails).where(eq(emails.id, id)).get();
       if (email) {
         db.update(leads).set({ status: "email_approved" }).where(eq(leads.id, email.leadId)).run();
-        logActivity("email_approved", `Email aprobado para lead`, { leadId: email.leadId, campaignId: email.campaignId ?? undefined });
+        logActivity("email_approved", `Email aprobado para lead`, { leadId: email.leadId, campaignId: email.campaignId ?? undefined, messageKey: "activityLog.emailApprovedForLead", messageVars: { id: email.leadId } });
       }
     }
     return NextResponse.json({ success: true, count: body.ids.length });
@@ -72,10 +72,10 @@ export async function PUT(req: NextRequest) {
   // Update lead status
   if (body.status === "approved") {
     db.update(leads).set({ status: "email_approved" }).where(eq(leads.id, result.leadId)).run();
-    logActivity("email_approved", `Email aprobado`, { leadId: result.leadId, campaignId: result.campaignId ?? undefined });
+    logActivity("email_approved", `Email aprobado`, { leadId: result.leadId, campaignId: result.campaignId ?? undefined, messageKey: "activityLog.emailApproved" });
   } else if (body.status === "rejected") {
     db.update(leads).set({ status: "rejected" }).where(eq(leads.id, result.leadId)).run();
-    logActivity("email_rejected", `Email rechazado`, { leadId: result.leadId, campaignId: result.campaignId ?? undefined });
+    logActivity("email_rejected", `Email rechazado`, { leadId: result.leadId, campaignId: result.campaignId ?? undefined, messageKey: "activityLog.emailRejected" });
   }
 
   return NextResponse.json(result);

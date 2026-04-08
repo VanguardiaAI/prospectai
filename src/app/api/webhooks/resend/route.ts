@@ -109,6 +109,8 @@ export async function POST(req: NextRequest) {
           leadId: email.leadId,
           campaignId: email.campaignId ?? undefined,
           metadata: { event: "reply" },
+          messageKey: "activityLog.emailSentTo",
+          messageVars: { email: email.toEmail },
         });
 
         // CRM webhook trigger
@@ -129,6 +131,8 @@ export async function POST(req: NextRequest) {
 
         logActivity("email_failed", `Email ${type === "email.bounced" ? "rebotado" : "reportado"}: ${email.toEmail}`, {
           leadId: email.leadId,
+          messageKey: "activityLog.errorSendingEmail",
+          messageVars: { email: email.toEmail },
         });
         break;
       }

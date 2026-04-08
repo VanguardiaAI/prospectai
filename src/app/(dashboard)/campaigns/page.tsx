@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback } from "react";
 import { Card, Button, Input, Select, Toggle, Modal, StatusBadge, Badge, EmptyState, Spinner, ConfirmDialog } from "@/components/ui";
 import { useToast } from "@/components/Toast";
+import { useT } from "@/i18n/LocaleProvider";
 import { Megaphone, Plus, Edit, Trash2, ListOrdered, ArrowDown, Copy } from "lucide-react";
 
 interface CampaignMetrics {
@@ -39,6 +40,7 @@ interface SequenceData {
 }
 
 export default function CampaignsPage() {
+  const { t } = useT();
   const { toast } = useToast();
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
   const [loading, setLoading] = useState(true);
@@ -51,7 +53,7 @@ export default function CampaignsPage() {
     dailyLimit: 20,
     qualityThreshold: 40,
     autopilot: false,
-    defaultTone: "profesional",
+    defaultTone: "professional",
   });
 
   // Sequence state
@@ -79,7 +81,7 @@ export default function CampaignsPage() {
 
   const openCreate = () => {
     setEditing(null);
-    setForm({ name: "", description: "", dailyLimit: 20, qualityThreshold: 40, autopilot: false, defaultTone: "profesional" });
+    setForm({ name: "", description: "", dailyLimit: 20, qualityThreshold: 40, autopilot: false, defaultTone: "professional" });
     setShowModal(true);
   };
 
@@ -116,7 +118,7 @@ export default function CampaignsPage() {
 
   const remove = async (id: number) => {
     await fetch(`/api/campaigns?id=${id}`, { method: "DELETE" });
-    toast("Campana eliminada", "success");
+    toast(t("campaigns.campaignDeleted"), "success");
     fetchCampaigns();
   };
 
@@ -144,7 +146,7 @@ export default function CampaignsPage() {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        name: `${c.name} (Copia)`,
+        name: `${c.name} ${t("campaigns.copy")}`,
         description: c.description || "",
         dailyLimit: c.dailyLimit,
         qualityThreshold: c.qualityThreshold,
@@ -152,7 +154,7 @@ export default function CampaignsPage() {
         defaultTone: c.defaultTone,
       }),
     });
-    toast("Campana clonada", "success");
+    toast(t("campaigns.campaignCloned"), "success");
     fetchCampaigns();
   };
 
@@ -172,7 +174,7 @@ export default function CampaignsPage() {
       // Default sequence: email day 0, follow-up email day 3, WhatsApp day 7
       setSequenceSteps([
         { channel: "email", delayDays: 0, tone: c.defaultTone, customInstructions: "", enabled: true },
-        { channel: "email", delayDays: 3, tone: c.defaultTone, customInstructions: "Este es un follow-up. Cambia el angulo.", enabled: true },
+        { channel: "email", delayDays: 3, tone: c.defaultTone, customInstructions: "", enabled: true },
         { channel: "whatsapp", delayDays: 4, tone: "amigable", customInstructions: "", enabled: true },
       ]);
     }
@@ -180,7 +182,7 @@ export default function CampaignsPage() {
   };
 
   const addStep = () => {
-    setSequenceSteps([...sequenceSteps, { channel: "email", delayDays: 3, tone: "profesional", customInstructions: "", enabled: true }]);
+    setSequenceSteps([...sequenceSteps, { channel: "email", delayDays: 3, tone: "professional", customInstructions: "", enabled: true }]);
   };
 
   const removeStep = (idx: number) => {
@@ -215,20 +217,20 @@ export default function CampaignsPage() {
       {/* Header */}
       <div className="nd-page-header">
         <div>
-          <h1>Campanas</h1>
-          <p className="nd-label mt-2">Agrupa tus leads y configura cada campana</p>
+          <h1>{t("campaigns.title")}</h1>
+          <p className="nd-label mt-2">{t("campaigns.subtitle")}</p>
         </div>
         <Button size="sm" onClick={openCreate}>
-          <Plus className="h-3.5 w-3.5" strokeWidth={1.5} /> Nueva campana
+          <Plus className="h-3.5 w-3.5" strokeWidth={1.5} /> {t("campaigns.newCampaign")}
         </Button>
       </div>
 
       {campaigns.length === 0 ? (
         <EmptyState
           icon={<Megaphone className="h-10 w-10" strokeWidth={1.5} />}
-          title="Sin campanas"
-          description="Crea tu primera campana para empezar a organizar tus leads"
-          action={<Button size="sm" onClick={() => { setEditing(null); setShowModal(true); }}><Plus className="h-3.5 w-3.5" strokeWidth={1.5} /> Nueva campana</Button>}
+          title={t("campaigns.noCampaigns")}
+          description={t("campaigns.noCampaignsDesc")}
+          action={<Button size="sm" onClick={() => { setEditing(null); setShowModal(true); }}><Plus className="h-3.5 w-3.5" strokeWidth={1.5} /> {t("campaigns.newCampaign")}</Button>}
         />
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
@@ -251,15 +253,15 @@ export default function CampaignsPage() {
                 {/* Key-value list */}
                 <div className="flex-1 space-y-0">
                   <div className="nd-list-item pt-0">
-                    <span className="nd-list-label">Limite diario</span>
+                    <span className="nd-list-label">{t("campaigns.dailyLimit")}</span>
                     <span className="nd-list-value">{c.dailyLimit}</span>
                   </div>
                   <div className="nd-list-item">
-                    <span className="nd-list-label">Umbral calidad</span>
+                    <span className="nd-list-label">{t("campaigns.qualityThreshold")}</span>
                     <span className="nd-list-value">{c.qualityThreshold}</span>
                   </div>
                   <div className="nd-list-item">
-                    <span className="nd-list-label">Tono</span>
+                    <span className="nd-list-label">{t("campaigns.tone")}</span>
                     <span className="text-[11px] text-text-primary font-mono uppercase">{c.defaultTone}</span>
                   </div>
                   <div className="nd-list-item">
@@ -267,15 +269,15 @@ export default function CampaignsPage() {
                     <Toggle checked={c.autopilot} onChange={() => toggleAutopilot(c)} />
                   </div>
                   <div className="nd-list-item">
-                    <span className="nd-list-label">Secuencia</span>
+                    <span className="nd-list-label">{t("campaigns.sequence")}</span>
                     <div className="flex items-center gap-2">
                       {stepCount > 0 ? (
-                        <Badge color="info">{stepCount} pasos</Badge>
+                        <Badge color="info">{stepCount} {t("campaigns.steps")}</Badge>
                       ) : (
-                        <Badge>Sin configurar</Badge>
+                        <Badge>{t("campaigns.notConfigured")}</Badge>
                       )}
                       {activeEnrollments > 0 && (
-                        <Badge color="success">{activeEnrollments} activos</Badge>
+                        <Badge color="success">{activeEnrollments} {t("campaigns.active")}</Badge>
                       )}
                     </div>
                   </div>
@@ -284,24 +286,24 @@ export default function CampaignsPage() {
                 {/* Metrics */}
                 {c.metrics && c.metrics.sent > 0 && (
                   <div className="flex items-center gap-2 mt-3 flex-wrap">
-                    <Badge>{c.metrics.sent} enviados</Badge>
-                    <Badge color="info">{c.metrics.openRate}% apertura</Badge>
-                    <Badge color="success">{c.metrics.replies} respuestas</Badge>
+                    <Badge>{c.metrics.sent} {t("campaigns.sent")}</Badge>
+                    <Badge color="info">{c.metrics.openRate}% {t("campaigns.openRate")}</Badge>
+                    <Badge color="success">{c.metrics.replies} {t("campaigns.replies")}</Badge>
                   </div>
                 )}
 
                 {/* Actions */}
                 <div className="flex items-center gap-2 mt-5 pt-4 border-t border-border">
                   <Button size="sm" variant="ghost" onClick={() => toggleStatus(c)}>
-                    {c.status === "active" ? "Pausar" : "Activar"}
+                    {c.status === "active" ? t("campaigns.pause") : t("campaigns.activate")}
                   </Button>
-                  <Button size="sm" variant="ghost" onClick={() => openSequence(c)} title="Configurar secuencia">
+                  <Button size="sm" variant="ghost" onClick={() => openSequence(c)} title={t("campaigns.configureSequence")}>
                     <ListOrdered className="h-3 w-3" strokeWidth={1.5} />
                   </Button>
                   <Button size="sm" variant="ghost" onClick={() => openEdit(c)}>
                     <Edit className="h-3 w-3" strokeWidth={1.5} />
                   </Button>
-                  <Button size="sm" variant="ghost" onClick={() => cloneCampaign(c)} title="Clonar campana">
+                  <Button size="sm" variant="ghost" onClick={() => cloneCampaign(c)} title={t("campaigns.cloneCampaign")}>
                     <Copy className="h-3 w-3" strokeWidth={1.5} />
                   </Button>
                   <Button size="sm" variant="ghost" onClick={() => setConfirmDelete({ id: c.id, name: c.name })}>
@@ -315,51 +317,51 @@ export default function CampaignsPage() {
       )}
 
       {/* Create/Edit Modal */}
-      <Modal open={showModal} onClose={() => setShowModal(false)} title={editing ? "Editar campana" : "Nueva campana"}>
+      <Modal open={showModal} onClose={() => setShowModal(false)} title={editing ? t("campaigns.editCampaign") : t("campaigns.newCampaign")}>
         <div className="space-y-5">
           <div>
-            <label className="nd-label block mb-2">Nombre</label>
-            <Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="Nombre de la campana" />
+            <label className="nd-label block mb-2">{t("common.name")}</label>
+            <Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder={t("campaigns.namePlaceholder")} />
           </div>
           <div>
-            <label className="nd-label block mb-2">Descripcion</label>
-            <Input value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} placeholder="Descripcion opcional" />
+            <label className="nd-label block mb-2">{t("common.description")}</label>
+            <Input value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} placeholder={t("campaigns.descriptionPlaceholder")} />
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="nd-label block mb-2">Limite diario</label>
+              <label className="nd-label block mb-2">{t("campaigns.dailyLimit")}</label>
               <Input type="number" value={form.dailyLimit} onChange={(e) => setForm({ ...form, dailyLimit: Number(e.target.value) })} />
             </div>
             <div>
-              <label className="nd-label block mb-2">Umbral calidad</label>
+              <label className="nd-label block mb-2">{t("campaigns.qualityThreshold")}</label>
               <Input type="number" value={form.qualityThreshold} onChange={(e) => setForm({ ...form, qualityThreshold: Number(e.target.value) })} />
             </div>
           </div>
           <div>
-            <label className="nd-label block mb-2">Tono por defecto</label>
+            <label className="nd-label block mb-2">{t("campaigns.defaultTone")}</label>
             <Select value={form.defaultTone} onChange={(e) => setForm({ ...form, defaultTone: e.target.value })}>
-              <option value="profesional">Profesional</option>
-              <option value="amigable">Amigable</option>
-              <option value="directo">Directo</option>
-              <option value="consultivo">Consultivo</option>
-              <option value="casual">Casual</option>
+              <option value="professional">{t("tones.professional")}</option>
+              <option value="friendly">{t("tones.friendly")}</option>
+              <option value="direct">{t("tones.direct")}</option>
+              <option value="consultative">{t("tones.consultative")}</option>
+              <option value="casual">{t("tones.casual")}</option>
             </Select>
           </div>
           <div>
             <Toggle checked={form.autopilot} onChange={(v) => setForm({ ...form, autopilot: v })} label="Autopilot" />
           </div>
           <div className="flex justify-end gap-3 pt-2">
-            <Button variant="secondary" size="sm" onClick={() => setShowModal(false)}>Cancelar</Button>
-            <Button size="sm" onClick={save} disabled={!form.name}>{editing ? "Guardar" : "Crear"}</Button>
+            <Button variant="secondary" size="sm" onClick={() => setShowModal(false)}>{t("common.cancel")}</Button>
+            <Button size="sm" onClick={save} disabled={!form.name}>{editing ? t("common.save") : t("campaigns.create")}</Button>
           </div>
         </div>
       </Modal>
 
       {/* Sequence Builder Modal */}
-      <Modal open={showSequenceModal} onClose={() => setShowSequenceModal(false)} title={`Secuencia: ${sequenceCampaign?.name || ""}`}>
+      <Modal open={showSequenceModal} onClose={() => setShowSequenceModal(false)} title={`${t("campaigns.sequenceTitle")} ${sequenceCampaign?.name || ""}`}>
         <div className="space-y-4">
           <p className="text-[11px] text-text-muted leading-relaxed">
-            Define los pasos de seguimiento. Cada paso se ejecuta automaticamente despues del delay configurado. La IA genera contenido diferente para cada paso.
+            {t("campaigns.sequenceDesc")}
           </p>
 
           {sequenceSteps.map((step, idx) => (
@@ -371,9 +373,9 @@ export default function CampaignsPage() {
                       {idx + 1}. {step.channel === "email" ? "Email" : "WhatsApp"}
                     </Badge>
                     {idx === 0 ? (
-                      <span className="text-[10px] text-text-muted">Primer contacto</span>
+                      <span className="text-[10px] text-text-muted">{t("campaigns.firstContact")}</span>
                     ) : (
-                      <span className="text-[10px] text-text-muted">+{step.delayDays} dias</span>
+                      <span className="text-[10px] text-text-muted">+{step.delayDays} {t("campaigns.days")}</span>
                     )}
                   </div>
                   <div className="flex items-center gap-2">
@@ -387,33 +389,33 @@ export default function CampaignsPage() {
                 </div>
                 <div className="grid grid-cols-3 gap-3">
                   <div>
-                    <label className="text-[10px] text-text-muted block mb-1">Canal</label>
+                    <label className="text-[10px] text-text-muted block mb-1">{t("campaigns.channel")}</label>
                     <Select value={step.channel} onChange={(e) => updateStep(idx, { channel: e.target.value as "email" | "whatsapp" })}>
-                      <option value="email">Email</option>
-                      <option value="whatsapp">WhatsApp</option>
+                      <option value="email">{t("common.email")}</option>
+                      <option value="whatsapp">{t("common.whatsapp")}</option>
                     </Select>
                   </div>
                   <div>
-                    <label className="text-[10px] text-text-muted block mb-1">Delay (dias)</label>
+                    <label className="text-[10px] text-text-muted block mb-1">{t("campaigns.delayDays")}</label>
                     <Input type="number" value={step.delayDays} onChange={(e) => updateStep(idx, { delayDays: Number(e.target.value) })} min={0} />
                   </div>
                   <div>
-                    <label className="text-[10px] text-text-muted block mb-1">Tono</label>
+                    <label className="text-[10px] text-text-muted block mb-1">{t("common.tone")}</label>
                     <Select value={step.tone} onChange={(e) => updateStep(idx, { tone: e.target.value })}>
-                      <option value="profesional">Profesional</option>
-                      <option value="amigable">Amigable</option>
-                      <option value="directo">Directo</option>
-                      <option value="consultivo">Consultivo</option>
-                      <option value="casual">Casual</option>
+                      <option value="professional">{t("tones.professional")}</option>
+                      <option value="friendly">{t("tones.friendly")}</option>
+                      <option value="direct">{t("tones.direct")}</option>
+                      <option value="consultative">{t("tones.consultative")}</option>
+                      <option value="casual">{t("tones.casual")}</option>
                     </Select>
                   </div>
                 </div>
                 <div className="mt-3">
-                  <label className="text-[10px] text-text-muted block mb-1">Instrucciones adicionales para IA (opcional)</label>
+                  <label className="text-[10px] text-text-muted block mb-1">{t("campaigns.additionalInstructions")}</label>
                   <Input
                     value={step.customInstructions}
                     onChange={(e) => updateStep(idx, { customInstructions: e.target.value })}
-                    placeholder="Ej: Enfocate en SEO, menciona caso de exito..."
+                    placeholder={t("campaigns.instructionsPlaceholder")}
                   />
                 </div>
               </div>
@@ -426,13 +428,13 @@ export default function CampaignsPage() {
           ))}
 
           <Button variant="secondary" size="sm" onClick={addStep} className="w-full">
-            <Plus className="h-3 w-3" strokeWidth={1.5} /> Agregar paso
+            <Plus className="h-3 w-3" strokeWidth={1.5} /> {t("campaigns.addStep")}
           </Button>
 
           <div className="flex justify-end gap-3 pt-2">
-            <Button variant="secondary" size="sm" onClick={() => setShowSequenceModal(false)}>Cancelar</Button>
+            <Button variant="secondary" size="sm" onClick={() => setShowSequenceModal(false)}>{t("common.cancel")}</Button>
             <Button size="sm" onClick={saveSequence} disabled={savingSequence || sequenceSteps.length === 0}>
-              {savingSequence ? "Guardando..." : "Guardar secuencia"}
+              {savingSequence ? t("campaigns.savingSequence") : t("campaigns.saveSequence")}
             </Button>
           </div>
         </div>
@@ -442,9 +444,9 @@ export default function CampaignsPage() {
         open={!!confirmDelete}
         onClose={() => setConfirmDelete(null)}
         onConfirm={() => confirmDelete && remove(confirmDelete.id)}
-        title="Eliminar campana"
-        message={`Se eliminara la campana "${confirmDelete?.name ?? ""}". Esta accion no se puede deshacer.`}
-        confirmLabel="Eliminar"
+        title={t("campaigns.deleteCampaign")}
+        message={t("campaigns.deleteCampaignConfirm").replace("{{name}}", confirmDelete?.name ?? "")}
+        confirmLabel={t("common.delete")}
         variant="danger"
       />
     </div>

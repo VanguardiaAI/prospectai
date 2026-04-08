@@ -59,7 +59,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
         analyzedAt: new Date().toISOString(),
       }).where(eq(leads.id, leadId)).run();
 
-      logActivity("analyze", `Analizado (sin web): ${lead.name}`, { leadId });
+      logActivity("analyze", `Analizado (sin web): ${lead.name}`, { leadId, messageKey: "activityLog.analyzedNoWeb", messageVars: { name: lead.name } });
       const updated = db.select().from(leads).where(eq(leads.id, leadId)).get();
       return NextResponse.json({ success: true, lead: updated });
     }
@@ -106,7 +106,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
         extractedEmail: analysis.extractedEmails?.[0] || updatedLead.extractedEmail,
       }).where(eq(leads.id, leadId)).run();
 
-      logActivity("scrape", `Analizado individualmente: ${lead.name} (calidad: ${analysis.qualityScore}/100)`, { leadId });
+      logActivity("scrape", `Analizado individualmente: ${lead.name} (calidad: ${analysis.qualityScore}/100)`, { leadId, messageKey: "activityLog.analyzedIndividually", messageVars: { name: lead.name, score: analysis.qualityScore } });
 
       const final = db.select().from(leads).where(eq(leads.id, leadId)).get();
       return NextResponse.json({ success: true, lead: final });
@@ -135,7 +135,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       ? db.select().from(campaigns).where(eq(campaigns.id, lead.campaignId)).get()
       : null;
 
-    const tone = body.tone || campaign?.defaultTone || getSetting("default_tone") || "profesional";
+    const tone = body.tone || campaign?.defaultTone || getSetting("default_tone") || "professional";
     const fromName = getSetting("from_name") || getSetting("agency_name") || "ProspectAI";
     const fromEmail = getSetting("from_email") || "";
 
@@ -154,7 +154,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     }).run();
 
     db.update(leads).set({ status: "email_generated" }).where(eq(leads.id, leadId)).run();
-    logActivity("email_generated", `Email generado individualmente para ${lead.name}`, { leadId });
+    logActivity("email_generated", `Email generado individualmente para ${lead.name}`, { leadId, messageKey: "activityLog.emailGeneratedFor", messageVars: { name: lead.name } });
     return NextResponse.json({ success: true });
   }
 
@@ -173,7 +173,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       ? db.select().from(campaigns).where(eq(campaigns.id, lead.campaignId)).get()
       : null;
 
-    const tone = body.tone || campaign?.defaultTone || getSetting("default_tone") || "profesional";
+    const tone = body.tone || campaign?.defaultTone || getSetting("default_tone") || "professional";
     const fromName = getSetting("from_name") || getSetting("agency_name") || "ProspectAI";
 
     const generated = await generateWhatsApp(lead.name, lead.category, lead.city, lead.website, waAnalysis, tone, fromName, undefined, undefined, detectCountryFromPhone(lead.phone) || undefined);
@@ -188,7 +188,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     }).run();
 
     db.update(leads).set({ status: "wa_generated" }).where(eq(leads.id, leadId)).run();
-    logActivity("wa_generated", `WhatsApp generado individualmente para ${lead.name}`, { leadId });
+    logActivity("wa_generated", `WhatsApp generado individualmente para ${lead.name}`, { leadId, messageKey: "activityLog.waGeneratedFor", messageVars: { name: lead.name } });
     return NextResponse.json({ success: true });
   }
 
@@ -207,7 +207,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       subject: body.subject || "",
       bodyHtml: body.bodyHtml || `<p>${(body.bodyText || "").replace(/\n/g, "</p><p>")}</p>`,
       bodyText: body.bodyText || "",
-      tone: body.tone || "profesional",
+      tone: body.tone || "professional",
       status: "draft",
     }).run();
 
@@ -224,7 +224,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       campaignId: lead.campaignId,
       toPhone: lead.phone,
       body: body.body || "",
-      tone: body.tone || "profesional",
+      tone: body.tone || "professional",
       status: "draft",
     }).run();
 

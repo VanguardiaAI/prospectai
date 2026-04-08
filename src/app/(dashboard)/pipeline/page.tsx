@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Kanban, RefreshCw, Mail, MessageCircle } from "lucide-react";
 import { clsx } from "clsx";
+import { useT } from "@/i18n/LocaleProvider";
 
 interface Lead {
   id: number;
@@ -15,17 +16,17 @@ interface Lead {
 }
 
 const PIPELINE_STATUSES = [
-  { key: "imported", label: "Importado", track: "common" },
-  { key: "scraped", label: "Scrapeado", track: "common" },
-  { key: "analyzed", label: "Analizado", track: "common" },
-  { key: "email_generated", label: "Email generado", track: "email" },
-  { key: "email_approved", label: "Email aprobado", track: "email" },
-  { key: "email_sent", label: "Email enviado", track: "email" },
-  { key: "wa_generated", label: "WA generado", track: "whatsapp" },
-  { key: "wa_approved", label: "WA aprobado", track: "whatsapp" },
-  { key: "wa_sent", label: "WA enviado", track: "whatsapp" },
-  { key: "contacted", label: "Contactado", track: "common" },
-  { key: "replied", label: "Respondido", track: "common" },
+  { key: "imported", labelKey: "pipeline.imported", track: "common" },
+  { key: "scraped", labelKey: "pipeline.scraped", track: "common" },
+  { key: "analyzed", labelKey: "pipeline.analyzed", track: "common" },
+  { key: "email_generated", labelKey: "pipeline.emailGenerated", track: "email" },
+  { key: "email_approved", labelKey: "pipeline.emailApproved", track: "email" },
+  { key: "email_sent", labelKey: "pipeline.emailSent", track: "email" },
+  { key: "wa_generated", labelKey: "pipeline.waGenerated", track: "whatsapp" },
+  { key: "wa_approved", labelKey: "pipeline.waApproved", track: "whatsapp" },
+  { key: "wa_sent", labelKey: "pipeline.waSent", track: "whatsapp" },
+  { key: "contacted", labelKey: "pipeline.contacted", track: "common" },
+  { key: "replied", labelKey: "pipeline.replied", track: "common" },
 ] as const;
 
 function scoreColor(score: number): string {
@@ -35,6 +36,7 @@ function scoreColor(score: number): string {
 }
 
 export default function PipelinePage() {
+  const { t } = useT();
   const router = useRouter();
   const [leads, setLeads] = useState<Lead[]>([]);
   const [loading, setLoading] = useState(true);
@@ -74,10 +76,10 @@ export default function PipelinePage() {
           <Kanban className="h-5 w-5 text-text-muted" strokeWidth={1.5} />
           <div>
             <h1 className="text-lg font-medium text-text-display font-mono tracking-tight uppercase">
-              Pipeline
+              {t("pipeline.title")}
             </h1>
             <p className="text-[11px] text-text-muted font-mono mt-0.5">
-              {leads.length} leads en el pipeline
+              {leads.length} {t("pipeline.leadsInPipeline")}
             </p>
           </div>
         </div>
@@ -95,14 +97,14 @@ export default function PipelinePage() {
             className={clsx("h-3.5 w-3.5", loading && "animate-spin")}
             strokeWidth={1.5}
           />
-          Actualizar
+          {t("pipeline.refresh")}
         </button>
       </div>
 
       {/* Board */}
       <div className="overflow-x-auto pb-4 -mx-2 px-2">
         <div className="flex gap-3 min-w-max">
-          {PIPELINE_STATUSES.map(({ key, label, track }) => {
+          {PIPELINE_STATUSES.map(({ key, labelKey, track }) => {
             const items = grouped[key];
             return (
               <div
@@ -118,7 +120,7 @@ export default function PipelinePage() {
                     {track === "email" && <Mail className="h-3 w-3 text-accent/60" strokeWidth={1.5} />}
                     {track === "whatsapp" && <MessageCircle className="h-3 w-3 text-green-500/60" strokeWidth={1.5} />}
                     <span className="text-[10px] font-mono uppercase tracking-[0.06em] text-text-muted">
-                      {label}
+                      {t(labelKey)}
                     </span>
                   </div>
                   <span className="text-[10px] font-mono text-text-muted bg-bg-tertiary px-1.5 py-0.5 rounded-md min-w-[20px] text-center">
@@ -130,7 +132,7 @@ export default function PipelinePage() {
                 <div className="flex-1 overflow-y-auto max-h-[calc(100vh-220px)] p-2 space-y-1.5">
                   {items.length === 0 && (
                     <p className="text-[10px] text-text-muted font-mono text-center py-6 opacity-40">
-                      Sin leads
+                      {t("pipeline.noLeads")}
                     </p>
                   )}
                   {items.map((lead) => (

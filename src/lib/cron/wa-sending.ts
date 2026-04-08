@@ -53,6 +53,8 @@ export async function processWhatsAppSending() {
       logActivity("wa_sent", `WhatsApp enviado a ${msg.toPhone}`, {
         leadId: msg.leadId,
         campaignId: msg.campaignId ?? undefined,
+        messageKey: "activityLog.waSentTo",
+        messageVars: { phone: msg.toPhone },
       });
 
       sent++;
@@ -64,6 +66,8 @@ export async function processWhatsAppSending() {
 
       logActivity("wa_failed", `Error enviando WhatsApp a ${msg.toPhone}: ${result.error}`, {
         leadId: msg.leadId,
+        messageKey: "activityLog.errorSendingWa",
+        messageVars: { phone: msg.toPhone },
       });
     }
 

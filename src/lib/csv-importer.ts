@@ -174,6 +174,8 @@ export function importLeadsFromCSV(csvText: string, campaignId?: number): Import
   logActivity("import", `Importados ${imported} negocios (${skipped} omitidos, ${blacklistedCount} en blacklist, ${duplicates} duplicados)`, {
     campaignId: campaignId ?? undefined,
     metadata: { imported, skipped, blacklisted: blacklistedCount, duplicates, total: data.length },
+    messageKey: "activityLog.importedLeads",
+    messageVars: { count: imported, skipped, blacklisted: blacklistedCount, duplicates },
   });
 
   return { imported, skipped, blacklisted: blacklistedCount, duplicates, total: data.length };

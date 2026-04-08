@@ -171,7 +171,7 @@ export function registerSystemTools(server: McpServer) {
       }
 
       if (updated.length > 0) {
-        logActivity("setting_change", `Settings updated via MCP: ${updated.join(", ")}`);
+        logActivity("setting_change", `Settings updated via MCP: ${updated.join(", ")}`, { messageKey: "activityLog.configUpdated", messageVars: { fields: updated.join(", ") } });
       }
 
       const lines = [];

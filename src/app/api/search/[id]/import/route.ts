@@ -158,6 +158,8 @@ export async function POST(
     logActivity("import", `Importados ${imported} negocios desde búsqueda "${job.keyword}" (${skippedBlacklist} en blacklist, ${skippedNoName} sin nombre)`, {
       campaignId: campaignId || undefined,
       metadata: { searchJobId: jobId, imported, skippedBlacklist, skippedNoName, total: toImport.length },
+      messageKey: "activityLog.importedFromSearch",
+      messageVars: { count: imported, keyword: job.keyword },
     });
 
     return NextResponse.json({

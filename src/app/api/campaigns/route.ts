@@ -54,10 +54,10 @@ export async function POST(req: NextRequest) {
     dailyLimit: body.dailyLimit ?? 20,
     qualityThreshold: body.qualityThreshold ?? 40,
     autopilot: body.autopilot ?? false,
-    defaultTone: body.defaultTone || "profesional",
+    defaultTone: body.defaultTone || "professional",
   }).returning().get();
 
-  logActivity("campaign_change", `Campaña "${result.name}" creada`, { campaignId: result.id });
+  logActivity("campaign_change", `Campaña "${result.name}" creada`, { campaignId: result.id, messageKey: "activityLog.campaignCreated", messageVars: { name: result.name } });
   return NextResponse.json(result, { status: 201 });
 }
 
@@ -76,7 +76,7 @@ export async function PUT(req: NextRequest) {
 
   const result = db.update(campaigns).set(updates).where(eq(campaigns.id, body.id)).returning().get();
 
-  logActivity("campaign_change", `Campaña "${result.name}" actualizada`, { campaignId: result.id });
+  logActivity("campaign_change", `Campaña "${result.name}" actualizada`, { campaignId: result.id, messageKey: "activityLog.campaignUpdated", messageVars: { name: result.name } });
   return NextResponse.json(result);
 }
 
@@ -88,7 +88,7 @@ export async function DELETE(req: NextRequest) {
   const campaign = db.select().from(campaigns).where(eq(campaigns.id, Number(id))).get();
   if (campaign) {
     db.delete(campaigns).where(eq(campaigns.id, Number(id))).run();
-    logActivity("campaign_change", `Campaña "${campaign.name}" eliminada`);
+    logActivity("campaign_change", `Campaña "${campaign.name}" eliminada`, { messageKey: "activityLog.campaignDeleted", messageVars: { name: campaign.name } });
   }
   return NextResponse.json({ success: true });
 }

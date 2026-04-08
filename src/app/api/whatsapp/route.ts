@@ -74,7 +74,7 @@ export async function PUT(req: NextRequest) {
       logActivity(
         updates.status === "approved" ? "wa_approved" : "wa_rejected",
         `WhatsApp ${updates.status === "approved" ? "aprobado" : "rechazado"} para lead #${msg.leadId}`,
-        { leadId: msg.leadId, campaignId: msg.campaignId ?? undefined }
+        { leadId: msg.leadId, campaignId: msg.campaignId ?? undefined, messageKey: updates.status === "approved" ? "activityLog.waApproved" : "activityLog.waRejected" }
       );
     }
   }
@@ -125,7 +125,7 @@ export async function POST(req: NextRequest) {
       ? db.select().from(campaigns).where(eq(campaigns.id, lead.campaignId)).get()
       : null;
 
-    const tone = body.tone || campaign?.defaultTone || getSetting("default_tone") || "profesional";
+    const tone = body.tone || campaign?.defaultTone || getSetting("default_tone") || "professional";
     const fromName = getSetting("from_name") || getSetting("agency_name") || "ProspectAI";
 
     const generated = await generateWhatsApp(
@@ -147,6 +147,8 @@ export async function POST(req: NextRequest) {
     logActivity("wa_generated", `WhatsApp generado para ${lead.name}`, {
       leadId: lead.id,
       campaignId: lead.campaignId ?? undefined,
+      messageKey: "activityLog.waGeneratedFor",
+      messageVars: { name: lead.name },
     });
 
     return NextResponse.json({ success: true });
@@ -163,7 +165,7 @@ export async function POST(req: NextRequest) {
       campaignId: lead.campaignId,
       toPhone: lead.phone,
       body: body.body || "",
-      tone: body.tone || "profesional",
+      tone: body.tone || "professional",
       status: "draft",
     }).run();
 
@@ -200,6 +202,8 @@ export async function POST(req: NextRequest) {
       logActivity("wa_sent", `WhatsApp enviado a ${msg.toPhone}`, {
         leadId: msg.leadId,
         campaignId: msg.campaignId ?? undefined,
+        messageKey: "activityLog.waSentTo",
+        messageVars: { phone: msg.toPhone },
       });
 
       return NextResponse.json({ success: true });
@@ -211,6 +215,8 @@ export async function POST(req: NextRequest) {
 
       logActivity("wa_failed", `Error enviando WhatsApp a ${msg.toPhone}: ${result.error}`, {
         leadId: msg.leadId,
+        messageKey: "activityLog.errorSendingWa",
+        messageVars: { phone: msg.toPhone },
       });
 
       return NextResponse.json({ success: false, error: result.error }, { status: 500 });

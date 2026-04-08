@@ -28,76 +28,76 @@ export async function generateEmail(
 
   // Build issue context from all analysis angles
   const issueContext: string[] = [];
-  if (analysis.issues.length > 0) issueContext.push(`Problemas web: ${analysis.issues.join(", ")}`);
-  if (analysis.seoIssues?.length > 0) issueContext.push(`Problemas SEO: ${analysis.seoIssues.join(", ")}`);
-  if (analysis.googleBusinessOpportunities?.length > 0) issueContext.push(`Oportunidades Google Business: ${analysis.googleBusinessOpportunities.join(", ")}`);
-  if (analysis.aiAgentOpportunities?.length > 0) issueContext.push(`Oportunidades IA: ${analysis.aiAgentOpportunities.join(", ")}`);
+  if (analysis.issues.length > 0) issueContext.push(`Web issues: ${analysis.issues.join(", ")}`);
+  if (analysis.seoIssues?.length > 0) issueContext.push(`SEO issues: ${analysis.seoIssues.join(", ")}`);
+  if (analysis.googleBusinessOpportunities?.length > 0) issueContext.push(`Google Business opportunities: ${analysis.googleBusinessOpportunities.join(", ")}`);
+  if (analysis.aiAgentOpportunities?.length > 0) issueContext.push(`AI opportunities: ${analysis.aiAgentOpportunities.join(", ")}`);
 
   const stepContext = sequenceStep && sequenceStep > 1
-    ? `\nEste es el FOLLOW-UP #${sequenceStep - 1}. El negocio ya recibió ${sequenceStep - 1} mensaje(s) previo(s). NO repitas lo que probablemente ya dijiste. Cambia el ángulo: si antes hablaste de web, ahora habla de SEO o IA. Sé más breve y directo. Puedes hacer referencia a que ya les contactaste antes.`
+    ? `\nThis is FOLLOW-UP #${sequenceStep - 1}. The business already received ${sequenceStep - 1} previous message(s). DO NOT repeat what you probably already said. Change the angle: if you previously talked about web, now talk about SEO or AI. Be shorter and more direct. You can reference that you already reached out before.`
     : "";
 
-  const extraInstructions = customInstructions ? `\nINSTRUCCIONES ADICIONALES: ${customInstructions}` : "";
+  const extraInstructions = customInstructions ? `\nADDITIONAL INSTRUCTIONS: ${customInstructions}` : "";
 
-  const prompt = `Eres un copywriter experto generando emails de prospección para ${ctx.name} (${ctx.url}).
+  const prompt = `You are an expert copywriter generating prospecting emails for ${ctx.name} (${ctx.url}).
 ${ctx.description}
 
-Tu objetivo: escribir un email que haga que el dueño del negocio QUIERA responder porque ve una oportunidad clara de conseguir más clientes o más ventas.
+Your goal: write an email that makes the business owner WANT to respond because they see a clear opportunity to get more customers or more sales.
 
-DATOS DEL NEGOCIO:
-- Nombre: ${businessName}
-- Categoría: ${businessCategory || "No especificada"}
-- Ciudad: ${city || "No especificada"}
-- Sitio web actual: ${websiteUrl || "No tiene"}
+BUSINESS DATA:
+- Name: ${businessName}
+- Category: ${businessCategory || "Not specified"}
+- City: ${city || "Not specified"}
+- Current website: ${websiteUrl || "None"}
 
-ANÁLISIS DE SU PRESENCIA DIGITAL:
-- Calificación web: ${analysis.qualityScore}/100
-- Calificación SEO: ${analysis.seoScore ?? "N/A"}/100
+DIGITAL PRESENCE ANALYSIS:
+- Web score: ${analysis.qualityScore}/100
+- SEO score: ${analysis.seoScore ?? "N/A"}/100
 ${issueContext.map((i) => `- ${i}`).join("\n")}
-- Resumen: ${analysis.summary}
+- Summary: ${analysis.summary}
 
-SERVICIOS RECOMENDADOS PARA ESTE NEGOCIO:
+RECOMMENDED SERVICES FOR THIS BUSINESS:
 ${recommendedServices}
 
-TONO DEL EMAIL: ${tone}
+EMAIL TONE: ${tone}
 ${stepContext}
 ${extraInstructions}
 
-PRINCIPIO FUNDAMENTAL - ENFOQUE EN BENEFICIO:
-El prospecto NO le importan sus problemas técnicos. Le importa tener MÁS CLIENTES y MÁS VENTAS. Cada problema que menciones debe traducirse a impacto de negocio:
-- "Sin SSL" → "Los visitantes ven una alerta de 'sitio no seguro' y se van a la competencia"
-- "No es responsive" → "El 70% de la gente busca desde el celular y no puede navegar bien por la página"
-- "SEO bajo" → "Cuando alguien busca [su categoría] en [su ciudad], aparece la competencia y ellos no"
-- "Sin web" → "Todos los clientes que buscan en Google un negocio como el suyo no los encuentran"
-- "Contenido hackeado/spam" → "Google podría estar penalizando el sitio y los clientes ven contenido que daña la imagen del negocio"
+FUNDAMENTAL PRINCIPLE - BENEFIT-FOCUSED:
+The prospect does NOT care about their technical problems. They care about getting MORE CUSTOMERS and MORE SALES. Every problem you mention must be translated into business impact:
+- "No SSL" -> "Visitors see a 'not secure' warning and leave for the competition"
+- "Not responsive" -> "70% of people search from their phone and can't navigate the site properly"
+- "Low SEO" -> "When someone searches for [their category] in [their city], the competition shows up and they don't"
+- "No website" -> "All the customers searching on Google for a business like theirs can't find them"
+- "Hacked/spam content" -> "Google may be penalizing the site and customers see content that damages the business image"
 
-ESTRUCTURA DEL EMAIL (Framework PAS orientado a beneficio):
-1. HOOK (1-2 frases): Algo específico del negocio que demuestre que lo investigaste. NO halagues genéricamente.
-2. OPORTUNIDAD (2-3 frases): Conecta lo que encontraste con una oportunidad concreta de crecimiento. NO listes problemas técnicos. Habla de clientes que están perdiendo o que podrían captar.
-3. PRUEBA/CREDIBILIDAD (1 frase): Menciona brevemente cómo ayudas a negocios similares (sin prometer resultados exactos).
-4. CTA (1 frase): Pregunta suave orientada a que el prospecto quiera saber más. Ej: "Te interesaría ver cuánto potencial tiene tu zona?" NO: "Agenda una llamada".
+EMAIL STRUCTURE (Benefit-oriented PAS Framework):
+1. HOOK (1-2 sentences): Something specific about the business that shows you researched them. Do NOT give generic compliments.
+2. OPPORTUNITY (2-3 sentences): Connect what you found with a concrete growth opportunity. Do NOT list technical problems. Talk about customers they are losing or could capture.
+3. PROOF/CREDIBILITY (1 sentence): Briefly mention how you help similar businesses (without promising exact results).
+4. CTA (1 sentence): Soft question aimed at making the prospect want to learn more. E.g.: "Would you be interested in seeing how much potential your area has?" NOT: "Schedule a call".
 
-INSTRUCCIONES:
-1. Escribe en ${localeLabel}
-2. El email debe ser breve (75-125 palabras máx para inicial, 50-75 para follow-up), directo y personalizado
-3. NUNCA uses jerga técnica sin traducirla a impacto de negocio. Nada de "SSL", "responsive", "SEO", "meta tags" a secas
-4. Ofrece la solución más relevante (1-2 servicios máximo), pero enmarcada como RESULTADO para el negocio
-5. Preséntate como "${fromName}, de ${ctx.name}". NUNCA digas "Soy ${ctx.name}" ni te presentes como si fueras la empresa
-6. NO uses lenguaje de spam: nada de "gratis", "sin compromiso", "oferta", "diagnóstico gratuito". Usa alternativas naturales: "te preparo un análisis", "te muestro el potencial", "te cuento cómo funciona"
-7. El email debe sentirse como si lo hubiera escrito una persona real a otra persona real
-8. NUNCA uses halagos genéricos como "Me encanta lo que hacen" o "Gran proyecto"
-9. El asunto debe ser corto (4-7 palabras), en sentence case, y generar curiosidad sobre el BENEFICIO, no sobre el problema
-10. NO añadas ningún footer legal ni texto de baja, el sistema los inyecta automáticamente
+INSTRUCTIONS:
+1. Write in ${localeLabel}
+2. The email must be brief (75-125 words max for initial, 50-75 for follow-up), direct, and personalized
+3. NEVER use technical jargon without translating it to business impact. No bare "SSL", "responsive", "SEO", "meta tags"
+4. Offer the most relevant solution (1-2 services max), but framed as a RESULT for the business
+5. Introduce yourself as "${fromName}, from ${ctx.name}". NEVER say "I am ${ctx.name}" or introduce yourself as if you were the company
+6. Do NOT use spam language: no "free", "no commitment", "special offer", "free audit". Use natural alternatives: "I'll put together an analysis", "I'll show you the potential", "I'll walk you through how it works"
+7. The email must feel like it was written by a real person to another real person
+8. NEVER use generic compliments like "I love what you do" or "Great project"
+9. The subject line must be short (4-7 words), in sentence case, and spark curiosity about the BENEFIT, not the problem
+10. Do NOT add any legal footer or unsubscribe text, the system injects them automatically
 
-ADAPTACIÓN REGIONAL (CRÍTICO):
-El negocio está en ${city || "ubicación no especificada"}. DEBES adaptar tu lenguaje al país de ESA ciudad, NO al país de la agencia. Si la ciudad está en México, escribe en español mexicano. Si está en Argentina, en argentino. Si está en España, en español de España. Esto es OBLIGATORIO.
+REGIONAL ADAPTATION (CRITICAL):
+The business is in ${city || "unspecified location"}. You MUST adapt your language to the country of THAT city, NOT the agency's country. If the city is in Mexico, write in Mexican Spanish. If in Argentina, in Argentine Spanish. If in Spain, in European Spanish. This is MANDATORY.
 ${writingRules}
 
-Responde SOLO con JSON válido (sin markdown, sin backticks):
+Respond ONLY with valid JSON (no markdown, no backticks):
 {
-  "subject": "asunto del email",
-  "bodyHtml": "contenido HTML del email con formato básico (<p>, <b>, <br>, <a>)",
-  "bodyText": "versión de texto plano del email"
+  "subject": "email subject",
+  "bodyHtml": "HTML email content with basic formatting (<p>, <b>, <br>, <a>)",
+  "bodyText": "plain text version of the email"
 }`;
 
   const result = await model.generateContent(prompt);
@@ -125,40 +125,40 @@ export async function regenerateEmail(
   const localeLabel = getLocaleLabel(effectiveCountry);
   const writingRules = getLocaleWritingRules(effectiveCountry);
 
-  const prompt = `Eres un copywriter experto. Necesitas REGENERAR un email de prospección para ${ctx.name} (${ctx.url}).
+  const prompt = `You are an expert copywriter. You need to REGENERATE a prospecting email for ${ctx.name} (${ctx.url}).
 
-DATOS DEL NEGOCIO:
-- Nombre: ${businessName}
-- Categoría: ${businessCategory || "No especificada"}
-- Ciudad: ${city || "No especificada"}
-- Web: ${websiteUrl || "No tiene"}
-- Calidad web: ${analysis.qualityScore}/100
+BUSINESS DATA:
+- Name: ${businessName}
+- Category: ${businessCategory || "Not specified"}
+- City: ${city || "Not specified"}
+- Website: ${websiteUrl || "None"}
+- Web quality: ${analysis.qualityScore}/100
 - SEO: ${analysis.seoScore ?? "N/A"}/100
-- Problemas: ${analysis.issues.join(", ")}
-- Oportunidades SEO: ${(analysis.seoIssues || []).join(", ")}
-- Oportunidades IA: ${(analysis.aiAgentOpportunities || []).join(", ")}
+- Issues: ${analysis.issues.join(", ")}
+- SEO opportunities: ${(analysis.seoIssues || []).join(", ")}
+- AI opportunities: ${(analysis.aiAgentOpportunities || []).join(", ")}
 
-EMAIL ANTERIOR:
-Asunto: ${previousSubject}
-Cuerpo: ${previousBody}
+PREVIOUS EMAIL:
+Subject: ${previousSubject}
+Body: ${previousBody}
 
-NUEVO TONO: ${tone}
-INSTRUCCIONES ADICIONALES: ${instructions || "Solo cambia el tono"}
-REMITENTE: ${fromName}, de ${ctx.name}. Preséntate SIEMPRE como "${fromName}, de ${ctx.name}". NUNCA digas "Soy ${ctx.name}".
-IDIOMA: ${localeLabel}
-NO añadas ningún footer legal ni texto de baja, el sistema los inyecta automáticamente.
+NEW TONE: ${tone}
+ADDITIONAL INSTRUCTIONS: ${instructions || "Just change the tone"}
+SENDER: ${fromName}, from ${ctx.name}. ALWAYS introduce yourself as "${fromName}, from ${ctx.name}". NEVER say "I am ${ctx.name}".
+LANGUAGE: ${localeLabel}
+Do NOT add any legal footer or unsubscribe text, the system injects them automatically.
 
-PRINCIPIO CLAVE: El email debe enfocarse en lo que el prospecto GANA (más clientes, más ventas, más visibilidad), NO en listar problemas técnicos. Traduce cada problema a impacto de negocio. NUNCA uses jerga técnica sin explicar qué significa para sus clientes/ventas. Evita "gratis", "sin compromiso", "diagnóstico gratuito" - usa alternativas naturales.
+KEY PRINCIPLE: The email must focus on what the prospect GAINS (more customers, more sales, more visibility), NOT on listing technical problems. Translate every problem into business impact. NEVER use technical jargon without explaining what it means for their customers/sales. Avoid "free", "no commitment", "free audit" - use natural alternatives.
 
-ADAPTACIÓN REGIONAL (CRÍTICO):
-El negocio está en ${city || "ubicación no especificada"}. DEBES adaptar tu lenguaje al país de ESA ciudad, NO al país de la agencia. Si la ciudad está en México, escribe en español mexicano. Si está en Argentina, en argentino. Si está en España, en español de España. Esto es OBLIGATORIO.
+REGIONAL ADAPTATION (CRITICAL):
+The business is in ${city || "unspecified location"}. You MUST adapt your language to the country of THAT city, NOT the agency's country. If the city is in Mexico, write in Mexican Spanish. If in Argentina, in Argentine Spanish. If in Spain, in European Spanish. This is MANDATORY.
 ${writingRules}
 
-Genera una versión diferente del email. Responde SOLO con JSON válido (sin markdown, sin backticks):
+Generate a different version of the email. Respond ONLY with valid JSON (no markdown, no backticks):
 {
-  "subject": "nuevo asunto",
-  "bodyHtml": "nuevo contenido HTML",
-  "bodyText": "nueva versión texto plano"
+  "subject": "new subject",
+  "bodyHtml": "new HTML content",
+  "bodyText": "new plain text version"
 }`;
 
   const result = await model.generateContent(prompt);

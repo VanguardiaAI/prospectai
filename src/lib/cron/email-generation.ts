@@ -26,7 +26,7 @@ export async function processEmailGenerationJobs() {
     const toEmailCheck = lead.contactEmail || lead.extractedEmail || lead.email;
     if (isBlacklisted(toEmailCheck, lead.website, lead.name)) {
       db.update(jobQueue).set({ status: "failed", errorMessage: "Blacklisted" }).where(eq(jobQueue.id, job.id)).run();
-      logActivity("email_failed", `Email no generado para ${lead.name}: en blacklist`, { leadId: lead.id });
+      logActivity("email_failed", `Email no generado para ${lead.name}: en blacklist`, { leadId: lead.id, messageKey: "activityLog.leadBlacklisted", messageVars: { name: lead.name } });
       continue;
     }
 
@@ -39,7 +39,7 @@ export async function processEmailGenerationJobs() {
         ? db.select().from(campaigns).where(eq(campaigns.id, lead.campaignId)).get()
         : null;
 
-      let tone = campaign?.defaultTone || getSetting("default_tone") || "profesional";
+      let tone = campaign?.defaultTone || getSetting("default_tone") || "professional";
       const fromName = getSetting("from_name") || getSetting("agency_name") || "ProspectAI";
       const fromEmail = getSetting("from_email") || "";
       const toEmail = lead.contactEmail || lead.extractedEmail || lead.email;
@@ -52,7 +52,7 @@ export async function processEmailGenerationJobs() {
       // RGPD: Check if email is unsubscribed
       if (isUnsubscribed(toEmail)) {
         db.update(jobQueue).set({ status: "failed", errorMessage: "Email unsubscribed" }).where(eq(jobQueue.id, job.id)).run();
-        logActivity("email_failed", `Email no generado para ${lead.name}: ${toEmail} se dio de baja`, { leadId: lead.id });
+        logActivity("email_failed", `Email no generado para ${lead.name}: ${toEmail} se dio de baja`, { leadId: lead.id, messageKey: "activityLog.leadUnsubscribed", messageVars: { name: lead.name } });
         continue;
       }
 
@@ -131,6 +131,8 @@ export async function processEmailGenerationJobs() {
       logActivity("email_generated", `Email generado para ${lead.name}`, {
         leadId: lead.id,
         campaignId: lead.campaignId ?? undefined,
+        messageKey: "activityLog.emailGeneratedFor",
+        messageVars: { name: lead.name },
       });
 
       db.update(jobQueue).set({ status: "completed", processedAt: new Date().toISOString() }).where(eq(jobQueue.id, job.id)).run();
@@ -138,7 +140,7 @@ export async function processEmailGenerationJobs() {
     } catch (err) {
       const errorMsg = err instanceof Error ? err.message : "Unknown error";
       db.update(jobQueue).set({ status: "failed", errorMessage: errorMsg }).where(eq(jobQueue.id, job.id)).run();
-      logActivity("error", `Error generando email para ${lead?.name}: ${errorMsg}`, { leadId: job.leadId ?? undefined });
+      logActivity("error", `Error generando email para ${lead?.name}: ${errorMsg}`, { leadId: job.leadId ?? undefined, messageKey: "activityLog.errorGeneratingEmail", messageVars: { name: lead?.name ?? "unknown" } });
     }
   }
   return processed;

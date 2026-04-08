@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import { Card, Button, Input, Select, StatusBadge, QualityBar, EmptyState, Spinner, Modal, Textarea, Badge, Tooltip, ConfirmDialog } from "@/components/ui";
 import { useToast } from "@/components/Toast";
+import { useT } from "@/i18n/LocaleProvider";
 import { Users, Upload, Download, Search, ChevronLeft, ChevronRight, ExternalLink, MapPin, Star, Phone, Mail, Globe, FileText, MessageCircle, Zap, Send, RefreshCw, Info, Activity, Trash2, ChevronDown, X } from "lucide-react";
 
 interface Lead {
@@ -75,19 +76,20 @@ function buildTimeline(
   emails: EmailRecord[],
   whatsapps: WhatsappRecord[],
   activity: ActivityRecord[],
+  t: (key: string) => string,
 ): TimelineEvent[] {
   const events: TimelineEvent[] = [];
 
   for (const e of emails) {
-    events.push({ id: `email-created-${e.id}`, icon: "mail", description: `Email creado: "${e.subject}" (${e.status})`, timestamp: e.createdAt });
-    if (e.sentAt) events.push({ id: `email-sent-${e.id}`, icon: "mail", description: `Email enviado: "${e.subject}"`, timestamp: e.sentAt });
-    if (e.openedAt) events.push({ id: `email-opened-${e.id}`, icon: "mail", description: `Email abierto: "${e.subject}"`, timestamp: e.openedAt });
-    if (e.clickedAt) events.push({ id: `email-clicked-${e.id}`, icon: "mail", description: `Click en email: "${e.subject}"`, timestamp: e.clickedAt });
+    events.push({ id: `email-created-${e.id}`, icon: "mail", description: `${t("leads.timelineEmailCreated")} "${e.subject}" (${e.status})`, timestamp: e.createdAt });
+    if (e.sentAt) events.push({ id: `email-sent-${e.id}`, icon: "mail", description: `${t("leads.timelineEmailSent")} "${e.subject}"`, timestamp: e.sentAt });
+    if (e.openedAt) events.push({ id: `email-opened-${e.id}`, icon: "mail", description: `${t("leads.timelineEmailOpened")} "${e.subject}"`, timestamp: e.openedAt });
+    if (e.clickedAt) events.push({ id: `email-clicked-${e.id}`, icon: "mail", description: `${t("leads.timelineEmailClicked")} "${e.subject}"`, timestamp: e.clickedAt });
   }
 
   for (const w of whatsapps) {
-    events.push({ id: `wa-created-${w.id}`, icon: "whatsapp", description: `WhatsApp creado (${w.status})`, timestamp: w.createdAt });
-    if (w.sentAt) events.push({ id: `wa-sent-${w.id}`, icon: "whatsapp", description: "WhatsApp enviado", timestamp: w.sentAt });
+    events.push({ id: `wa-created-${w.id}`, icon: "whatsapp", description: `${t("leads.timelineWaCreated")} (${w.status})`, timestamp: w.createdAt });
+    if (w.sentAt) events.push({ id: `wa-sent-${w.id}`, icon: "whatsapp", description: t("leads.timelineWaSent"), timestamp: w.sentAt });
   }
 
   for (const a of activity) {
@@ -113,6 +115,7 @@ export default function LeadsPage() {
 }
 
 function LeadsPageInner() {
+  const { t } = useT();
   const searchParams = useSearchParams();
   const { toast } = useToast();
   const [leads, setLeads] = useState<Lead[]>([]);
@@ -139,7 +142,7 @@ function LeadsPageInner() {
   const [analyzing, setAnalyzing] = useState(false);
   const [outreachMode, setOutreachMode] = useState<"none" | "email" | "whatsapp">("none");
   const [outreachMethod, setOutreachMethod] = useState<"ai" | "manual">("ai");
-  const [outreachTone, setOutreachTone] = useState("profesional");
+  const [outreachTone, setOutreachTone] = useState("professional");
   const [manualSubject, setManualSubject] = useState("");
   const [manualBody, setManualBody] = useState("");
   const [generating, setGenerating] = useState(false);
@@ -188,12 +191,12 @@ function LeadsPageInner() {
     setImporting(false);
 
     if (data.success) {
-      setImportResult(`Importados: ${data.imported} | Omitidos: ${data.skipped} | Blacklist: ${data.blacklisted} | Duplicados: ${data.duplicates ?? 0}`);
-      toast(`${data.imported} leads importados${data.duplicates ? ` (${data.duplicates} duplicados omitidos)` : ""}`, "success");
+      setImportResult(`${t("leads.imported")}: ${data.imported} | ${t("leads.import")}: ${data.skipped} | Blacklist: ${data.blacklisted} | Dup: ${data.duplicates ?? 0}`);
+      toast(`${data.imported} leads ${t("leads.imported").toLowerCase()}`, "success");
       fetchLeads();
     } else {
       setImportResult(`Error: ${data.error}`);
-      toast(`Error al importar: ${data.error}`, "error");
+      toast(`${t("common.error")}: ${data.error}`, "error");
     }
   };
 
@@ -239,20 +242,20 @@ function LeadsPageInner() {
       const data = await res.json();
       if (data.success) {
         setLeads(prev => prev.map(l => l.id === leadId ? data.lead : l));
-        toast("Analisis completado", "success");
+        toast(t("leads.analysisCompleted"), "success");
         if (isModalLead) {
           setSelectedLead(data.lead);
-          setOutreachResult("Analisis completado");
+          setOutreachResult(t("leads.analysisCompleted"));
           const detailRes = await fetch(`/api/leads/${leadId}`);
           setLeadDetail(await detailRes.json());
         }
       } else {
-        toast(`Error al analizar: ${data.error}`, "error");
-        if (isModalLead) setOutreachResult(`Error: ${data.error}`);
+        toast(`${t("leads.analysisError")}: ${data.error}`, "error");
+        if (isModalLead) setOutreachResult(`${t("common.error")}: ${data.error}`);
       }
     } catch {
-      toast("Error al analizar", "error");
-      if (isModalLead) setOutreachResult("Error al analizar");
+      toast(t("leads.analysisError"), "error");
+      if (isModalLead) setOutreachResult(t("leads.analysisError"));
     }
     setAnalyzingIds(prev => { const s = new Set(prev); s.delete(leadId); return s; });
     if (isModalLead) setAnalyzing(false);
@@ -310,12 +313,12 @@ function LeadsPageInner() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ bulkIds: ids, status }),
       });
-      toast(`${ids.length} leads actualizados a "${status}"`, "success");
+      toast(t("leads.leadsUpdated").replace("{{count}}", String(ids.length)).replace("{{status}}", status), "success");
       setSelectedIds(new Set());
       setShowStatusDropdown(false);
       fetchLeads();
     } catch {
-      toast("Error al actualizar leads", "error");
+      toast(t("leads.updateError"), "error");
     }
   };
 
@@ -327,12 +330,12 @@ function LeadsPageInner() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ bulkIds: ids, campaignId }),
       });
-      toast(`${ids.length} leads asignados a campana`, "success");
+      toast(t("leads.leadsAssigned").replace("{{count}}", String(ids.length)), "success");
       setSelectedIds(new Set());
       setShowCampaignDropdown(false);
       fetchLeads();
     } catch {
-      toast("Error al asignar campana", "error");
+      toast(t("leads.assignError"), "error");
     }
   };
 
@@ -344,11 +347,11 @@ function LeadsPageInner() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ bulkIds: ids }),
       });
-      toast(`${ids.length} leads eliminados`, "success");
+      toast(t("leads.leadsDeleted").replace("{{count}}", String(ids.length)), "success");
       setSelectedIds(new Set());
       fetchLeads();
     } catch {
-      toast("Error al eliminar leads", "error");
+      toast(t("leads.deleteError"), "error");
     }
   };
 
@@ -367,7 +370,7 @@ function LeadsPageInner() {
             body: JSON.stringify({ action: "generate_email", tone: outreachTone }),
           });
           const data = await res.json();
-          setOutreachResult(data.success ? "Email generado. Revisalo en la seccion de Revision." : `Error: ${data.error}`);
+          setOutreachResult(data.success ? t("leads.emailGeneratedMsg") : `${t("common.error")}: ${data.error}`);
         } else {
           const res = await fetch(`/api/leads/${selectedLead.id}/outreach`, {
             method: "POST",
@@ -375,7 +378,7 @@ function LeadsPageInner() {
             body: JSON.stringify({ action: "create_email", subject: manualSubject, bodyText: manualBody, tone: outreachTone }),
           });
           const data = await res.json();
-          setOutreachResult(data.success ? "Email creado como borrador." : `Error: ${data.error}`);
+          setOutreachResult(data.success ? t("leads.emailCreatedMsg") : `${t("common.error")}: ${data.error}`);
         }
       } else if (outreachMode === "whatsapp") {
         if (outreachMethod === "ai") {
@@ -385,7 +388,7 @@ function LeadsPageInner() {
             body: JSON.stringify({ action: "generate_wa", tone: outreachTone }),
           });
           const data = await res.json();
-          setOutreachResult(data.success ? "WhatsApp generado. Revisalo en la seccion de Revision." : `Error: ${data.error}`);
+          setOutreachResult(data.success ? t("leads.waGeneratedMsg") : `${t("common.error")}: ${data.error}`);
         } else {
           const res = await fetch(`/api/leads/${selectedLead.id}/outreach`, {
             method: "POST",
@@ -393,7 +396,7 @@ function LeadsPageInner() {
             body: JSON.stringify({ action: "create_wa", body: manualBody, tone: outreachTone }),
           });
           const data = await res.json();
-          setOutreachResult(data.success ? "WhatsApp creado como borrador." : `Error: ${data.error}`);
+          setOutreachResult(data.success ? t("leads.waCreatedMsg") : `${t("common.error")}: ${data.error}`);
         }
       }
       // Refresh lead detail
@@ -403,7 +406,7 @@ function LeadsPageInner() {
       setSelectedLead(detail.lead);
       fetchLeads();
     } catch {
-      setOutreachResult("Error al procesar");
+      setOutreachResult(t("leads.processError"));
     }
     setGenerating(false);
   };
@@ -415,21 +418,21 @@ function LeadsPageInner() {
       {/* Header */}
       <div className="nd-page-header">
         <div>
-          <h1>Leads</h1>
-          <p className="nd-label mt-2">{total} negocios en total</p>
+          <h1>{t("leads.title")}</h1>
+          <p className="nd-label mt-2">{total} {t("leads.totalBusinesses")}</p>
         </div>
         <div className="flex gap-3">
           <Button variant="secondary" size="sm" onClick={analyzeAll} disabled={bulkAnalyzing}>
             {bulkAnalyzing
               ? <><RefreshCw className="h-3.5 w-3.5 animate-spin" strokeWidth={1.5} /> {bulkProgress.done}/{bulkProgress.total}</>
-              : <><Zap className="h-3.5 w-3.5 text-accent" strokeWidth={1.5} /> Analizar todos</>
+              : <><Zap className="h-3.5 w-3.5 text-accent" strokeWidth={1.5} /> {t("leads.analyzeAll")}</>
             }
           </Button>
           <Button variant="secondary" size="sm" onClick={exportLeads}>
-            <Download className="h-3.5 w-3.5 text-accent" strokeWidth={1.5} /> Exportar
+            <Download className="h-3.5 w-3.5 text-accent" strokeWidth={1.5} /> {t("leads.export")}
           </Button>
           <Button size="sm" onClick={() => { setShowImport(true); setImportResult(null); }}>
-            <Upload className="h-3.5 w-3.5" strokeWidth={1.5} /> Importar CSV
+            <Upload className="h-3.5 w-3.5" strokeWidth={1.5} /> {t("leads.importCsv")}
           </Button>
         </div>
       </div>
@@ -439,46 +442,46 @@ function LeadsPageInner() {
         <Card>
           <div className="flex flex-wrap items-end gap-4">
             <div className="flex-1 min-w-[200px]">
-              <label className="nd-label block mb-2">Buscar</label>
+              <label className="nd-label block mb-2">{t("leads.search")}</label>
               <div className="relative">
                 <Search className="absolute left-0 top-2.5 h-3.5 w-3.5 text-accent" strokeWidth={1.5} />
                 <Input
                   className="pl-5"
-                  placeholder="Nombre del negocio..."
+                  placeholder={t("leads.businessNamePlaceholder")}
                   value={filters.search}
                   onChange={(e) => { setFilters({ ...filters, search: e.target.value }); setPage(1); }}
                 />
               </div>
             </div>
             <div className="w-40">
-              <label className="nd-label block mb-2">Campana</label>
+              <label className="nd-label block mb-2">{t("common.campaign")}</label>
               <Select value={filters.campaignId} onChange={(e) => { setFilters({ ...filters, campaignId: e.target.value }); setPage(1); }}>
-                <option value="">Todas</option>
+                <option value="">{t("leads.allCampaigns")}</option>
                 {campaigns.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
               </Select>
             </div>
             <div className="w-36">
-              <label className="nd-label block mb-2">Ciudad</label>
+              <label className="nd-label block mb-2">{t("common.city")}</label>
               <Select value={filters.city} onChange={(e) => { setFilters({ ...filters, city: e.target.value }); setPage(1); }}>
-                <option value="">Todas</option>
+                <option value="">{t("leads.allCities")}</option>
                 {cities.map(c => <option key={c} value={c}>{c}</option>)}
               </Select>
             </div>
             <div className="w-36">
-              <label className="nd-label block mb-2">Estado</label>
+              <label className="nd-label block mb-2">{t("common.status")}</label>
               <Select value={filters.status} onChange={(e) => { setFilters({ ...filters, status: e.target.value }); setPage(1); }}>
-                <option value="">Todos</option>
-                <option value="imported">Importado</option>
-                <option value="analyzed">Analizado</option>
-                <option value="email_generated">Email generado</option>
-                <option value="email_approved">Email aprobado</option>
-                <option value="email_sent">Email enviado</option>
-                <option value="wa_generated">WA generado</option>
-                <option value="wa_approved">WA aprobado</option>
-                <option value="wa_sent">WA enviado</option>
-                <option value="contacted">Contactado</option>
-                <option value="replied">Respondio</option>
-                <option value="error">Error</option>
+                <option value="">{t("leads.allStatuses")}</option>
+                <option value="imported">{t("leads.imported")}</option>
+                <option value="analyzed">{t("leads.analyzed")}</option>
+                <option value="email_generated">{t("leads.emailGenerated")}</option>
+                <option value="email_approved">{t("leads.emailApproved")}</option>
+                <option value="email_sent">{t("leads.emailSent")}</option>
+                <option value="wa_generated">{t("leads.waGenerated")}</option>
+                <option value="wa_approved">{t("leads.waApproved")}</option>
+                <option value="wa_sent">{t("leads.waSent")}</option>
+                <option value="contacted">{t("leads.contacted")}</option>
+                <option value="replied">{t("leads.replied")}</option>
+                <option value="error">{t("leads.error")}</option>
               </Select>
             </div>
           </div>
@@ -491,12 +494,12 @@ function LeadsPageInner() {
       ) : leads.length === 0 ? (
         <EmptyState
           icon={<Users className="h-10 w-10" strokeWidth={1.5} />}
-          title="Sin leads"
-          description="Importa un CSV desde Google Maps para empezar"
+          title={t("leads.noLeads")}
+          description={t("leads.noLeadsDesc")}
           action={
             <div className="flex gap-3">
-              <Button size="sm" onClick={() => setShowImport(true)}><Upload className="h-3.5 w-3.5" strokeWidth={1.5} /> Importar CSV</Button>
-              <Button size="sm" variant="secondary" onClick={() => window.location.href = "/search"}><Search className="h-3.5 w-3.5" strokeWidth={1.5} /> Buscar en Maps</Button>
+              <Button size="sm" onClick={() => setShowImport(true)}><Upload className="h-3.5 w-3.5" strokeWidth={1.5} /> {t("leads.importCsv")}</Button>
+              <Button size="sm" variant="secondary" onClick={() => window.location.href = "/search"}><Search className="h-3.5 w-3.5" strokeWidth={1.5} /> {t("leads.searchMaps")}</Button>
             </div>
           }
         />
@@ -514,12 +517,12 @@ function LeadsPageInner() {
                       className="accent-[var(--color-accent)] cursor-pointer"
                     />
                   </th>
-                  <th>Negocio</th>
-                  <th>Ciudad</th>
-                  <th><span className="inline-flex items-center gap-1">Calidad <Tooltip text="Calidad web: puntuacion de 0-100 basada en diseno, contenido y funcionalidad del sitio"><Info className="h-3 w-3 text-text-muted" strokeWidth={1.5} /></Tooltip></span></th>
-                  <th><span className="inline-flex items-center gap-1">Oportunidad <Tooltip text="Oportunidad: puntuacion de 0-100 basada en calidad web, SEO, reviews, email disponible y servicios recomendados"><Info className="h-3 w-3 text-text-muted" strokeWidth={1.5} /></Tooltip></span></th>
-                  <th>Estado</th>
-                  <th>Contacto</th>
+                  <th>{t("leads.business")}</th>
+                  <th>{t("common.city")}</th>
+                  <th><span className="inline-flex items-center gap-1">{t("leads.quality")} <Tooltip text="Calidad web: puntuacion de 0-100 basada en diseno, contenido y funcionalidad del sitio"><Info className="h-3 w-3 text-text-muted" strokeWidth={1.5} /></Tooltip></span></th>
+                  <th><span className="inline-flex items-center gap-1">{t("leads.opportunity")} <Tooltip text="Oportunidad: puntuacion de 0-100 basada en calidad web, SEO, reviews, email disponible y servicios recomendados"><Info className="h-3 w-3 text-text-muted" strokeWidth={1.5} /></Tooltip></span></th>
+                  <th>{t("common.status")}</th>
+                  <th>{t("leads.contact")}</th>
                   <th style={{ width: 60 }}></th>
                 </tr>
               </thead>
@@ -560,7 +563,7 @@ function LeadsPageInner() {
                           <button
                             onClick={(e) => { e.stopPropagation(); analyzeLeadById(lead.id); }}
                             disabled={analyzingIds.has(lead.id) || bulkAnalyzing}
-                            title="Analizar lead"
+                            title={t("leads.analyzeLead")}
                             className="text-text-muted hover:text-accent transition-colors disabled:opacity-40"
                           >
                             {analyzingIds.has(lead.id)
@@ -584,7 +587,7 @@ function LeadsPageInner() {
 
           {/* Pagination */}
           <div className="flex items-center justify-between mt-6 pt-4 border-t border-border">
-            <span className="nd-label text-text-muted">Pagina {page} de {totalPages}</span>
+            <span className="nd-label text-text-muted">{t("common.page")} {page} {t("common.of")} {totalPages}</span>
             <div className="flex gap-1">
               <Button size="sm" variant="ghost" disabled={page <= 1} onClick={() => setPage(p => p - 1)}>
                 <ChevronLeft className="h-4 w-4" strokeWidth={1.5} />
@@ -600,19 +603,19 @@ function LeadsPageInner() {
       {/* Bulk Action Bar */}
       {selectedIds.size > 0 && (
         <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[100] bg-bg-secondary border border-border-light rounded-[12px] shadow-lg px-5 py-3 flex items-center gap-4">
-          <span className="text-sm text-text-primary font-medium whitespace-nowrap">{selectedIds.size} seleccionados</span>
+          <span className="text-sm text-text-primary font-medium whitespace-nowrap">{selectedIds.size} {t("common.selected")}</span>
           <div className="w-px h-6 bg-border" />
 
           {/* Cambiar estado */}
           <div className="relative">
             <Button size="sm" variant="secondary" onClick={() => { setShowStatusDropdown(v => !v); setShowCampaignDropdown(false); }}>
-              Cambiar estado <ChevronDown className="h-3 w-3 ml-1" strokeWidth={1.5} />
+              {t("leads.changeStatus")} <ChevronDown className="h-3 w-3 ml-1" strokeWidth={1.5} />
             </Button>
             {showStatusDropdown && (
               <div className="absolute bottom-full mb-2 left-0 bg-bg-secondary border border-border-light rounded-lg shadow-lg py-1 min-w-[160px] z-10">
                 {["imported", "analyzed", "contacted"].map(s => (
                   <button key={s} onClick={() => bulkChangeStatus(s)} className="w-full text-left px-3 py-2 text-sm text-text-secondary hover:bg-bg-primary hover:text-text-primary transition-colors">
-                    {s === "imported" ? "Importado" : s === "analyzed" ? "Analizado" : "Contactado"}
+                    {s === "imported" ? t("leads.imported") : s === "analyzed" ? t("leads.analyzed") : t("leads.contacted")}
                   </button>
                 ))}
               </div>
@@ -622,12 +625,12 @@ function LeadsPageInner() {
           {/* Asignar campana */}
           <div className="relative">
             <Button size="sm" variant="secondary" onClick={() => { setShowCampaignDropdown(v => !v); setShowStatusDropdown(false); }}>
-              Asignar campana <ChevronDown className="h-3 w-3 ml-1" strokeWidth={1.5} />
+              {t("leads.assignCampaign")} <ChevronDown className="h-3 w-3 ml-1" strokeWidth={1.5} />
             </Button>
             {showCampaignDropdown && (
               <div className="absolute bottom-full mb-2 left-0 bg-bg-secondary border border-border-light rounded-lg shadow-lg py-1 min-w-[180px] z-10 max-h-48 overflow-y-auto">
                 {campaigns.length === 0 ? (
-                  <p className="px-3 py-2 text-sm text-text-muted">Sin campanas</p>
+                  <p className="px-3 py-2 text-sm text-text-muted">{t("leads.noCampaigns")}</p>
                 ) : (
                   campaigns.map(c => (
                     <button key={c.id} onClick={() => bulkAssignCampaign(c.id)} className="w-full text-left px-3 py-2 text-sm text-text-secondary hover:bg-bg-primary hover:text-text-primary transition-colors">
@@ -641,11 +644,11 @@ function LeadsPageInner() {
 
           {/* Eliminar */}
           <Button size="sm" variant="danger" onClick={() => { setConfirmBulkDelete(true); setShowStatusDropdown(false); setShowCampaignDropdown(false); }}>
-            <Trash2 className="h-3.5 w-3.5" strokeWidth={1.5} /> Eliminar
+            <Trash2 className="h-3.5 w-3.5" strokeWidth={1.5} /> {t("common.delete")}
           </Button>
 
           <div className="w-px h-6 bg-border" />
-          <button onClick={() => setSelectedIds(new Set())} className="text-text-muted hover:text-text-primary transition-colors" title="Deseleccionar todo">
+          <button onClick={() => setSelectedIds(new Set())} className="text-text-muted hover:text-text-primary transition-colors" title={t("common.deselectAll")}>
             <X className="h-4 w-4" strokeWidth={1.5} />
           </button>
         </div>
@@ -656,23 +659,23 @@ function LeadsPageInner() {
         open={confirmBulkDelete}
         onClose={() => setConfirmBulkDelete(false)}
         onConfirm={bulkDelete}
-        title="Eliminar leads"
-        message={`Vas a eliminar ${selectedIds.size} lead${selectedIds.size > 1 ? "s" : ""} permanentemente. Esta accion no se puede deshacer.`}
-        confirmLabel="Eliminar"
+        title={t("leads.deleteLeads")}
+        message={t("leads.deleteLeadsConfirm").replace("{{count}}", String(selectedIds.size))}
+        confirmLabel={t("common.delete")}
         variant="danger"
       />
 
       {/* Import Modal */}
-      <Modal open={showImport} onClose={() => setShowImport(false)} title="Importar CSV">
+      <Modal open={showImport} onClose={() => setShowImport(false)} title={t("leads.importCsv")}>
         <div className="space-y-5">
           <div>
-            <label className="nd-label block mb-2">Archivo CSV</label>
+            <label className="nd-label block mb-2">{t("leads.csvFile")}</label>
             <Input type="file" accept=".csv" onChange={(e) => setImportFile(e.target.files?.[0] || null)} />
           </div>
           <div>
-            <label className="nd-label block mb-2">Campana (opcional)</label>
+            <label className="nd-label block mb-2">{t("leads.campaignOptional")}</label>
             <Select value={importCampaign} onChange={(e) => setImportCampaign(e.target.value)}>
-              <option value="">Sin campana</option>
+              <option value="">{t("leads.noCampaign")}</option>
               {campaigns.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
             </Select>
           </div>
@@ -680,9 +683,9 @@ function LeadsPageInner() {
             <p className={`text-[11px] font-mono ${importResult.includes("Error") ? "text-accent" : "text-success"}`}>{importResult}</p>
           )}
           <div className="flex justify-end gap-3 pt-2">
-            <Button variant="secondary" size="sm" onClick={() => setShowImport(false)}>Cancelar</Button>
+            <Button variant="secondary" size="sm" onClick={() => setShowImport(false)}>{t("common.cancel")}</Button>
             <Button size="sm" onClick={handleImport} disabled={!importFile || importing}>
-              {importing ? "[IMPORTANDO...]" : "Importar"}
+              {importing ? t("common.importing") : t("leads.import")}
             </Button>
           </div>
         </div>
@@ -717,7 +720,7 @@ function LeadsPageInner() {
               )}
               {selectedLead.rating && (
                 <div className="flex items-center gap-2 text-sm text-text-secondary">
-                  <Star className="h-3.5 w-3.5 flex-shrink-0" strokeWidth={1.5} /> {selectedLead.rating} ({selectedLead.reviewCount} resenas)
+                  <Star className="h-3.5 w-3.5 flex-shrink-0" strokeWidth={1.5} /> {selectedLead.rating} ({selectedLead.reviewCount} {t("leads.reviews")})
                 </div>
               )}
               <div><StatusBadge status={selectedLead.status} /></div>
@@ -726,11 +729,11 @@ function LeadsPageInner() {
             {/* Scores */}
             <div className="grid grid-cols-2 gap-4">
               <div className="border border-border rounded-lg px-4 py-3">
-                <span className="nd-label mb-2 inline-flex items-center gap-1">Calidad Web <Tooltip text="Calidad web: puntuacion de 0-100 basada en diseno, contenido y funcionalidad del sitio"><Info className="h-3 w-3 text-text-muted" strokeWidth={1.5} /></Tooltip></span>
+                <span className="nd-label mb-2 inline-flex items-center gap-1">{t("leads.webQuality")} <Tooltip text="Calidad web: puntuacion de 0-100 basada en diseno, contenido y funcionalidad del sitio"><Info className="h-3 w-3 text-text-muted" strokeWidth={1.5} /></Tooltip></span>
                 <Tooltip text="Calidad web: puntuacion de 0-100 basada en diseno, contenido y funcionalidad del sitio"><QualityBar score={selectedLead.webQualityScore} /></Tooltip>
               </div>
               <div className="border border-border rounded-lg px-4 py-3">
-                <span className="nd-label mb-2 inline-flex items-center gap-1">Oportunidad <Tooltip text="Oportunidad: puntuacion de 0-100 basada en calidad web, SEO, reviews, email disponible y servicios recomendados"><Info className="h-3 w-3 text-text-muted" strokeWidth={1.5} /></Tooltip></span>
+                <span className="nd-label mb-2 inline-flex items-center gap-1">{t("leads.opportunity")} <Tooltip text="Oportunidad: puntuacion de 0-100 basada en calidad web, SEO, reviews, email disponible y servicios recomendados"><Info className="h-3 w-3 text-text-muted" strokeWidth={1.5} /></Tooltip></span>
                 <Tooltip text="Oportunidad: puntuacion de 0-100 basada en calidad web, SEO, reviews, email disponible y servicios recomendados"><QualityBar score={selectedLead.opportunityScore} /></Tooltip>
               </div>
             </div>
@@ -738,28 +741,28 @@ function LeadsPageInner() {
             {/* Analysis */}
             {selectedLead.analysisSummary && (
               <div className="border border-border rounded-lg px-4 py-3">
-                <span className="nd-label block mb-2">Analisis</span>
+                <span className="nd-label block mb-2">{t("review.analysis")}</span>
                 <p className="text-sm text-text-primary leading-relaxed">{selectedLead.analysisSummary}</p>
               </div>
             )}
 
             {/* Outreach Actions */}
             <div className="border border-border rounded-lg px-4 py-4">
-              <h3 className="nd-label mb-4">Acciones de contacto</h3>
+              <h3 className="nd-label mb-4">{t("leads.contactActions")}</h3>
 
               {/* Step 1: Analyze if not yet analyzed */}
               {!isAnalyzed(selectedLead) && (
                 <div className="space-y-3">
                   <p className="text-sm text-text-secondary">
                     {selectedLead.website
-                      ? "Analiza la web del negocio para obtener un puntaje y habilitar opciones de contacto."
-                      : "Este negocio no tiene web. Analiza para calcular oportunidad."}
+                      ? t("leads.analyzeDesc")
+                      : t("leads.noWebDesc")}
                   </p>
                   <Button size="sm" onClick={analyzeLead} disabled={analyzing}>
                     {analyzing ? (
-                      <><RefreshCw className="h-3.5 w-3.5 animate-spin" strokeWidth={1.5} /> Analizando...</>
+                      <><RefreshCw className="h-3.5 w-3.5 animate-spin" strokeWidth={1.5} /> {t("leads.analyzing")}</>
                     ) : (
-                      <><Zap className="h-3.5 w-3.5" strokeWidth={1.5} /> Analizar lead</>
+                      <><Zap className="h-3.5 w-3.5" strokeWidth={1.5} /> {t("leads.analyzeLead")}</>
                     )}
                   </Button>
                 </div>
@@ -768,7 +771,7 @@ function LeadsPageInner() {
               {/* Step 2: Choose outreach channel */}
               {isAnalyzed(selectedLead) && outreachMode === "none" && (
                 <div className="space-y-3">
-                  <p className="text-sm text-text-secondary">Canales disponibles para contactar:</p>
+                  <p className="text-sm text-text-secondary">{t("leads.availableChannels")}</p>
                   <div className="flex gap-2">
                     {hasEmail(selectedLead) && (
                       <Button size="sm" variant="secondary" onClick={() => { setOutreachMode("email"); setManualSubject(""); setManualBody(""); setOutreachResult(null); }}>
@@ -781,7 +784,7 @@ function LeadsPageInner() {
                       </Button>
                     )}
                     {!hasEmail(selectedLead) && !hasPhone(selectedLead) && (
-                      <p className="text-sm text-text-muted">Sin datos de contacto disponibles</p>
+                      <p className="text-sm text-text-muted">{t("leads.noContactData")}</p>
                     )}
                   </div>
                 </div>
@@ -794,10 +797,10 @@ function LeadsPageInner() {
                     <div className="flex items-center gap-2">
                       {outreachMode === "email" ? <Mail className="h-4 w-4 text-accent" strokeWidth={1.5} /> : <MessageCircle className="h-4 w-4 text-accent" strokeWidth={1.5} />}
                       <span className="text-sm text-text-display font-medium">
-                        {outreachMode === "email" ? "Nuevo Email" : "Nuevo WhatsApp"}
+                        {outreachMode === "email" ? t("leads.newEmail") : t("leads.newWhatsApp")}
                       </span>
                     </div>
-                    <Button size="sm" variant="ghost" onClick={() => setOutreachMode("none")}>Volver</Button>
+                    <Button size="sm" variant="ghost" onClick={() => setOutreachMode("none")}>{t("common.back")}</Button>
                   </div>
 
                   {/* Method toggle */}
@@ -807,26 +810,26 @@ function LeadsPageInner() {
                       variant={outreachMethod === "ai" ? "primary" : "secondary"}
                       onClick={() => setOutreachMethod("ai")}
                     >
-                      <Zap className="h-3 w-3" strokeWidth={1.5} /> Generar con IA
+                      <Zap className="h-3 w-3" strokeWidth={1.5} /> {t("leads.generateWithAi")}
                     </Button>
                     <Button
                       size="sm"
                       variant={outreachMethod === "manual" ? "primary" : "secondary"}
                       onClick={() => setOutreachMethod("manual")}
                     >
-                      Escribir manual
+                      {t("leads.writeManual")}
                     </Button>
                   </div>
 
                   {/* Tone selector */}
                   <div>
-                    <label className="nd-label block mb-2">Tono</label>
+                    <label className="nd-label block mb-2">{t("common.tone")}</label>
                     <Select value={outreachTone} onChange={(e) => setOutreachTone(e.target.value)}>
-                      <option value="profesional">Profesional</option>
-                      <option value="amigable">Amigable</option>
-                      <option value="directo">Directo</option>
-                      <option value="consultivo">Consultivo</option>
-                      <option value="casual">Casual</option>
+                      <option value="professional">{t("tones.professional")}</option>
+                      <option value="friendly">{t("tones.friendly")}</option>
+                      <option value="direct">{t("tones.direct")}</option>
+                      <option value="consultative">{t("tones.consultative")}</option>
+                      <option value="casual">{t("tones.casual")}</option>
                     </Select>
                   </div>
 
@@ -835,22 +838,22 @@ function LeadsPageInner() {
                     <div className="space-y-3">
                       {outreachMode === "email" && (
                         <div>
-                          <label className="nd-label block mb-2">Asunto</label>
-                          <Input value={manualSubject} onChange={(e) => setManualSubject(e.target.value)} placeholder="Asunto del email..." />
+                          <label className="nd-label block mb-2">{t("common.subject")}</label>
+                          <Input value={manualSubject} onChange={(e) => setManualSubject(e.target.value)} placeholder={t("leads.subjectPlaceholder")} />
                         </div>
                       )}
                       <div>
                         <label className="nd-label block mb-2">
-                          {outreachMode === "email" ? "Cuerpo del email" : "Mensaje de WhatsApp"}
+                          {outreachMode === "email" ? t("leads.emailBody") : t("leads.waBody")}
                         </label>
                         <Textarea
                           rows={outreachMode === "email" ? 8 : 5}
                           value={manualBody}
                           onChange={(e) => setManualBody(e.target.value)}
-                          placeholder={outreachMode === "email" ? "Escribe el email..." : "Escribe el mensaje de WhatsApp..."}
+                          placeholder={outreachMode === "email" ? t("leads.emailBodyPlaceholder") : t("leads.waBodyPlaceholder")}
                         />
                         {outreachMode === "whatsapp" && (
-                          <p className="text-[10px] text-text-muted font-mono mt-1">{manualBody.length}/500 caracteres</p>
+                          <p className="text-[10px] text-text-muted font-mono mt-1">{manualBody.length}/500 {t("common.characters")}</p>
                         )}
                       </div>
                     </div>
@@ -858,7 +861,7 @@ function LeadsPageInner() {
 
                   {outreachMethod === "ai" && (
                     <p className="text-[11px] text-text-muted leading-relaxed">
-                      Se generara un {outreachMode === "email" ? "email" : "mensaje de WhatsApp"} personalizado con IA basado en el analisis del negocio. Podras revisarlo y editarlo antes de enviar.
+                      {t("leads.aiGenerateDesc").replace("{{channel}}", outreachMode === "email" ? t("common.email").toLowerCase() : t("common.whatsapp"))}
                     </p>
                   )}
 
@@ -868,9 +871,9 @@ function LeadsPageInner() {
                     disabled={generating || (outreachMethod === "manual" && !manualBody)}
                   >
                     {generating ? (
-                      <><RefreshCw className="h-3.5 w-3.5 animate-spin" strokeWidth={1.5} /> {outreachMethod === "ai" ? "Generando..." : "Creando..."}</>
+                      <><RefreshCw className="h-3.5 w-3.5 animate-spin" strokeWidth={1.5} /> {outreachMethod === "ai" ? t("common.generating") : t("common.creating")}</>
                     ) : (
-                      <><Send className="h-3.5 w-3.5" strokeWidth={1.5} /> {outreachMethod === "ai" ? "Generar borrador" : "Crear borrador"}</>
+                      <><Send className="h-3.5 w-3.5" strokeWidth={1.5} /> {outreachMethod === "ai" ? t("leads.generateDraft") : t("leads.createDraft")}</>
                     )}
                   </Button>
                 </div>
@@ -886,11 +889,11 @@ function LeadsPageInner() {
 
             {/* Timeline */}
             {leadDetail && (() => {
-              const timelineEvents = buildTimeline(leadDetail.emails, leadDetail.whatsapps, leadDetail.activity);
+              const timelineEvents = buildTimeline(leadDetail.emails, leadDetail.whatsapps, leadDetail.activity, t);
               if (timelineEvents.length === 0) return null;
               return (
                 <div className="border border-border rounded-lg px-4 py-4">
-                  <h3 className="nd-label mb-4">Timeline</h3>
+                  <h3 className="nd-label mb-4">{t("leads.timeline")}</h3>
                   <div className="relative">
                     {/* Vertical line */}
                     <div className="absolute left-[11px] top-2 bottom-2 w-px bg-border" />
@@ -917,15 +920,15 @@ function LeadsPageInner() {
             {/* Notes */}
             <div>
               <label className="nd-label block mb-2">
-                <FileText className="h-3 w-3 inline mr-1" strokeWidth={1.5} /> Notas
+                <FileText className="h-3 w-3 inline mr-1" strokeWidth={1.5} /> {t("leads.notes")}
               </label>
               <Textarea
                 rows={3}
                 value={notes}
                 onChange={(e) => setNotes(e.target.value)}
-                placeholder="Agregar notas sobre este negocio..."
+                placeholder={t("leads.notesPlaceholder")}
               />
-              <Button size="sm" variant="secondary" className="mt-3" onClick={saveNotes}>Guardar notas</Button>
+              <Button size="sm" variant="secondary" className="mt-3" onClick={saveNotes}>{t("leads.saveNotes")}</Button>
             </div>
 
             {/* Error */}

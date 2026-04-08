@@ -36,6 +36,8 @@ export async function GET(req: NextRequest) {
         leadId: email.leadId,
         campaignId: email.campaignId ?? undefined,
         metadata: { event: "click", url: targetUrl },
+        messageKey: "activityLog.emailSentTo",
+        messageVars: { email: email.toEmail },
       });
     }
   }

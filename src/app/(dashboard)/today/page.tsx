@@ -17,6 +17,7 @@ import {
   MapPin,
   Megaphone,
 } from "lucide-react";
+import { useT } from "@/i18n/LocaleProvider";
 
 /* ─── Types ─────────────────────────────────────────────────────────── */
 
@@ -77,6 +78,7 @@ function preview(html: string, max = 150): string {
 
 export default function TodayPage() {
   const { toast } = useToast();
+  const { t } = useT();
   const [data, setData] = useState<TodayData | null>(null);
   const [loading, setLoading] = useState(true);
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -129,7 +131,7 @@ export default function TodayPage() {
       body: JSON.stringify({ id, status: "approved" }),
     });
     setActionLoading(false);
-    toast("Email aprobado", "success");
+    toast(t("today.emailApproved"), "success");
     fetchData();
   };
 
@@ -141,7 +143,7 @@ export default function TodayPage() {
       body: JSON.stringify({ id, status: "rejected" }),
     });
     setActionLoading(false);
-    toast("Email rechazado", "warning");
+    toast(t("today.emailRejected"), "warning");
     fetchData();
   };
 
@@ -153,7 +155,7 @@ export default function TodayPage() {
       body: JSON.stringify({ id, status: "approved" }),
     });
     setActionLoading(false);
-    toast("WhatsApp aprobado", "success");
+    toast(t("today.waApproved"), "success");
     fetchData();
   };
 
@@ -165,7 +167,7 @@ export default function TodayPage() {
       body: JSON.stringify({ id, status: "rejected" }),
     });
     setActionLoading(false);
-    toast("WhatsApp rechazado", "warning");
+    toast(t("today.waRejected"), "warning");
     fetchData();
   };
 
@@ -179,7 +181,7 @@ export default function TodayPage() {
       body: JSON.stringify({ bulkApprove: true, ids }),
     });
     setActionLoading(false);
-    toast(`${ids.length} emails aprobados`, "success");
+    toast(`${ids.length} ${t("today.approved")}`, "success");
     fetchData();
   };
 
@@ -187,7 +189,7 @@ export default function TodayPage() {
     setActionLoading(true);
     await fetch("/api/cron?action=send", { method: "POST" });
     setActionLoading(false);
-    toast("Envio iniciado", "info");
+    toast(t("today.sendStarted"), "info");
     fetchData();
   };
 
@@ -260,9 +262,9 @@ export default function TodayPage() {
       {/* ─── Page Header ────────────────────────────────────────────── */}
       <div className="nd-page-header">
         <div>
-          <h1>Cola del Dia</h1>
+          <h1>{t("today.title")}</h1>
           <p className="nd-label mt-2">
-            Que necesitas hacer hoy
+            {t("today.subtitle")}
           </p>
         </div>
         <div className="flex items-center gap-3">
@@ -286,7 +288,7 @@ export default function TodayPage() {
         <Card className="col-span-12 md:col-span-5" texture>
           <div className="flex items-start justify-between">
             <div>
-              <p className="nd-label mb-3">Enviados Hoy</p>
+              <p className="nd-label mb-3">{t("today.sentToday")}</p>
               <div className="flex items-baseline gap-2">
                 <span className="text-[36px] font-light font-mono tracking-tight leading-none text-text-display">
                   {data.sentToday}
@@ -313,7 +315,7 @@ export default function TodayPage() {
         <Card className="col-span-6 md:col-span-3">
           <div className="flex items-start justify-between">
             <div>
-              <p className="nd-label mb-2">Pendiente Revision</p>
+              <p className="nd-label mb-2">{t("today.pendingReview")}</p>
               <p className="text-[28px] font-light font-mono tracking-tight leading-none text-text-display">
                 {data.pendingEmails.length + data.pendingWa.length}
               </p>
@@ -327,7 +329,7 @@ export default function TodayPage() {
           <Card>
             <div className="flex items-center justify-between">
               <div>
-                <p className="nd-label mb-1">Listos Para Enviar</p>
+                <p className="nd-label mb-1">{t("today.readyToSend")}</p>
                 <p className="text-[22px] font-light font-mono tracking-tight leading-none text-text-display">{data.readyToSend}</p>
               </div>
               <Zap className="h-4 w-4 text-accent" strokeWidth={1.5} />
@@ -336,7 +338,7 @@ export default function TodayPage() {
           <Card>
             <div className="flex items-center justify-between">
               <div>
-                <p className="nd-label mb-1">Secuencias Activas</p>
+                <p className="nd-label mb-1">{t("today.activeSequences")}</p>
                 <p className="text-[22px] font-light font-mono tracking-tight leading-none text-text-display">{data.activeSequences}</p>
               </div>
               <CheckCheck className="h-4 w-4 text-text-muted" strokeWidth={1.5} />
@@ -349,52 +351,52 @@ export default function TodayPage() {
       <div className="nd-section">
         <Card>
           <div className="flex flex-wrap items-center gap-3">
-            <span className="nd-label text-text-muted mr-2">Acciones rapidas</span>
+            <span className="nd-label text-text-muted mr-2">{t("today.quickActions")}</span>
             <Button
               variant="success"
               size="sm"
               onClick={() => setConfirmAction({
-                title: "Aprobar todos los emails",
-                message: `Se aprobaran ${data.pendingEmails.length} emails pendientes. Esta accion no se puede deshacer.`,
+                title: t("today.approveAllEmails"),
+                message: t("today.approveAllEmailsConfirm", { count: data.pendingEmails.length }),
                 action: bulkApproveAll,
               })}
               disabled={actionLoading || data.pendingEmails.length === 0}
             >
-              <CheckCheck className="h-3.5 w-3.5" strokeWidth={1.5} /> Aprobar Todo
+              <CheckCheck className="h-3.5 w-3.5" strokeWidth={1.5} /> {t("today.approveAll")}
             </Button>
             <Button
               variant="primary"
               size="sm"
               onClick={() => setConfirmAction({
-                title: "Enviar emails aprobados",
-                message: "Se iniciara el envio de todos los emails aprobados. Continuar?",
+                title: t("today.sendApprovedEmails"),
+                message: t("today.sendApprovedEmailsConfirm"),
                 action: sendAll,
               })}
               disabled={actionLoading}
             >
-              <Send className="h-3.5 w-3.5" strokeWidth={1.5} /> Enviar Todo
+              <Send className="h-3.5 w-3.5" strokeWidth={1.5} /> {t("today.sendAll")}
             </Button>
             <Button
               variant="secondary"
               size="sm"
               disabled
             >
-              <Pause className="h-3.5 w-3.5" strokeWidth={1.5} /> Pausar Todo
+              <Pause className="h-3.5 w-3.5" strokeWidth={1.5} /> {t("today.pauseAll")}
             </Button>
 
             {/* Keyboard hint */}
             <div className="ml-auto hidden lg:flex items-center gap-4">
               <span className="nd-label text-text-muted">
-                <kbd className="px-1.5 py-0.5 rounded border border-border text-[10px] font-mono">a</kbd> aprobar
+                <kbd className="px-1.5 py-0.5 rounded border border-border text-[10px] font-mono">a</kbd> {t("today.approveAction")}
               </span>
               <span className="nd-label text-text-muted">
-                <kbd className="px-1.5 py-0.5 rounded border border-border text-[10px] font-mono">r</kbd> rechazar
+                <kbd className="px-1.5 py-0.5 rounded border border-border text-[10px] font-mono">r</kbd> {t("today.rejectAction")}
               </span>
               <span className="nd-label text-text-muted">
-                <kbd className="px-1.5 py-0.5 rounded border border-border text-[10px] font-mono">n</kbd>/<kbd className="px-1.5 py-0.5 rounded border border-border text-[10px] font-mono">p</kbd> navegar
+                <kbd className="px-1.5 py-0.5 rounded border border-border text-[10px] font-mono">n</kbd>/<kbd className="px-1.5 py-0.5 rounded border border-border text-[10px] font-mono">p</kbd> {t("today.navigateAction")}
               </span>
               <span className="nd-label text-text-muted">
-                <kbd className="px-1.5 py-0.5 rounded border border-border text-[10px] font-mono">Enter</kbd> enviar
+                <kbd className="px-1.5 py-0.5 rounded border border-border text-[10px] font-mono">Enter</kbd> {t("today.sendAction")}
               </span>
             </div>
           </div>
@@ -406,7 +408,7 @@ export default function TodayPage() {
         <div className="nd-section">
           <h2 className="nd-heading mb-4">
             <Mail className="h-4 w-4 inline mr-2 -mt-0.5" strokeWidth={1.5} />
-            Emails por revisar
+            {t("today.emailsToReview")}
             <span className="text-text-muted ml-2">({data.pendingEmails.length})</span>
           </h2>
           <div className="space-y-3">
@@ -434,7 +436,7 @@ export default function TodayPage() {
                       <div className="min-w-0 flex-1">
                         <div className="flex items-center gap-2 flex-wrap">
                           <span className="text-[14px] text-text-display font-medium truncate">
-                            {row.leadName || "Sin nombre"}
+                            {row.leadName || t("common.unnamed")}
                           </span>
                           {row.leadCity && (
                             <span className="nd-label text-text-muted flex items-center gap-1">
@@ -501,7 +503,7 @@ export default function TodayPage() {
         <div className="nd-section">
           <h2 className="nd-heading mb-4">
             <MessageCircle className="h-4 w-4 inline mr-2 -mt-0.5" strokeWidth={1.5} />
-            WhatsApp por revisar
+            {t("today.wasToReview")}
             <span className="text-text-muted ml-2">({data.pendingWa.length})</span>
           </h2>
           <div className="space-y-3">
@@ -529,7 +531,7 @@ export default function TodayPage() {
                       <div className="min-w-0 flex-1">
                         <div className="flex items-center gap-2 flex-wrap">
                           <span className="text-[14px] text-text-display font-medium truncate">
-                            {row.leadName || "Sin nombre"}
+                            {row.leadName || t("common.unnamed")}
                           </span>
                           {row.leadCity && (
                             <span className="nd-label text-text-muted flex items-center gap-1">
@@ -587,8 +589,8 @@ export default function TodayPage() {
       {data.pendingEmails.length === 0 && data.pendingWa.length === 0 && (
         <EmptyState
           icon={<Check className="h-10 w-10" strokeWidth={1.5} />}
-          title="Todo al dia"
-          description="No hay mensajes pendientes de revision. Los nuevos emails y WhatsApps aparecen aqui automaticamente."
+          title={t("today.allCaughtUp")}
+          description={t("today.allCaughtUpDesc")}
         />
       )}
 
@@ -598,7 +600,7 @@ export default function TodayPage() {
         onConfirm={() => confirmAction?.action()}
         title={confirmAction?.title ?? ""}
         message={confirmAction?.message ?? ""}
-        confirmLabel="Si, continuar"
+        confirmLabel={t("common.yes")}
         variant="warning"
       />
     </div>

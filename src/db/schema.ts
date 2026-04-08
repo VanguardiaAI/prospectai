@@ -8,7 +8,7 @@ export const campaigns = sqliteTable("campaigns", {
   dailyLimit: integer("daily_limit").notNull().default(20),
   qualityThreshold: integer("quality_threshold").notNull().default(40),
   autopilot: integer("autopilot", { mode: "boolean" }).notNull().default(false),
-  defaultTone: text("default_tone").notNull().default("profesional"),
+  defaultTone: text("default_tone").notNull().default("professional"),
   status: text("status", { enum: ["active", "paused", "archived"] }).notNull().default("active"),
   createdAt: text("created_at").notNull().default(sql`(datetime('now'))`),
   updatedAt: text("updated_at").notNull().default(sql`(datetime('now'))`),
@@ -61,7 +61,7 @@ export const emails = sqliteTable("emails", {
   subject: text("subject").notNull(),
   bodyHtml: text("body_html").notNull(),
   bodyText: text("body_text").notNull(),
-  tone: text("tone").notNull().default("profesional"),
+  tone: text("tone").notNull().default("professional"),
   // Status
   status: text("status", {
     enum: ["draft", "approved", "rejected", "sent", "failed"],
@@ -90,7 +90,7 @@ export const whatsappMessages = sqliteTable("whatsapp_messages", {
   campaignId: integer("campaign_id").references(() => campaigns.id),
   toPhone: text("to_phone").notNull(),
   body: text("body").notNull(),
-  tone: text("tone").notNull().default("profesional"),
+  tone: text("tone").notNull().default("professional"),
   status: text("status", {
     enum: ["draft", "approved", "rejected", "sent", "failed"],
   }).notNull().default("draft"),
@@ -139,7 +139,7 @@ export const sequenceSteps = sqliteTable("sequence_steps", {
   stepNumber: integer("step_number").notNull().default(1),
   channel: text("channel", { enum: ["email", "whatsapp"] }).notNull().default("email"),
   delayDays: integer("delay_days").notNull().default(3), // Days after previous step
-  tone: text("tone").notNull().default("profesional"),
+  tone: text("tone").notNull().default("professional"),
   customInstructions: text("custom_instructions"), // Extra instructions for AI generation
   enabled: integer("enabled", { mode: "boolean" }).notNull().default(true),
   createdAt: text("created_at").notNull().default(sql`(datetime('now'))`),

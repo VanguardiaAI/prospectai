@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { Card, Badge, Spinner, ProgressBar, MetricRing, ListRow } from "@/components/ui";
 import { Users, BarChart3, Mail, Send, Clock, TrendingUp, Zap, Activity, ArrowUpRight, MessageCircle } from "lucide-react";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, AreaChart, Area } from "recharts";
+import { useT } from "@/i18n/LocaleProvider";
 
 interface DashboardData {
   totalLeads: number;
@@ -58,6 +59,7 @@ export default function Dashboard() {
   const router = useRouter();
   const [data, setData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
+  const { t } = useT();
 
   const fetchData = useCallback(async () => {
     try {
@@ -94,7 +96,7 @@ export default function Dashboard() {
   const maxStatusCount = data.statusCounts.length > 0 ? Math.max(...data.statusCounts.map(s => s.count)) : 1;
 
   const serviceNames: Record<string, string> = {
-    web_development: "Desarrollo Web",
+    web_development: "Web Development",
     seo: "SEO",
     ai_agents: "AI / Chatbots",
     google_business: "Google Business",
@@ -106,12 +108,12 @@ export default function Dashboard() {
       {/* Page Header */}
       <div className="nd-page-header">
         <div>
-          <h1>Dashboard</h1>
-          <p className="nd-label mt-2">Resumen general de tu prospeccion</p>
+          <h1>{t("overview.title")}</h1>
+          <p className="nd-label mt-2">{t("overview.subtitle")}</p>
         </div>
         <div className="flex items-center gap-3">
           {data.autopilotGlobal && (
-            <Badge color="success">AUTOPILOT ON</Badge>
+            <Badge color="success">{t("overview.autopilotOn")}</Badge>
           )}
           {data.pendingJobs > 0 && (
             <Badge>
@@ -124,12 +126,12 @@ export default function Dashboard() {
       {/* Bounce rate alerts */}
       {data.bounceRate7d >= 5 && (
         <div className="mb-4 px-4 py-3 rounded-lg border border-red-500/40 bg-red-500/10 text-red-400 text-sm font-mono">
-          ENVIOS PAUSADOS — Bounce rate 7d: {data.bounceRate7d}% (umbral: 5%). Limpia la lista antes de reanudar.
+          {t("overview.sendsPaused")} {data.bounceRate7d}%
         </div>
       )}
       {data.bounceRate7d >= 2 && data.bounceRate7d < 5 && (
         <div className="mb-4 px-4 py-3 rounded-lg border border-yellow-500/40 bg-yellow-500/10 text-yellow-400 text-sm font-mono">
-          AVISO — Bounce rate 7d: {data.bounceRate7d}% (umbral critico: 5%). Considera verificar emails antes de enviar.
+          {t("overview.bounceWarning")} {data.bounceRate7d}%
         </div>
       )}
 
@@ -139,7 +141,7 @@ export default function Dashboard() {
         <ClickableCard href="/leads" className="col-span-12 md:col-span-3" texture>
           <div className="flex items-start justify-between">
             <div>
-              <p className="nd-label mb-3">Total Leads</p>
+              <p className="nd-label mb-3">{t("overview.totalLeads")}</p>
               <p className="text-[36px] font-light font-mono tracking-tight leading-none text-text-display">
                 {data.totalLeads.toLocaleString()}
               </p>
@@ -152,7 +154,7 @@ export default function Dashboard() {
             <ProgressBar
               value={data.analyzed}
               max={data.totalLeads}
-              label="Analizados"
+              label={t("overview.analyzed")}
               color="success"
               size="sm"
             />
@@ -163,7 +165,7 @@ export default function Dashboard() {
         <ClickableCard href="/today" className="col-span-12 md:col-span-3" texture>
           <div className="flex items-start justify-between">
             <div>
-              <p className="nd-label mb-3">Emails Hoy</p>
+              <p className="nd-label mb-3">{t("overview.emailsToday")}</p>
               <div className="flex items-baseline gap-2">
                 <span className="text-[36px] font-light font-mono tracking-tight leading-none text-text-display">
                   {data.sentToday}
@@ -178,7 +180,7 @@ export default function Dashboard() {
           <div className="mt-5">
             <div className="flex items-center justify-between mb-1.5">
               <span className="text-[10px] text-text-muted font-mono">
-                {data.sentToday >= data.globalDailyLimit ? "LIMITE ALCANZADO" : `${data.globalDailyLimit - data.sentToday} RESTANTES`}
+                {data.sentToday >= data.globalDailyLimit ? t("overview.limitReached") : t("overview.remaining", { count: data.globalDailyLimit - data.sentToday })}
               </span>
               <span className="text-[11px] text-text-display font-mono tabular-nums">{emailPct}%</span>
             </div>
@@ -195,7 +197,7 @@ export default function Dashboard() {
         <ClickableCard href="/review" className="col-span-12 md:col-span-3" texture>
           <div className="flex items-start justify-between">
             <div>
-              <p className="nd-label mb-3">WA Hoy</p>
+              <p className="nd-label mb-3">{t("overview.waToday")}</p>
               <div className="flex items-baseline gap-2">
                 <span className="text-[36px] font-light font-mono tracking-tight leading-none text-text-display">
                   {data.waSentToday}
@@ -214,7 +216,7 @@ export default function Dashboard() {
                 <>
                   <div className="flex items-center justify-between mb-1.5">
                     <span className="text-[10px] text-text-muted font-mono">
-                      {data.waSentToday >= data.waDailyLimit ? "LIMITE ALCANZADO" : `${data.waDailyLimit - data.waSentToday} RESTANTES`}
+                      {data.waSentToday >= data.waDailyLimit ? t("overview.limitReached") : t("overview.remaining", { count: data.waDailyLimit - data.waSentToday })}
                     </span>
                     <span className="text-[11px] text-text-display font-mono tabular-nums">{waPct}%</span>
                   </div>
@@ -235,16 +237,16 @@ export default function Dashboard() {
           <ClickableCard href="/review">
             <div className="flex items-center justify-between">
               <div>
-                <p className="nd-label mb-1.5">Por Revisar</p>
+                <p className="nd-label mb-1.5">{t("overview.pendingReview")}</p>
                 <p className="text-[24px] font-light font-mono tracking-tight leading-none text-text-display">
                   {data.pendingReview + data.waPendingReview}
                 </p>
                 <p className="text-[10px] text-text-muted font-mono mt-1">
-                  {data.pendingReview} email · {data.waPendingReview} WA
+                  {data.pendingReview} {t("overview.emailDot")}{data.waPendingReview} {t("overview.wa")}
                 </p>
               </div>
               <div className="flex items-center gap-2">
-                <span className="text-[10px] text-text-muted font-mono">{data.totalSent} ENVIADOS</span>
+                <span className="text-[10px] text-text-muted font-mono">{data.totalSent} {t("overview.sent")}</span>
                 <Mail className="h-4 w-4 text-text-muted" strokeWidth={1.5} />
               </div>
             </div>
@@ -252,13 +254,13 @@ export default function Dashboard() {
           <ClickableCard href="/campaigns">
             <div className="flex items-center justify-between">
               <div>
-                <p className="nd-label mb-1.5">Campañas Activas</p>
+                <p className="nd-label mb-1.5">{t("overview.activeCampaigns")}</p>
                 <p className="text-[24px] font-light font-mono tracking-tight leading-none text-text-display">
                   {data.activeCampaigns}
                 </p>
               </div>
               <div className="flex items-center gap-2">
-                <span className="text-[10px] text-text-muted font-mono">{analysisPct}% ANALIZADO</span>
+                <span className="text-[10px] text-text-muted font-mono">{analysisPct}{t("overview.percentAnalyzed")}</span>
                 <BarChart3 className="h-4 w-4 text-text-muted" strokeWidth={1.5} />
               </div>
             </div>
@@ -270,14 +272,14 @@ export default function Dashboard() {
       <Card className="nd-section" texture>
         <div className="flex items-center gap-2 mb-6">
           <TrendingUp className="h-4 w-4 text-accent" strokeWidth={1.5} />
-          <h3 className="nd-label">Funnel de Conversion</h3>
+          <h3 className="nd-label">{t("overview.conversionFunnel")}</h3>
         </div>
         <div className="grid grid-cols-2 md:grid-cols-5 gap-6 md:gap-4">
           <div className="flex flex-col items-center relative">
             <MetricRing
               value={data.openRate}
-              label="Apertura"
-              sub={`${data.totalOpened} de ${data.totalSent}`}
+              label={t("overview.openRate")}
+              sub={`${data.totalOpened} ${t("common.of")} ${data.totalSent}`}
               color={data.openRate > 30 ? "success" : "accent"}
             />
             <div className="hidden md:block absolute right-0 top-1/3 w-[1px] h-8 bg-border" />
@@ -285,8 +287,8 @@ export default function Dashboard() {
           <div className="flex flex-col items-center relative">
             <MetricRing
               value={data.clickRate}
-              label="Clicks"
-              sub={`${data.totalClicked} de ${data.totalOpened}`}
+              label={t("overview.clicks")}
+              sub={`${data.totalClicked} ${t("common.of")} ${data.totalOpened}`}
               color={data.clickRate > 5 ? "success" : "muted"}
             />
             <div className="hidden md:block absolute right-0 top-1/3 w-[1px] h-8 bg-border" />
@@ -294,8 +296,8 @@ export default function Dashboard() {
           <div className="flex flex-col items-center relative">
             <MetricRing
               value={data.replyRate}
-              label="Respuesta"
-              sub={`${data.totalReplied} respuestas`}
+              label={t("overview.replyRate")}
+              sub={`${data.totalReplied} ${t("overview.replies")}`}
               color={data.replyRate > 3 ? "success" : "muted"}
             />
             <div className="hidden md:block absolute right-0 top-1/3 w-[1px] h-8 bg-border" />
@@ -303,8 +305,8 @@ export default function Dashboard() {
           <div className="flex flex-col items-center relative">
             <MetricRing
               value={data.waReplyRate}
-              label="WA Respuesta"
-              sub={`${data.waReplies} respuestas`}
+              label={t("overview.waReply")}
+              sub={`${data.waReplies} ${t("overview.replies")}`}
               color={data.waReplyRate > 3 ? "success" : "muted"}
             />
             <div className="hidden md:block absolute right-0 top-1/3 w-[1px] h-8 bg-border" />
@@ -312,8 +314,8 @@ export default function Dashboard() {
           <div className="flex flex-col items-center">
             <MetricRing
               value={data.bounceRate7d}
-              label="Bounce 7d"
-              sub={`${data.totalBounced} total`}
+              label={t("overview.bounce7d")}
+              sub={`${data.totalBounced} ${t("overview.total")}`}
               color={data.bounceRate7d >= 5 ? "accent" : data.bounceRate7d >= 2 ? "warning" : "success"}
             />
           </div>
@@ -327,7 +329,7 @@ export default function Dashboard() {
           <div className="flex items-center justify-between mb-6">
             <div className="flex items-center gap-2">
               <Activity className="h-4 w-4 text-accent" strokeWidth={1.5} />
-              <h3 className="nd-label">Envios · ultimos 7 dias</h3>
+              <h3 className="nd-label">{t("overview.sendsLast7d")}</h3>
             </div>
             {data.emailsByDay.length > 0 && (
               <span className="text-[20px] font-mono font-light text-text-display tabular-nums">
@@ -411,7 +413,7 @@ export default function Dashboard() {
               </ResponsiveContainer>
             ) : (
               <div className="flex items-center justify-center h-[200px]">
-                <span className="nd-label text-text-muted">[SIN DATOS]</span>
+                <span className="nd-label text-text-muted">{t("common.noData")}</span>
               </div>
             );
           })()}
@@ -421,7 +423,7 @@ export default function Dashboard() {
         <Card className="col-span-12 lg:col-span-5">
           <div className="flex items-center gap-2 mb-6">
             <Zap className="h-4 w-4 text-accent" strokeWidth={1.5} />
-            <h3 className="nd-label">Calidad Web</h3>
+            <h3 className="nd-label">{t("leads.webQuality")}</h3>
           </div>
           {data.qualityDist.length > 0 ? (
             <ResponsiveContainer width="100%" height={200}>
@@ -458,7 +460,7 @@ export default function Dashboard() {
             </ResponsiveContainer>
           ) : (
             <div className="flex items-center justify-center h-[200px]">
-              <span className="nd-label text-text-muted">[SIN DATOS]</span>
+              <span className="nd-label text-text-muted">{t("common.noData")}</span>
             </div>
           )}
         </Card>
@@ -468,7 +470,7 @@ export default function Dashboard() {
       <div className="grid grid-cols-12 gap-4 nd-section">
         {/* Top Cities — with inline bars */}
         <Card className="col-span-12 lg:col-span-4">
-          <h3 className="nd-label mb-5">Top ciudades</h3>
+          <h3 className="nd-label mb-5">{t("overview.topCities")}</h3>
           {data.topCities.length > 0 ? (
             <div>
               {data.topCities.map((c) => (
@@ -484,13 +486,13 @@ export default function Dashboard() {
               ))}
             </div>
           ) : (
-            <span className="nd-label text-text-muted">[SIN DATOS]</span>
+            <span className="nd-label text-text-muted">{t("common.noData")}</span>
           )}
         </Card>
 
         {/* Leads por estado — with inline bars */}
         <Card className="col-span-12 lg:col-span-4">
-          <h3 className="nd-label mb-5">Leads por estado</h3>
+          <h3 className="nd-label mb-5">{t("overview.leadsByStatus")}</h3>
           {data.statusCounts.length > 0 ? (
             <div>
               {data.statusCounts.map((s) => (
@@ -506,13 +508,13 @@ export default function Dashboard() {
               ))}
             </div>
           ) : (
-            <span className="nd-label text-text-muted">[SIN DATOS]</span>
+            <span className="nd-label text-text-muted">{t("common.noData")}</span>
           )}
         </Card>
 
         {/* Service Performance — with progress bars */}
         <Card className="col-span-12 lg:col-span-4">
-          <h3 className="nd-label mb-5">Rendimiento por servicio</h3>
+          <h3 className="nd-label mb-5">{t("overview.performanceByService")}</h3>
           {data.serviceStats && Object.keys(data.serviceStats).length > 0 ? (
             <div className="space-y-4">
               {Object.entries(data.serviceStats)
@@ -540,7 +542,7 @@ export default function Dashboard() {
                 })}
             </div>
           ) : (
-            <span className="nd-label text-text-muted">[SIN DATOS]</span>
+            <span className="nd-label text-text-muted">{t("common.noData")}</span>
           )}
         </Card>
       </div>

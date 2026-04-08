@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback, useRef } from "react";
 import { Card, Button, Input, Select, EmptyState, Spinner, Badge } from "@/components/ui";
+import { useT } from "@/i18n/LocaleProvider";
 import { Search, MapPin, Star, Globe, Check, Clock, ExternalLink } from "lucide-react";
 
 interface Campaign {
@@ -39,6 +40,7 @@ interface JobWithResults extends SearchJob {
 }
 
 export default function SearchPage() {
+  const { t } = useT();
   const [keyword, setKeyword] = useState("");
   const [campaignId, setCampaignId] = useState("");
   const [maxDepth, setMaxDepth] = useState(5);
@@ -97,7 +99,7 @@ export default function SearchPage() {
 
       const data = await res.json();
       if (!res.ok) {
-        setError(data.error || "Error al iniciar búsqueda");
+        setError(data.error || t("search.errorStarting"));
         setSubmitting(false);
         return;
       }
@@ -107,7 +109,7 @@ export default function SearchPage() {
       startPolling(data.job.id);
       setSubmitting(false);
     } catch {
-      setError("Error de conexión. Verifica que el scraper esté corriendo.");
+      setError(t("search.connectionError"));
       setSubmitting(false);
     }
   };
@@ -198,12 +200,12 @@ export default function SearchPage() {
 
       const data = await res.json();
       if (data.success) {
-        setImportResult(`Importados: ${data.imported} | Blacklist: ${data.skippedBlacklist} | Sin nombre: ${data.skippedNoName}`);
+        setImportResult(t("search.importResult", { imported: data.imported, blacklist: data.skippedBlacklist, noName: data.skippedNoName }));
       } else {
         setImportResult(`Error: ${data.error}`);
       }
     } catch {
-      setImportResult("Error de conexión al importar");
+      setImportResult(t("search.importConnectionError"));
     }
 
     setImporting(false);
@@ -265,12 +267,12 @@ export default function SearchPage() {
       {/* Header */}
       <div className="nd-page-header">
         <div>
-          <h1>Buscar Negocios</h1>
-          <p className="nd-label mt-2">Busca negocios en Google Maps directamente</p>
+          <h1>{t("search.title")}</h1>
+          <p className="nd-label mt-2">{t("search.subtitle")}</p>
         </div>
         <Button variant="secondary" size="sm" onClick={() => setShowHistory(!showHistory)}>
           <Clock className="h-3.5 w-3.5 text-accent" strokeWidth={1.5} />
-          Historial ({history.length})
+          {t("search.history")} ({history.length})
         </Button>
       </div>
 
@@ -279,12 +281,12 @@ export default function SearchPage() {
         <Card>
           <div className="flex flex-wrap items-end gap-4">
             <div className="flex-1 min-w-[280px]">
-              <label className="nd-label block mb-2">Busqueda</label>
+              <label className="nd-label block mb-2">{t("search.searchLabel")}</label>
               <div className="relative">
                 <Search className="absolute left-0 top-2.5 h-3.5 w-3.5 text-accent" strokeWidth={1.5} />
                 <Input
                   className="pl-5"
-                  placeholder='ej. "cafeterías en Monterrey" o "dentistas en CDMX"'
+                  placeholder={t("search.searchPlaceholder")}
                   value={keyword}
                   onChange={(e) => setKeyword(e.target.value)}
                   onKeyDown={(e) => e.key === "Enter" && !submitting && startSearch()}
@@ -292,16 +294,16 @@ export default function SearchPage() {
               </div>
             </div>
             <div className="w-40">
-              <label className="nd-label block mb-2">Campana</label>
+              <label className="nd-label block mb-2">{t("search.campaign")}</label>
               <Select value={campaignId} onChange={(e) => setCampaignId(e.target.value)}>
-                <option value="">Sin campana</option>
+                <option value="">{t("search.noCampaign")}</option>
                 {campaigns.map((c) => (
                   <option key={c.id} value={c.id}>{c.name}</option>
                 ))}
               </Select>
             </div>
             <div className="w-28">
-              <label className="nd-label block mb-2">Profundidad</label>
+              <label className="nd-label block mb-2">{t("search.depth")}</label>
               <Input
                 type="number"
                 min={1}
@@ -311,12 +313,12 @@ export default function SearchPage() {
               />
             </div>
             <Button size="sm" onClick={startSearch} disabled={submitting || !keyword.trim()}>
-              {submitting ? "[BUSCANDO...]" : "Buscar"}
+              {submitting ? t("common.searching") : t("search.search")}
             </Button>
           </div>
 
           {error && (
-            <p className="text-[11px] font-mono text-accent mt-4">[ERROR] {error}</p>
+            <p className="text-[11px] font-mono text-accent mt-4">{t("common.error")} {error}</p>
           )}
         </Card>
       </div>
@@ -326,7 +328,7 @@ export default function SearchPage() {
         <div className="nd-section">
           <Card>
             <div className="space-y-2">
-              <span className="nd-label">Búsquedas anteriores</span>
+              <span className="nd-label">{t("search.previousSearches")}</span>
               {history.map((job) => (
                 <button
                   key={job.id}
@@ -341,7 +343,7 @@ export default function SearchPage() {
                     </Badge>
                   </div>
                   <div className="flex items-center gap-3">
-                    <span className="text-[10px] font-mono text-text-muted">{job.resultCount} resultados</span>
+                    <span className="text-[10px] font-mono text-text-muted">{job.resultCount} {t("common.results")}</span>
                     <span className="text-[10px] font-mono text-text-muted">{job.createdAt}</span>
                   </div>
                 </button>
@@ -359,10 +361,10 @@ export default function SearchPage() {
               <Spinner size="sm" />
               <div>
                 <p className="text-sm text-text-primary">
-                  Buscando: <span className="text-text-display font-medium">{activeJob.keyword}</span>
+                  {t("search.searchingLabel")} <span className="text-text-display font-medium">{activeJob.keyword}</span>
                 </p>
                 <p className="text-[10px] font-mono text-text-muted mt-1 uppercase tracking-wider">
-                  Estado: {activeJob.status} {activeJob.resultCount > 0 && `| ${activeJob.resultCount} resultados encontrados`}
+                  {t("search.statusLabel")} {activeJob.status} {activeJob.resultCount > 0 && `| ${activeJob.resultCount} ${t("search.resultsFound")}`}
                 </p>
               </div>
             </div>
@@ -375,8 +377,8 @@ export default function SearchPage() {
         <div className="nd-section">
           <Card>
             <div className="border border-accent/30 rounded-lg px-4 py-3 bg-accent-subtle">
-              <span className="text-[10px] font-mono uppercase tracking-wider text-accent">[ERROR] </span>
-              <span className="text-sm text-text-secondary">{activeJob.error || "Error desconocido"}</span>
+              <span className="text-[10px] font-mono uppercase tracking-wider text-accent">{t("common.error")} </span>
+              <span className="text-sm text-text-secondary">{activeJob.error || t("search.unknownError")}</span>
             </div>
           </Card>
         </div>
@@ -388,29 +390,29 @@ export default function SearchPage() {
           {/* Filter controls */}
           <div className="flex flex-wrap items-end gap-4 mb-4">
             <div className="w-32">
-              <label className="nd-label block mb-2">Rating min</label>
+              <label className="nd-label block mb-2">{t("search.ratingMin")}</label>
               <Select value={filterRating} onChange={(e) => setFilterRating(e.target.value)}>
-                <option value="all">Todas</option>
-                <option value="3">3+</option>
-                <option value="3.5">3.5+</option>
-                <option value="4">4+</option>
-                <option value="4.5">4.5+</option>
+                <option value="all">{t("common.all")}</option>
+                <option value="3">{t("search.threePlus")}</option>
+                <option value="3.5">{t("search.threeHalfPlus")}</option>
+                <option value="4">{t("search.fourPlus")}</option>
+                <option value="4.5">{t("search.fourHalfPlus")}</option>
               </Select>
             </div>
             <div className="w-32">
-              <label className="nd-label block mb-2">Web</label>
+              <label className="nd-label block mb-2">{t("search.web")}</label>
               <Select value={filterWebsite} onChange={(e) => setFilterWebsite(e.target.value)}>
-                <option value="all">Todos</option>
-                <option value="with">Con web</option>
-                <option value="without">Sin web</option>
+                <option value="all">{t("common.all")}</option>
+                <option value="with">{t("search.withWeb")}</option>
+                <option value="without">{t("search.withoutWeb")}</option>
               </Select>
             </div>
             <div className="w-32">
-              <label className="nd-label block mb-2">Email</label>
+              <label className="nd-label block mb-2">{t("common.email")}</label>
               <Select value={filterEmail} onChange={(e) => setFilterEmail(e.target.value)}>
-                <option value="all">Todos</option>
-                <option value="with">Con email</option>
-                <option value="without">Sin email</option>
+                <option value="all">{t("common.all")}</option>
+                <option value="with">{t("search.withEmail")}</option>
+                <option value="without">{t("search.withoutEmail")}</option>
               </Select>
             </div>
           </div>
@@ -420,16 +422,16 @@ export default function SearchPage() {
             <div className="flex items-center gap-3">
               <span className="nd-label">
                 {filteredResults.length === allResults.length
-                  ? `${allResults.length} resultados`
-                  : `${filteredResults.length} de ${allResults.length} resultados`}
+                  ? `${allResults.length} ${t("common.results")}`
+                  : `${filteredResults.length} ${t("common.of")} ${allResults.length} ${t("common.results")}`}
               </span>
               <button
                 className="text-[10px] font-mono text-accent hover:text-text-display transition-colors uppercase tracking-wider"
                 onClick={toggleSelectAll}
               >
                 {filteredWithIndex.length > 0 && filteredWithIndex.every((f) => selected.has(f.originalIndex))
-                  ? "Deseleccionar todo"
-                  : "Seleccionar todo"}
+                  ? t("common.deselectAll")
+                  : t("common.selectAll")}
               </button>
             </div>
             <div className="flex items-center gap-3">
@@ -440,8 +442,8 @@ export default function SearchPage() {
               )}
               <Button size="sm" onClick={importSelected} disabled={importing || selected.size === 0}>
                 {importing
-                  ? "[IMPORTANDO...]"
-                  : `Importar ${selected.size} seleccionados`}
+                  ? t("common.importing")
+                  : `${t("search.import")} ${selected.size} ${t("common.selected")}`}
               </Button>
             </div>
           </div>
@@ -452,12 +454,12 @@ export default function SearchPage() {
               <thead>
                 <tr>
                   <th style={{ width: 32 }}></th>
-                  <th>Negocio</th>
-                  <th>Direccion</th>
-                  <th>Rating</th>
-                  <th>Telefono</th>
-                  <th>Web</th>
-                  <th>Email</th>
+                  <th>{t("search.business")}</th>
+                  <th>{t("search.address")}</th>
+                  <th>{t("search.rating")}</th>
+                  <th>{t("common.phone")}</th>
+                  <th>{t("search.web")}</th>
+                  <th>{t("common.email")}</th>
                   <th style={{ width: 32 }}></th>
                 </tr>
               </thead>
@@ -540,8 +542,8 @@ export default function SearchPage() {
       {!activeJob && (
         <EmptyState
           icon={<MapPin className="h-10 w-10" strokeWidth={1.5} />}
-          title="Busca negocios"
-          description='Escribe qué tipo de negocio buscas y en qué ciudad, ej. "restaurantes en Guadalajara"'
+          title={t("search.searchPrompt")}
+          description={t("search.searchPromptDesc")}
         />
       )}
 
@@ -549,8 +551,8 @@ export default function SearchPage() {
       {activeJob?.status === "completed" && allResults.length === 0 && (
         <EmptyState
           icon={<Search className="h-10 w-10" strokeWidth={1.5} />}
-          title="Sin resultados"
-          description="No se encontraron negocios. Intenta con otros términos de búsqueda."
+          title={t("search.noResults")}
+          description={t("search.noResultsDesc")}
         />
       )}
     </div>

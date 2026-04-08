@@ -58,7 +58,7 @@ export async function startGoogleMapsSearch(
       status: "pending",
     }).returning().get();
 
-    logActivity("import", `Search started: "${keyword}"`, { campaignId });
+    logActivity("import", `Search started: "${keyword}"`, { campaignId, messageKey: "activityLog.searchStarted", messageVars: { keyword } });
 
     return { success: true, searchJobId: job.id };
   } catch (e) {

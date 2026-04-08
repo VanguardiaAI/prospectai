@@ -5,6 +5,9 @@ import { AlertTriangle, RefreshCw } from "lucide-react";
 
 interface Props {
   children: React.ReactNode;
+  errorTitle?: string;
+  errorDescription?: string;
+  retryLabel?: string;
 }
 
 interface State {
@@ -35,10 +38,10 @@ export class ErrorBoundary extends React.Component<Props, State> {
               <AlertTriangle className="h-6 w-6 text-accent" strokeWidth={1.5} />
             </div>
             <h2 className="text-lg font-mono font-medium text-text-display uppercase tracking-wide">
-              Algo salio mal
+              {this.props.errorTitle ?? "Something went wrong"}
             </h2>
             <p className="text-[13px] text-text-secondary leading-relaxed">
-              Ocurrio un error inesperado. Puedes intentar recargar esta seccion.
+              {this.props.errorDescription ?? "An unexpected error occurred. You can try reloading this section."}
             </p>
             {this.state.error && (
               <pre className="text-[11px] font-mono text-text-muted bg-bg-secondary border border-border rounded-lg px-4 py-3 max-w-full overflow-x-auto whitespace-pre-wrap break-all">
@@ -50,7 +53,7 @@ export class ErrorBoundary extends React.Component<Props, State> {
               className="flex items-center gap-2 px-4 py-2 rounded-lg border border-border bg-bg-secondary text-[11px] font-mono uppercase tracking-wide text-text-primary hover:bg-bg-tertiary hover:text-text-display transition-colors cursor-pointer"
             >
               <RefreshCw className="h-3.5 w-3.5" strokeWidth={1.5} />
-              Reintentar
+              {this.props.retryLabel ?? "Retry"}
             </button>
           </div>
         </div>

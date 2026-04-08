@@ -53,6 +53,8 @@ export function setupWhatsAppReplyListener(): void {
       logActivity("wa_sent", `Respuesta WhatsApp recibida de ${lead.name} (${from})`, {
         leadId: lead.id,
         campaignId: lead.campaignId ?? undefined,
+        messageKey: "activityLog.waSentTo",
+        messageVars: { phone: from },
       });
 
       // CRM webhook

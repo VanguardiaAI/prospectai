@@ -17,22 +17,7 @@ import {
   ShieldBan,
 } from "lucide-react";
 import { clsx } from "clsx";
-
-/* ── Page definitions ─────────────────────────────────────────────── */
-
-const pages = [
-  { href: "/", label: "DASHBOARD", icon: LayoutDashboard },
-  { href: "/today", label: "HOY", icon: CalendarCheck },
-  { href: "/campaigns", label: "CAMPANAS", icon: Megaphone },
-  { href: "/search", label: "BUSCAR", icon: MapPin },
-  { href: "/leads", label: "LEADS", icon: Users },
-  { href: "/review", label: "REVISION", icon: Mail },
-  { href: "/ab-testing", label: "A/B TESTING", icon: FlaskConical },
-  { href: "/templates", label: "TEMPLATES", icon: FileText },
-  { href: "/settings", label: "CONFIG", icon: Settings },
-  { href: "/activity", label: "ACTIVIDAD", icon: Activity },
-  { href: "/blacklist", label: "BLACKLIST", icon: ShieldBan },
-];
+import { useT } from "@/i18n/LocaleProvider";
 
 /* ── Types ────────────────────────────────────────────────────────── */
 
@@ -56,6 +41,22 @@ interface ResultItem {
 
 export function CommandPalette() {
   const router = useRouter();
+  const { t } = useT();
+
+  const pages = [
+    { href: "/", label: t("sidebar.dashboard"), icon: LayoutDashboard },
+    { href: "/today", label: t("sidebar.today"), icon: CalendarCheck },
+    { href: "/campaigns", label: t("sidebar.campaigns"), icon: Megaphone },
+    { href: "/search", label: t("sidebar.search"), icon: MapPin },
+    { href: "/leads", label: t("sidebar.leads"), icon: Users },
+    { href: "/review", label: t("sidebar.review"), icon: Mail },
+    { href: "/ab-testing", label: t("sidebar.abTesting"), icon: FlaskConical },
+    { href: "/templates", label: t("sidebar.templates"), icon: FileText },
+    { href: "/settings", label: t("sidebar.config"), icon: Settings },
+    { href: "/activity", label: t("sidebar.activity"), icon: Activity },
+    { href: "/blacklist", label: t("sidebar.blacklist"), icon: ShieldBan },
+  ];
+
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [activeIdx, setActiveIdx] = useState(0);
@@ -250,7 +251,7 @@ export function CommandPalette() {
             type="text"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="Buscar paginas, leads..."
+            placeholder={t("commandPalette.placeholder")}
             className="flex-1 bg-transparent text-[13px] text-text-primary font-mono placeholder:text-text-muted/60 outline-none"
           />
           <kbd className="hidden sm:flex items-center gap-0.5 px-1.5 py-0.5 rounded border border-border text-[10px] text-text-muted font-mono">
@@ -262,7 +263,7 @@ export function CommandPalette() {
         <div ref={listRef} className="max-h-[320px] overflow-y-auto py-2">
           {results.length === 0 && query.trim().length > 0 && !loadingLeads && (
             <p className="px-4 py-6 text-center text-[11px] text-text-muted font-mono uppercase tracking-[0.06em]">
-              [SIN RESULTADOS]
+              {t("commandPalette.noResults")}
             </p>
           )}
 
@@ -270,7 +271,7 @@ export function CommandPalette() {
           {pageItems.length > 0 && (
             <div>
               <p className="px-4 pt-2 pb-1 text-[10px] text-text-muted font-mono uppercase tracking-[0.1em]">
-                Paginas
+                {t("commandPalette.pages")}
               </p>
               {pageItems.map((item) => {
                 const idx = flatIdx++;
@@ -310,7 +311,7 @@ export function CommandPalette() {
           {(leadItems.length > 0 || loadingLeads) && (
             <div>
               <p className="px-4 pt-3 pb-1 text-[10px] text-text-muted font-mono uppercase tracking-[0.1em]">
-                Leads
+                {t("commandPalette.leads")}
               </p>
               {loadingLeads && leadItems.length === 0 && (
                 <div className="px-4 py-3 flex items-center gap-2">
@@ -324,7 +325,7 @@ export function CommandPalette() {
                     ))}
                   </div>
                   <span className="text-[10px] text-text-muted font-mono uppercase tracking-[0.06em]">
-                    Buscando...
+                    {t("commandPalette.searching")}
                   </span>
                 </div>
               )}
@@ -371,11 +372,11 @@ export function CommandPalette() {
         <div className="px-4 py-2 border-t border-border flex items-center gap-4">
           <span className="flex items-center gap-1.5 text-[10px] text-text-muted font-mono">
             <kbd className="px-1 py-0.5 rounded border border-border text-[9px]">&uarr;&darr;</kbd>
-            navegar
+            {t("commandPalette.navigate")}
           </span>
           <span className="flex items-center gap-1.5 text-[10px] text-text-muted font-mono">
             <kbd className="px-1 py-0.5 rounded border border-border text-[9px]">&#9166;</kbd>
-            abrir
+            {t("commandPalette.open")}
           </span>
           <span className="ml-auto flex items-center gap-1 text-[10px] text-text-muted font-mono">
             <Command className="h-3 w-3" strokeWidth={1.5} />

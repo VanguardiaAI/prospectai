@@ -20,85 +20,85 @@ export async function generateWhatsApp(
   const writingRules = getLocaleWritingRules(effectiveCountry);
 
   const analysisContext = analysis
-    ? `\nANÁLISIS DE SU PRESENCIA DIGITAL:
-- Calificación web: ${analysis.qualityScore}/100
-- Calificación SEO: ${analysis.seoScore ?? "N/A"}/100
-- Problemas: ${analysis.issues.join(", ")}
-- Oportunidades SEO: ${(analysis.seoIssues || []).join(", ")}
-- Oportunidades IA: ${(analysis.aiAgentOpportunities || []).join(", ")}
-- Servicios recomendados: ${(analysis.recommendedServices || []).map((k) => SERVICE_DEFINITIONS[k]?.label || k).join(", ")}
-- Resumen: ${analysis.summary}`
-    : "\nNo se ha analizado su sitio web o no tiene sitio web.";
+    ? `\nDIGITAL PRESENCE ANALYSIS:
+- Web score: ${analysis.qualityScore}/100
+- SEO score: ${analysis.seoScore ?? "N/A"}/100
+- Issues: ${analysis.issues.join(", ")}
+- SEO opportunities: ${(analysis.seoIssues || []).join(", ")}
+- AI opportunities: ${(analysis.aiAgentOpportunities || []).join(", ")}
+- Recommended services: ${(analysis.recommendedServices || []).map((k) => SERVICE_DEFINITIONS[k]?.label || k).join(", ")}
+- Summary: ${analysis.summary}`
+    : "\nTheir website has not been analyzed or they don't have a website.";
 
   const stepContext = sequenceStep && sequenceStep > 1
-    ? `\nEste es el FOLLOW-UP #${sequenceStep - 1}. Ya le contactaste antes. Sé más breve y directo. Cambia el ángulo. Puedes hacer referencia a que ya le escribiste.`
+    ? `\nThis is FOLLOW-UP #${sequenceStep - 1}. You already contacted them before. Be shorter and more direct. Change the angle. You can reference that you already wrote to them.`
     : "";
 
-  const extraInstructions = customInstructions ? `\nINSTRUCCIONES ADICIONALES: ${customInstructions}` : "";
+  const extraInstructions = customInstructions ? `\nADDITIONAL INSTRUCTIONS: ${customInstructions}` : "";
 
-  const prompt = `Eres un experto en ventas B2B escribiendo un mensaje de WhatsApp para prospectar un negocio para ${ctx.name} (${ctx.url}).
+  const prompt = `You are a B2B sales expert writing a WhatsApp prospecting message for ${ctx.name} (${ctx.url}).
 ${ctx.description}
 
-DATOS DEL NEGOCIO:
-- Nombre: ${businessName}
-- Categoría: ${businessCategory || "No especificada"}
-- Ciudad: ${city || "No especificada"}
-- Sitio web actual: ${websiteUrl || "No tiene"}
+BUSINESS DATA:
+- Name: ${businessName}
+- Category: ${businessCategory || "Not specified"}
+- City: ${city || "Not specified"}
+- Current website: ${websiteUrl || "None"}
 ${analysisContext}
 
-TONO: ${tone}
-REMITENTE: ${fromName} de ${ctx.name}
+TONE: ${tone}
+SENDER: ${fromName} from ${ctx.name}
 ${stepContext}
 ${extraInstructions}
 
-OBJETIVO PRINCIPAL DEL MENSAJE:
-El prospecto tiene que sentir que GANA algo hablando contigo. No le estás auditando ni señalando errores: le estás mostrando cómo puede conseguir MÁS CLIENTES o MÁS VENTAS. Cada problema técnico que menciones debe conectarse con un beneficio tangible para su negocio.
+MAIN GOAL OF THE MESSAGE:
+The prospect must feel they GAIN something by talking to you. You are NOT auditing them or pointing out flaws: you are showing them how they can get MORE CUSTOMERS or MORE SALES. Every technical problem you mention must be connected to a tangible business benefit.
 
-ESTRUCTURA DEL MENSAJE:
-1. APERTURA (1 línea): Saludo natural + quién eres. Breve.
-2. GANCHO DE VALOR (1-2 líneas): Algo específico de su negocio conectado con una OPORTUNIDAD de crecimiento. NO listes problemas técnicos. Traduce cada problema a lo que significa en clientes o ventas.
-3. PROPUESTA (1 línea): Qué le ofreces concretamente y qué va a conseguir con ello.
-4. CIERRE (1 línea): Pregunta abierta natural que invite a responder.
+MESSAGE STRUCTURE:
+1. OPENING (1 line): Natural greeting + who you are. Brief.
+2. VALUE HOOK (1-2 lines): Something specific about their business connected to a GROWTH OPPORTUNITY. Do NOT list technical problems. Translate each issue into what it means in customers or sales.
+3. PROPOSAL (1 line): What you concretely offer and what they will achieve with it.
+4. CLOSING (1 line): Natural open-ended question that invites a reply.
 
-EJEMPLOS DE BUEN MENSAJE vs MAL MENSAJE:
+GOOD MESSAGE vs BAD MESSAGE EXAMPLES:
 
-MAL (suena a spam, lista problemas, no dice qué gana):
+BAD (sounds like spam, lists problems, doesn't say what they gain):
 "Hola. Soy Álex, de ${ctx.name}, y hemos visto vuestra web en La Chata de Guadalajara. Hemos notado que tiene contenido de casinos ajeno a vuestro negocio, algo crítico por seguridad y para vuestra imagen online. Además, carece de certificados SSL y no está adaptada a móviles. Podemos ofrecerte un diagnóstico gratuito para ver cómo optimizarla y asegurar vuestra presencia digital. ¿Te gustaría que lo analizáramos sin compromiso?"
 
-Por qué es malo: usa "vuestra" (España) para un negocio mexicano, lista problemas técnicos que no entiende el dueño, no dice qué gana, "diagnóstico gratuito" suena a spam, usa ¿ en WhatsApp.
+Why it's bad: uses "vuestra" (Spain dialect) for a Mexican business, lists technical problems the owner doesn't understand, doesn't say what they gain, "free diagnosis" sounds like spam, uses opening question mark in WhatsApp.
 
-BIEN (conversacional, enfocado en beneficio, adaptado a región):
+GOOD (conversational, benefit-focused, region-adapted):
 "Hola, soy Álex de ${ctx.name}. Vi La Chata de Guadalajara y la verdad es que se ve que tienen muy buena propuesta gastronómica. Me di cuenta de que su web podría estar alejando clientes en lugar de atraerlos, sobre todo desde el celular que es donde busca la gente hoy. Ayudamos a restaurantes como el suyo a que les lleguen más comensales por internet. Te puedo armar un análisis rápido para que veas el potencial, te interesa?"
 
-Por qué es bueno: habla de "su" no "vuestra", dice "celular" no "móvil", conecta el problema con PERDER CLIENTES, ofrece ver "el potencial" (positivo), cierra natural sin ¿.
+Why it's good: uses "su" not "vuestra", says "celular" not "móvil" (Mexican Spanish), connects the problem with LOSING CUSTOMERS, offers to show "the potential" (positive framing), closes naturally without opening question mark.
 
-OTRO BUEN EJEMPLO (negocio sin web):
+ANOTHER GOOD EXAMPLE (business without a website):
 "Hola, soy Álex de ${ctx.name}. Busqué La Chata de Guadalajara en internet y no encontré una web del negocio. Eso significa que todos los clientes que buscan taquerías en Google no los están encontrando a ustedes, se están yendo a la competencia. Ayudamos a negocios gastronómicos a captar esos clientes con una presencia web que de verdad genere visitas. Quieres que te cuente cómo funciona?"
 
-REGLAS PARA EL MENSAJE:
-1. Escribe en ${localeLabel}
-2. Máximo 500 caracteres. WhatsApp es conversacional, no formal
-3. SIEMPRE traduce problemas técnicos a IMPACTO DE NEGOCIO: "sin SSL" → "los clientes ven una alerta de sitio no seguro y se van", "no es responsive" → "la gente que busca desde el celular no puede ver bien tu página y se va a la competencia"
-4. NUNCA uses jerga técnica sin explicar qué significa para su bolsillo: nada de "SSL", "responsive", "SEO", "meta tags" a secas. Si mencionas algo técnico, explica el impacto en clientes/ventas
-5. El beneficio siempre es: más clientes, más visitas, más ventas, mejor imagen, que no pierdan clientes ante la competencia
-6. Si no tiene web o es de baja calidad, mencionalo como oportunidad de CRECIMIENTO, nunca como crítica
-7. Ofrece algo concreto enfocado en el resultado: "ver cuántos clientes podrían estar captando", "análisis del potencial de tu zona", NO "diagnóstico gratuito" ni "auditoría" que suena a vendedor
-8. NO uses HTML, NO uses formatos de email
-9. NO uses emojis excesivos (máximo 1-2 si el tono lo permite)
-10. Firma solo con el nombre, sin links ni datos adicionales
-11. Debe sonar como un mensaje real de WhatsApp que le mandarías a un conocido profesional, no copy publicitario
-12. Preséntate como "${fromName}, de ${ctx.name}". NUNCA digas "Soy ${ctx.name}" ni te presentes como la empresa
-13. NO incluyas URLs, links ni dominios en el mensaje. Favorecen la detección de spam y el bloqueo del número
-14. NUNCA uses signo de interrogación de apertura (¿). En WhatsApp nadie lo usa
-15. NUNCA digas "sin compromiso", "gratuito", "gratis", "diagnóstico gratuito". Suena a telemarketing. Usa alternativas naturales: "te puedo armar un análisis", "te cuento cómo funciona", "te muestro el potencial"
+MESSAGE RULES:
+1. Write in ${localeLabel}
+2. Maximum 500 characters. WhatsApp is conversational, not formal
+3. ALWAYS translate technical problems into BUSINESS IMPACT: "no SSL" -> "customers see an unsafe site warning and leave", "not responsive" -> "people searching from their phone can't see your page properly and go to the competition"
+4. NEVER use technical jargon without explaining what it means for their bottom line: no bare "SSL", "responsive", "SEO", "meta tags". If you mention something technical, explain the impact on customers/sales
+5. The benefit is always: more customers, more visits, more sales, better image, not losing customers to the competition
+6. If they have no website or a low-quality one, frame it as a GROWTH opportunity, never as criticism
+7. Offer something concrete focused on the result: "see how many customers you could be capturing", "analysis of your area's potential", NOT "free diagnosis" or "audit" which sound like a salesperson
+8. Do NOT use HTML, do NOT use email formatting
+9. Do NOT use excessive emojis (maximum 1-2 if the tone allows it)
+10. Sign only with the name, no links or additional data
+11. It must sound like a real WhatsApp message you would send to a professional acquaintance, not advertising copy
+12. Introduce yourself as "${fromName}, from ${ctx.name}". NEVER say "I am ${ctx.name}" or introduce yourself as the company
+13. Do NOT include URLs, links, or domains in the message. They trigger spam detection and number blocking
+14. NEVER use the opening question mark character. Nobody uses it in WhatsApp
+15. NEVER say "no strings attached", "free", "free diagnosis". It sounds like telemarketing. Use natural alternatives: "I can put together an analysis for you", "let me tell you how it works", "I'll show you the potential"
 
-ADAPTACIÓN REGIONAL (CRÍTICO):
-El negocio está en ${city || "ubicación no especificada"}. DEBES adaptar tu lenguaje al país de ESA ciudad, NO al país de la agencia. Si la ciudad está en México, escribe en español mexicano. Si está en Argentina, en argentino. Si está en España, en español de España. Esto es OBLIGATORIO.
+REGIONAL ADAPTATION (CRITICAL):
+The business is in ${city || "unspecified location"}. You MUST adapt your language to the country of THAT city, NOT the agency's country. If the city is in Mexico, write in Mexican Spanish. If in Argentina, in Argentine Spanish. If in Spain, in European Spanish. This is MANDATORY.
 ${writingRules}
 
-Responde SOLO con JSON válido (sin markdown, sin backticks):
+Respond ONLY with valid JSON (no markdown, no backticks):
 {
-  "message": "el mensaje de whatsapp"
+  "message": "the whatsapp message"
 }`;
 
   const result = await model.generateContent(prompt);
@@ -125,31 +125,31 @@ export async function regenerateWhatsApp(
   const localeLabel = getLocaleLabel(effectiveCountry);
   const writingRules = getLocaleWritingRules(effectiveCountry);
 
-  const prompt = `Eres un experto en ventas B2B. Necesitas REGENERAR un mensaje de WhatsApp de prospección para ${ctx.name} (${ctx.url}).
+  const prompt = `You are a B2B sales expert. You need to REGENERATE a WhatsApp prospecting message for ${ctx.name} (${ctx.url}).
 
-DATOS DEL NEGOCIO:
-- Nombre: ${businessName}
-- Categoría: ${businessCategory || "No especificada"}
-- Ciudad: ${city || "No especificada"}
-- Web: ${websiteUrl || "No tiene"}
+BUSINESS DATA:
+- Name: ${businessName}
+- Category: ${businessCategory || "Not specified"}
+- City: ${city || "Not specified"}
+- Website: ${websiteUrl || "None"}
 
-MENSAJE ANTERIOR:
+PREVIOUS MESSAGE:
 ${previousMessage}
 
-NUEVO TONO: ${tone}
-INSTRUCCIONES: ${instructions || "Solo cambia el tono"}
-REMITENTE: ${fromName}, de ${ctx.name}. Preséntate como "${fromName}, de ${ctx.name}". NUNCA digas "Soy ${ctx.name}".
-IDIOMA: ${localeLabel}
+NEW TONE: ${tone}
+INSTRUCTIONS: ${instructions || "Just change the tone"}
+SENDER: ${fromName}, from ${ctx.name}. Introduce yourself as "${fromName}, from ${ctx.name}". NEVER say "I am ${ctx.name}".
+LANGUAGE: ${localeLabel}
 
-REGLAS: Máximo 500 caracteres, conversacional, sin HTML, sin emojis excesivos, que suene como WhatsApp real. Enfócate en lo que el prospecto GANA (más clientes, más ventas), no en listar problemas técnicos. Traduce cada problema a impacto de negocio. NUNCA uses "gratis", "sin compromiso", "diagnóstico gratuito". NUNCA uses jerga técnica sin explicar qué pierde el negocio. NUNCA uses ¿ (nadie lo usa en WhatsApp). Puede hablar de web, SEO, IA, Google Business o redes según lo que sea más relevante. NO incluyas URLs, links ni dominios en el mensaje.
+RULES: Maximum 500 characters, conversational, no HTML, no excessive emojis, must sound like a real WhatsApp message. Focus on what the prospect GAINS (more customers, more sales), not on listing technical problems. Translate each problem into business impact. NEVER use "free", "no strings attached", "free diagnosis". NEVER use technical jargon without explaining what the business loses. NEVER use the opening question mark character (nobody uses it in WhatsApp). You may talk about web, SEO, AI, Google Business, or social media depending on what is most relevant. Do NOT include URLs, links, or domains in the message.
 
-ADAPTACIÓN REGIONAL (CRÍTICO):
-El negocio está en ${city || "ubicación no especificada"}. DEBES adaptar tu lenguaje al país de ESA ciudad, NO al país de la agencia. Si la ciudad está en México, escribe en español mexicano. Si está en Argentina, en argentino. Si está en España, en español de España. Esto es OBLIGATORIO.
+REGIONAL ADAPTATION (CRITICAL):
+The business is in ${city || "unspecified location"}. You MUST adapt your language to the country of THAT city, NOT the agency's country. If the city is in Mexico, write in Mexican Spanish. If in Argentina, in Argentine Spanish. If in Spain, in European Spanish. This is MANDATORY.
 ${writingRules}
 
-Responde SOLO con JSON válido (sin markdown, sin backticks):
+Respond ONLY with valid JSON (no markdown, no backticks):
 {
-  "message": "nuevo mensaje de whatsapp"
+  "message": "the new whatsapp message"
 }`;
 
   const result = await model.generateContent(prompt);

@@ -19,24 +19,24 @@ export function cleanJsonResponse(text: string): string {
 
 export const SERVICE_DEFINITIONS: Record<string, { label: string; description: string }> = {
   web_development: {
-    label: "Desarrollo Web",
-    description: "Diseño y desarrollo de sitios web profesionales, landing pages, e-commerce y aplicaciones web",
+    label: "Web Development",
+    description: "Professional website design and development, landing pages, e-commerce and web applications",
   },
   seo: {
-    label: "SEO y Posicionamiento",
-    description: "Optimización para motores de búsqueda, auditoría SEO, estrategia de contenidos y posicionamiento orgánico",
+    label: "SEO",
+    description: "Search engine optimization, SEO audits, content strategy and organic ranking",
   },
   ai_agents: {
-    label: "Agentes IA / Chatbots",
-    description: "Asistentes virtuales con IA para atención al cliente, reservas, FAQ automatizadas y automatización de procesos",
+    label: "AI / Chatbots",
+    description: "AI-powered virtual assistants for customer service, bookings, automated FAQs and process automation",
   },
   google_business: {
     label: "Google Business Profile",
-    description: "Optimización de ficha de Google, gestión de reseñas, fotos, publicaciones y posicionamiento local",
+    description: "Google listing optimization, review management, photos, posts and local SEO",
   },
   social_media: {
-    label: "Redes Sociales",
-    description: "Gestión de redes sociales, estrategia de contenido, publicidad en Meta/TikTok y community management",
+    label: "Social Media",
+    description: "Social media management, content strategy, Meta/TikTok advertising and community management",
   },
 };
 
@@ -66,8 +66,8 @@ export function getAgencyContext(): AgencyContext {
     url: getSetting("agency_url") || "",
     description: getSetting("agency_description") || "",
     services: getEnabledServices(),
-    country: getSetting("target_country") || "ES",
-    locale: getSetting("locale") || "es-ES",
+    country: getSetting("target_country") || "US",
+    locale: getSetting("locale") || "en-US",
   };
 }
 
@@ -94,7 +94,7 @@ export function getLocaleLabel(country: string): string {
     IT: "italiano (Italia)",
     NL: "neerlandés (Países Bajos)",
   };
-  return map[country] || "español";
+  return map[country] || "English";
 }
 
 export function getLocaleWritingRules(country: string): string {

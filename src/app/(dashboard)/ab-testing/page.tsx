@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback } from "react";
 import { Card, Button, Input, Select, Modal, Badge, EmptyState, Spinner, ConfirmDialog, Tooltip } from "@/components/ui";
 import { useToast } from "@/components/Toast";
+import { useT } from "@/i18n/LocaleProvider";
 import { FlaskConical, Plus, Trash2, Trophy, Crown, BarChart3, Mail, MessageCircle } from "lucide-react";
 import { clsx } from "clsx";
 
@@ -45,10 +46,10 @@ interface Campaign {
 }
 
 const TONE_OPTIONS = [
-  { value: "profesional", label: "Profesional" },
-  { value: "cercano", label: "Cercano" },
-  { value: "directo", label: "Directo" },
-  { value: "consultivo", label: "Consultivo" },
+  { value: "professional", label: "Professional" },
+  { value: "friendly", label: "Friendly" },
+  { value: "direct", label: "Direct" },
+  { value: "consultative", label: "Consultative" },
   { value: "casual", label: "Casual" },
 ];
 
@@ -69,31 +70,31 @@ const MIN_SAMPLE_SIZE = 30;
 
 type SignificanceLevel = "significant" | "trend" | "insufficient";
 
-function getSignificance(test: ABTest): { level: SignificanceLevel; label: string; color: "success" | "warning" | "default" } {
+function getSignificance(test: ABTest): { level: SignificanceLevel; color: "success" | "warning" | "default" } {
   // For WA-only tests, use WA reply rate instead of email open rate
   if (test.channel === "whatsapp") {
     const n1 = test.waResultsA?.total ?? 0;
     const n2 = test.waResultsB?.total ?? 0;
     if (n1 < MIN_SAMPLE_SIZE || n2 < MIN_SAMPLE_SIZE) {
-      return { level: "insufficient", label: "DATOS INSUFICIENTES", color: "default" };
+      return { level: "insufficient", color: "default" };
     }
     const p1 = n1 > 0 ? (test.waResultsA?.replies ?? 0) / n1 : 0;
     const p2 = n2 > 0 ? (test.waResultsB?.replies ?? 0) / n2 : 0;
     const z = zTestProportions(p1, p2, n1, n2);
     if (z >= 1.96) {
-      return { level: "significant", label: "SIGNIFICATIVO", color: "success" };
+      return { level: "significant", color: "success" };
     }
     if (z >= 1.645) {
-      return { level: "trend", label: "TENDENCIA", color: "warning" };
+      return { level: "trend", color: "warning" };
     }
-    return { level: "insufficient", label: "DATOS INSUFICIENTES", color: "default" };
+    return { level: "insufficient", color: "default" };
   }
 
   const n1 = test.resultsA.total;
   const n2 = test.resultsB.total;
 
   if (n1 < MIN_SAMPLE_SIZE || n2 < MIN_SAMPLE_SIZE) {
-    return { level: "insufficient", label: "DATOS INSUFICIENTES", color: "default" };
+    return { level: "insufficient", color: "default" };
   }
 
   const p1 = n1 > 0 ? test.resultsA.opens / n1 : 0;
@@ -102,16 +103,23 @@ function getSignificance(test: ABTest): { level: SignificanceLevel; label: strin
 
   // Z >= 1.96 => p < 0.05, Z >= 1.645 => p < 0.10
   if (z >= 1.96) {
-    return { level: "significant", label: "SIGNIFICATIVO", color: "success" };
+    return { level: "significant", color: "success" };
   }
   if (z >= 1.645) {
-    return { level: "trend", label: "TENDENCIA", color: "warning" };
+    return { level: "trend", color: "warning" };
   }
-  return { level: "insufficient", label: "DATOS INSUFICIENTES", color: "default" };
+  return { level: "insufficient", color: "default" };
 }
+
+const SIGNIFICANCE_LABELS: Record<SignificanceLevel, string> = {
+  insufficient: "abTesting.insufficientData",
+  significant: "abTesting.significant",
+  trend: "abTesting.trend",
+};
 
 export default function ABTestingPage() {
   const { toast } = useToast();
+  const { t } = useT();
   const [tests, setTests] = useState<ABTest[]>([]);
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
   const [loading, setLoading] = useState(true);
@@ -122,8 +130,8 @@ export default function ABTestingPage() {
     name: "",
     campaignId: "",
     channel: "email" as string,
-    variantA: { tone: "profesional", instructions: "" },
-    variantB: { tone: "directo", instructions: "" },
+    variantA: { tone: "professional", instructions: "" },
+    variantB: { tone: "direct", instructions: "" },
   });
 
   const fetchTests = useCallback(async () => {
@@ -149,8 +157,8 @@ export default function ABTestingPage() {
       name: "",
       campaignId: "",
       channel: "email",
-      variantA: { tone: "profesional", instructions: "" },
-      variantB: { tone: "directo", instructions: "" },
+      variantA: { tone: "professional", instructions: "" },
+      variantB: { tone: "direct", instructions: "" },
     });
     setShowModal(true);
   };
@@ -181,15 +189,15 @@ export default function ABTestingPage() {
 
   const declareWinner = async (test: ABTest, winner: "A" | "B") => {
     setConfirmAction({
-      title: `Declarar ganadora`,
-      message: `Se declarara la Variante ${winner} como ganadora de "${test.name}". Esto finalizara el test.`,
+      title: t("abTesting.declareWinner"),
+      message: t("abTesting.declareWinnerConfirm", { variant: winner }),
       action: async () => {
         await fetch("/api/ab-testing", {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ id: test.id, status: "completed", winnerId: winner }),
         });
-        toast(`Variante ${winner} declarada ganadora`, "success");
+        toast(t("abTesting.variantDeclaredWinner", { variant: winner }), "success");
         fetchTests();
       },
     });
@@ -197,11 +205,11 @@ export default function ABTestingPage() {
 
   const remove = async (id: number) => {
     setConfirmAction({
-      title: "Eliminar test A/B",
-      message: "Se eliminara este test y sus resultados. Esta accion no se puede deshacer.",
+      title: t("abTesting.deleteTest"),
+      message: t("abTesting.deleteTestConfirm"),
       action: async () => {
         await fetch(`/api/ab-testing?id=${id}`, { method: "DELETE" });
-        toast("Test eliminado", "success");
+        toast(t("abTesting.testDeleted"), "success");
         fetchTests();
       },
     });
@@ -222,20 +230,20 @@ export default function ABTestingPage() {
       {/* Header */}
       <div className="nd-page-header">
         <div>
-          <h1 className="nd-heading">A/B Testing</h1>
-          <p className="nd-label mt-2">Compara variantes de mensajes y optimiza resultados</p>
+          <h1 className="nd-heading">{t("abTesting.title")}</h1>
+          <p className="nd-label mt-2">{t("abTesting.subtitle")}</p>
         </div>
         <Button size="sm" onClick={openCreate}>
-          <Plus className="h-3.5 w-3.5" strokeWidth={1.5} /> Nuevo test
+          <Plus className="h-3.5 w-3.5" strokeWidth={1.5} /> {t("abTesting.newTest")}
         </Button>
       </div>
 
       {tests.length === 0 ? (
         <EmptyState
           icon={<FlaskConical className="h-10 w-10" strokeWidth={1.5} />}
-          title="Sin tests A/B"
-          description="Crea tu primer test para comparar variantes de mensajes"
-          action={<Button size="sm" onClick={() => setShowModal(true)}><Plus className="h-3.5 w-3.5" strokeWidth={1.5} /> Nuevo test</Button>}
+          title={t("abTesting.noTests")}
+          description={t("abTesting.noTestsDesc")}
+          action={<Button size="sm" onClick={() => setShowModal(true)}><Plus className="h-3.5 w-3.5" strokeWidth={1.5} /> {t("abTesting.newTest")}</Button>}
         />
       ) : (
         <div className="space-y-4">
@@ -270,11 +278,11 @@ export default function ABTestingPage() {
                     {significance && (
                       <Badge color={significance.color}>
                         <BarChart3 className="h-3 w-3" strokeWidth={1.5} />
-                        {significance.label}
+                        {t(SIGNIFICANCE_LABELS[significance.level])}
                       </Badge>
                     )}
                     <Badge color={test.status === "active" ? "success" : "default"}>
-                      {test.status === "active" ? "ACTIVO" : "COMPLETADO"}
+                      {test.status === "active" ? t("abTesting.active") : t("abTesting.completed")}
                     </Badge>
                   </div>
                 </div>
@@ -283,7 +291,7 @@ export default function ABTestingPage() {
                 <div className="grid grid-cols-2 gap-4 mb-5">
                   <div className={`border rounded-lg p-3 ${winning === "A" && test.status === "active" ? "border-green-500/40 bg-green-500/5" : "border-border"}`}>
                     <div className="flex items-center gap-2 mb-2">
-                      <span className="nd-label">Variante A</span>
+                      <span className="nd-label">{t("abTesting.variantA")}</span>
                       {test.status === "completed" && winning === "A" && (
                         <Crown className="h-3.5 w-3.5 text-amber-400" strokeWidth={1.5} />
                       )}
@@ -295,7 +303,7 @@ export default function ABTestingPage() {
                   </div>
                   <div className={`border rounded-lg p-3 ${winning === "B" && test.status === "active" ? "border-green-500/40 bg-green-500/5" : "border-border"}`}>
                     <div className="flex items-center gap-2 mb-2">
-                      <span className="nd-label">Variante B</span>
+                      <span className="nd-label">{t("abTesting.variantB")}</span>
                       {test.status === "completed" && winning === "B" && (
                         <Crown className="h-3.5 w-3.5 text-amber-400" strokeWidth={1.5} />
                       )}
@@ -310,16 +318,16 @@ export default function ABTestingPage() {
                 {/* Results comparison table */}
                 <div className="border border-border rounded-lg overflow-hidden mb-5">
                   <div className="grid grid-cols-3 text-[10px] font-mono uppercase text-text-muted bg-surface-secondary">
-                    <div className="px-3 py-2">Metrica</div>
-                    <div className="px-3 py-2 text-center">Variante A</div>
-                    <div className="px-3 py-2 text-center">Variante B</div>
+                    <div className="px-3 py-2">{t("abTesting.metric")}</div>
+                    <div className="px-3 py-2 text-center">{t("abTesting.variantA")}</div>
+                    <div className="px-3 py-2 text-center">{t("abTesting.variantB")}</div>
                   </div>
                   {/* Email metrics (shown for email and both channels) */}
                   {(test.channel === "email" || test.channel === "both") && (
                     <>
                       {/* Emails sent */}
                       <div className="grid grid-cols-3 border-t border-border">
-                        <div className="px-3 py-2 nd-label">Emails enviados</div>
+                        <div className="px-3 py-2 nd-label">{t("abTesting.emailsSent")}</div>
                         <div className="px-3 py-2 text-center text-sm text-text-display font-mono">{test.resultsA.total}</div>
                         <div className="px-3 py-2 text-center text-sm text-text-display font-mono">{test.resultsB.total}</div>
                       </div>
@@ -329,7 +337,7 @@ export default function ABTestingPage() {
                         const openRateB = test.resultsB.total > 0 ? test.resultsB.opens / test.resultsB.total : 0;
                         return (
                           <div className="grid grid-cols-3 border-t border-border">
-                            <div className="px-3 py-2 nd-label">Tasa apertura</div>
+                            <div className="px-3 py-2 nd-label">{t("abTesting.openRate")}</div>
                             <div className={`px-3 py-2 text-center text-sm font-mono ${openRateA > openRateB ? "text-green-400" : "text-text-display"}`}>
                               {rate(test.resultsA.opens, test.resultsA.total)}%
                             </div>
@@ -345,7 +353,7 @@ export default function ABTestingPage() {
                         const clickRateB = test.resultsB.total > 0 ? test.resultsB.clicks / test.resultsB.total : 0;
                         return (
                           <div className="grid grid-cols-3 border-t border-border">
-                            <div className="px-3 py-2 nd-label">Tasa clicks</div>
+                            <div className="px-3 py-2 nd-label">{t("abTesting.clickRate")}</div>
                             <div className={`px-3 py-2 text-center text-sm font-mono ${clickRateA > clickRateB ? "text-green-400" : "text-text-display"}`}>
                               {rate(test.resultsA.clicks, test.resultsA.total)}%
                             </div>
@@ -361,7 +369,7 @@ export default function ABTestingPage() {
                         const replyRateB = test.resultsB.total > 0 ? test.resultsB.replies / test.resultsB.total : 0;
                         return (
                           <div className="grid grid-cols-3 border-t border-border">
-                            <div className="px-3 py-2 nd-label">Tasa respuestas</div>
+                            <div className="px-3 py-2 nd-label">{t("abTesting.replyRate")}</div>
                             <div className={`px-3 py-2 text-center text-sm font-mono font-medium ${replyRateA > replyRateB ? "text-green-400" : "text-text-display"}`}>
                               {rate(test.resultsA.replies, test.resultsA.total)}%
                             </div>
@@ -377,12 +385,12 @@ export default function ABTestingPage() {
                   {(test.channel === "whatsapp" || test.channel === "both") && (
                     <>
                       <div className="grid grid-cols-3 gap-0 border-t border-border">
-                        <div className="px-3 py-2 nd-label">WA enviados</div>
+                        <div className="px-3 py-2 nd-label">{t("abTesting.waSent")}</div>
                         <div className="px-3 py-2 text-center text-sm text-text-display font-mono">{test.waResultsA?.total ?? 0}</div>
                         <div className="px-3 py-2 text-center text-sm text-text-display font-mono">{test.waResultsB?.total ?? 0}</div>
                       </div>
                       <div className="grid grid-cols-3 gap-0 border-t border-border">
-                        <div className="px-3 py-2 nd-label">WA respuestas</div>
+                        <div className="px-3 py-2 nd-label">{t("abTesting.waReplies")}</div>
                         <div className="px-3 py-2 text-center text-sm font-mono font-medium">
                           {test.waResultsA?.total > 0 ? Math.round((test.waResultsA.replies / test.waResultsA.total) * 100) : 0}%
                         </div>
@@ -399,32 +407,32 @@ export default function ABTestingPage() {
                   {test.status === "active" ? (
                     <>
                       {significance?.level === "insufficient" ? (
-                        <Tooltip text={`Se necesitan al menos ${MIN_SAMPLE_SIZE} emails enviados en cada variante para declarar un ganador con confianza estadistica.`}>
+                        <Tooltip text={t("abTesting.statisticalNote")}>
                           <Button size="sm" variant="secondary" disabled>
-                            <Trophy className="h-3 w-3" strokeWidth={1.5} /> Declarar ganador A
+                            <Trophy className="h-3 w-3" strokeWidth={1.5} /> {t("abTesting.declareWinnerA")}
                           </Button>
                         </Tooltip>
                       ) : (
                         <Button size="sm" variant="secondary" onClick={() => declareWinner(test, "A")}>
-                          <Trophy className="h-3 w-3" strokeWidth={1.5} /> Declarar ganador A
+                          <Trophy className="h-3 w-3" strokeWidth={1.5} /> {t("abTesting.declareWinnerA")}
                         </Button>
                       )}
                       {significance?.level === "insufficient" ? (
-                        <Tooltip text={`Se necesitan al menos ${MIN_SAMPLE_SIZE} emails enviados en cada variante para declarar un ganador con confianza estadistica.`}>
+                        <Tooltip text={t("abTesting.statisticalNote")}>
                           <Button size="sm" variant="secondary" disabled>
-                            <Trophy className="h-3 w-3" strokeWidth={1.5} /> Declarar ganador B
+                            <Trophy className="h-3 w-3" strokeWidth={1.5} /> {t("abTesting.declareWinnerB")}
                           </Button>
                         </Tooltip>
                       ) : (
                         <Button size="sm" variant="secondary" onClick={() => declareWinner(test, "B")}>
-                          <Trophy className="h-3 w-3" strokeWidth={1.5} /> Declarar ganador B
+                          <Trophy className="h-3 w-3" strokeWidth={1.5} /> {t("abTesting.declareWinnerB")}
                         </Button>
                       )}
                     </>
                   ) : (
                     <Badge color="success">
                       <Crown className="h-3 w-3" strokeWidth={1.5} />
-                      Ganador: Variante {winning === "tie" ? "Empate" : winning}
+                      {winning === "tie" ? t("abTesting.tie") : `${t("abTesting.winnerVariant")} ${winning}`}
                     </Badge>
                   )}
                   <div className="flex-1" />
@@ -439,23 +447,23 @@ export default function ABTestingPage() {
       )}
 
       {/* Create Modal */}
-      <Modal open={showModal} onClose={() => setShowModal(false)} title="Nuevo test A/B">
+      <Modal open={showModal} onClose={() => setShowModal(false)} title={`${t("abTesting.newTest")} A/B`}>
         <div className="space-y-5">
           <div>
-            <label className="nd-label block mb-2">Nombre del test</label>
+            <label className="nd-label block mb-2">{t("abTesting.testName")}</label>
             <Input
               value={form.name}
               onChange={(e) => setForm({ ...form, name: e.target.value })}
-              placeholder="Ej: Tono profesional vs cercano"
+              placeholder="E.g.: Professional vs friendly tone"
             />
           </div>
           <div>
-            <label className="nd-label block mb-2">Campana</label>
+            <label className="nd-label block mb-2">{t("common.campaign")}</label>
             <Select
               value={form.campaignId}
               onChange={(e) => setForm({ ...form, campaignId: e.target.value })}
             >
-              <option value="">Sin campana especifica</option>
+              <option value="">{t("abTesting.noCampaign")}</option>
               {campaigns.map((c) => (
                 <option key={c.id} value={c.id}>{c.name}</option>
               ))}
@@ -463,40 +471,40 @@ export default function ABTestingPage() {
           </div>
 
           <div>
-            <label className="nd-label block mb-2">Canal</label>
+            <label className="nd-label block mb-2">{t("abTesting.channelLabel")}</label>
             <Select
               value={form.channel || "email"}
               onChange={(e) => setForm({ ...form, channel: e.target.value })}
             >
-              <option value="email">Solo Email</option>
-              <option value="whatsapp">Solo WhatsApp</option>
-              <option value="both">Ambos canales</option>
+              <option value="email">{t("abTesting.emailOnly")}</option>
+              <option value="whatsapp">{t("abTesting.waOnly")}</option>
+              <option value="both">{t("abTesting.bothChannels")}</option>
             </Select>
           </div>
 
           {/* Variant A */}
           <div className="border border-border rounded-lg p-4">
-            <span className="nd-label block mb-3">Variante A</span>
+            <span className="nd-label block mb-3">{t("abTesting.variantA")}</span>
             <div className="space-y-3">
               <div>
-                <label className="text-[10px] text-text-muted block mb-1">Tono</label>
+                <label className="text-[10px] text-text-muted block mb-1">{t("common.tone")}</label>
                 <Select
                   value={form.variantA.tone}
                   onChange={(e) => setForm({ ...form, variantA: { ...form.variantA, tone: e.target.value } })}
                 >
-                  {TONE_OPTIONS.map((t) => (
-                    <option key={t.value} value={t.value}>{t.label}</option>
+                  {TONE_OPTIONS.map((to) => (
+                    <option key={to.value} value={to.value}>{to.label}</option>
                   ))}
                 </Select>
               </div>
               <div>
-                <label className="text-[10px] text-text-muted block mb-1">Instrucciones personalizadas (opcional)</label>
+                <label className="text-[10px] text-text-muted block mb-1">{t("abTesting.customInstructions")}</label>
                 <textarea
                   className="w-full bg-surface-primary border border-border rounded-md px-3 py-2 text-sm text-text-primary placeholder:text-text-muted focus:outline-none focus:ring-1 focus:ring-border-focus resize-none font-mono"
                   rows={2}
                   value={form.variantA.instructions}
                   onChange={(e) => setForm({ ...form, variantA: { ...form.variantA, instructions: e.target.value } })}
-                  placeholder="Ej: Enfocate en resultados y datos concretos..."
+                  placeholder={t("abTesting.instructionsPlaceholderA")}
                 />
               </div>
             </div>
@@ -504,36 +512,36 @@ export default function ABTestingPage() {
 
           {/* Variant B */}
           <div className="border border-border rounded-lg p-4">
-            <span className="nd-label block mb-3">Variante B</span>
+            <span className="nd-label block mb-3">{t("abTesting.variantB")}</span>
             <div className="space-y-3">
               <div>
-                <label className="text-[10px] text-text-muted block mb-1">Tono</label>
+                <label className="text-[10px] text-text-muted block mb-1">{t("common.tone")}</label>
                 <Select
                   value={form.variantB.tone}
                   onChange={(e) => setForm({ ...form, variantB: { ...form.variantB, tone: e.target.value } })}
                 >
-                  {TONE_OPTIONS.map((t) => (
-                    <option key={t.value} value={t.value}>{t.label}</option>
+                  {TONE_OPTIONS.map((to) => (
+                    <option key={to.value} value={to.value}>{to.label}</option>
                   ))}
                 </Select>
               </div>
               <div>
-                <label className="text-[10px] text-text-muted block mb-1">Instrucciones personalizadas (opcional)</label>
+                <label className="text-[10px] text-text-muted block mb-1">{t("abTesting.customInstructions")}</label>
                 <textarea
                   className="w-full bg-surface-primary border border-border rounded-md px-3 py-2 text-sm text-text-primary placeholder:text-text-muted focus:outline-none focus:ring-1 focus:ring-border-focus resize-none font-mono"
                   rows={2}
                   value={form.variantB.instructions}
                   onChange={(e) => setForm({ ...form, variantB: { ...form.variantB, instructions: e.target.value } })}
-                  placeholder="Ej: Usa un tono mas personal y amigable..."
+                  placeholder={t("abTesting.instructionsPlaceholderB")}
                 />
               </div>
             </div>
           </div>
 
           <div className="flex justify-end gap-3 pt-2">
-            <Button variant="secondary" size="sm" onClick={() => setShowModal(false)}>Cancelar</Button>
+            <Button variant="secondary" size="sm" onClick={() => setShowModal(false)}>{t("common.cancel")}</Button>
             <Button size="sm" onClick={create} disabled={!form.name || saving}>
-              {saving ? "Creando..." : "Crear test"}
+              {saving ? t("common.creating") : t("abTesting.createTest")}
             </Button>
           </div>
         </div>
@@ -545,7 +553,7 @@ export default function ABTestingPage() {
         onConfirm={() => confirmAction?.action()}
         title={confirmAction?.title ?? ""}
         message={confirmAction?.message ?? ""}
-        confirmLabel="Confirmar"
+        confirmLabel={t("common.yes")}
         variant="warning"
       />
     </div>

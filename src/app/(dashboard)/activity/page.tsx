@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback } from "react";
 import { Card, Select, EmptyState, Spinner, Badge, Button } from "@/components/ui";
+import { useT } from "@/i18n/LocaleProvider";
 import { Activity, ChevronLeft, ChevronRight } from "lucide-react";
 
 interface ActivityEntry {
@@ -30,6 +31,7 @@ const typeColors: Record<string, "default" | "accent" | "success" | "warning" | 
 };
 
 export default function ActivityPage() {
+  const { t } = useT();
   const [activity, setActivity] = useState<ActivityEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [typeFilter, setTypeFilter] = useState("");
@@ -52,25 +54,25 @@ export default function ActivityPage() {
       {/* Header */}
       <div className="nd-page-header">
         <div>
-          <h1>Actividad</h1>
-          <p className="nd-label mt-2">Log de toda la actividad del sistema</p>
+          <h1>{t("activity.title")}</h1>
+          <p className="nd-label mt-2">{t("activity.subtitle")}</p>
         </div>
         <Select className="w-44" value={typeFilter} onChange={(e) => { setTypeFilter(e.target.value); setPage(1); }}>
-          <option value="">Todos los tipos</option>
-          <option value="import">Importaciones</option>
-          <option value="scrape">Scraping</option>
-          <option value="email_generated">Emails generados</option>
-          <option value="email_sent">Emails enviados</option>
-          <option value="email_failed">Emails fallidos</option>
-          <option value="error">Errores</option>
-          <option value="setting_change">Configuracion</option>
+          <option value="">{t("activity.allTypes")}</option>
+          <option value="import">{t("activity.imports")}</option>
+          <option value="scrape">{t("activity.scraping")}</option>
+          <option value="email_generated">{t("activity.emailsGenerated")}</option>
+          <option value="email_sent">{t("activity.emailsSent")}</option>
+          <option value="email_failed">{t("activity.emailsFailed")}</option>
+          <option value="error">{t("activity.errors")}</option>
+          <option value="setting_change">{t("activity.config")}</option>
         </Select>
       </div>
 
       {loading ? (
         <div className="flex justify-center py-20"><Spinner /></div>
       ) : activity.length === 0 ? (
-        <EmptyState icon={<Activity className="h-10 w-10" strokeWidth={1.5} />} title="Sin actividad" description="Aun no hay actividad registrada" />
+        <EmptyState icon={<Activity className="h-10 w-10" strokeWidth={1.5} />} title={t("activity.noActivity")} description={t("activity.noActivityDesc")} />
       ) : (
         <>
           <Card>
@@ -84,11 +86,18 @@ export default function ActivityPage() {
                     {entry.type.replace(/_/g, " ")}
                   </Badge>
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm text-text-primary">{entry.message}</p>
+                    <p className="text-sm text-text-primary">{(() => {
+                      if (!entry.metadata) return entry.message;
+                      try {
+                        const meta = JSON.parse(entry.metadata);
+                        if (meta._i18nKey) return t(meta._i18nKey, meta._i18nVars);
+                      } catch {}
+                      return entry.message;
+                    })()}</p>
                     <p className="nd-label text-text-muted mt-1">
-                      {new Date(entry.createdAt).toLocaleString("es-MX")}
+                      {new Date(entry.createdAt).toLocaleString()}
                       {entry.leadId && ` · Lead #${entry.leadId}`}
-                      {entry.campaignId && ` · Campana #${entry.campaignId}`}
+                      {entry.campaignId && ` · ${t("common.campaign")} #${entry.campaignId}`}
                     </p>
                   </div>
                 </div>
@@ -98,7 +107,7 @@ export default function ActivityPage() {
 
           {/* Pagination */}
           <div className="flex items-center justify-between mt-6 pt-4 border-t border-border">
-            <span className="nd-label text-text-muted">Pagina {page}</span>
+            <span className="nd-label text-text-muted">{t("common.page")} {page}</span>
             <div className="flex gap-1">
               <Button size="sm" variant="ghost" disabled={page <= 1} onClick={() => setPage(p => p - 1)}>
                 <ChevronLeft className="h-4 w-4" strokeWidth={1.5} />

@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Space_Grotesk, Space_Mono } from "next/font/google";
 import { ToastProvider } from "@/components/Toast";
+import { LocaleProvider } from "@/i18n/LocaleProvider";
 import "./globals.css";
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
@@ -38,7 +39,7 @@ export const metadata: Metadata = {
   alternates: { canonical: "/" },
   openGraph: {
     type: "website",
-    locale: "es_ES",
+    locale: "en_US",
     url: SITE_URL,
     siteName: "ProspectAI",
     title: "ProspectAI — Open Source B2B Prospecting Engine",
@@ -82,7 +83,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="es" className={`${spaceGrotesk.variable} ${spaceMono.variable} h-full`}>
+    <html lang="en" className={`${spaceGrotesk.variable} ${spaceMono.variable} h-full`}>
       <head>
         <script
           type="application/ld+json"
@@ -90,9 +91,11 @@ export default function RootLayout({
         />
       </head>
       <body className="min-h-full bg-bg-primary text-text-primary">
-        <ToastProvider>
-          {children}
-        </ToastProvider>
+        <LocaleProvider>
+          <ToastProvider>
+            {children}
+          </ToastProvider>
+        </LocaleProvider>
       </body>
     </html>
   );

@@ -24,7 +24,7 @@ export async function processWhatsAppGenerationJobs() {
     // Blacklist check
     if (isBlacklisted(lead.email, lead.website, lead.name)) {
       db.update(jobQueue).set({ status: "failed", errorMessage: "Blacklisted" }).where(eq(jobQueue.id, job.id)).run();
-      logActivity("wa_failed", `WA no generado para ${lead.name}: en blacklist`, { leadId: lead.id });
+      logActivity("wa_failed", `WA no generado para ${lead.name}: en blacklist`, { leadId: lead.id, messageKey: "activityLog.leadBlacklisted", messageVars: { name: lead.name } });
       continue;
     }
 
@@ -42,7 +42,7 @@ export async function processWhatsAppGenerationJobs() {
         ? db.select().from(campaigns).where(eq(campaigns.id, lead.campaignId)).get()
         : null;
 
-      let tone = campaign?.defaultTone || getSetting("default_tone") || "profesional";
+      let tone = campaign?.defaultTone || getSetting("default_tone") || "professional";
       const fromName = getSetting("from_name") || getSetting("agency_name") || "ProspectAI";
 
       // A/B Testing: Check if campaign has active WA test
@@ -123,6 +123,8 @@ export async function processWhatsAppGenerationJobs() {
       logActivity("wa_generated", `WhatsApp generado para ${lead.name}`, {
         leadId: lead.id,
         campaignId: lead.campaignId ?? undefined,
+        messageKey: "activityLog.waGeneratedFor",
+        messageVars: { name: lead.name },
       });
 
       db.update(jobQueue).set({ status: "completed", processedAt: new Date().toISOString() }).where(eq(jobQueue.id, job.id)).run();
@@ -130,7 +132,7 @@ export async function processWhatsAppGenerationJobs() {
     } catch (err) {
       const errorMsg = err instanceof Error ? err.message : "Unknown error";
       db.update(jobQueue).set({ status: "failed", errorMessage: errorMsg }).where(eq(jobQueue.id, job.id)).run();
-      logActivity("error", `Error generando WA para ${lead?.name}: ${errorMsg}`, { leadId: job.leadId ?? undefined });
+      logActivity("error", `Error generando WA para ${lead?.name}: ${errorMsg}`, { leadId: job.leadId ?? undefined, messageKey: "activityLog.errorGeneratingWa", messageVars: { name: lead?.name ?? "unknown" } });
     }
   }
   return processed;

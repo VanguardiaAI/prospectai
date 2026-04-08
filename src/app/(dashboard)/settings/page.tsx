@@ -4,6 +4,8 @@ import { useEffect, useState, useCallback, useRef } from "react";
 import { Card, Button, Input, Select, Toggle, Spinner, Badge, ProgressBar } from "@/components/ui";
 import { useToast } from "@/components/Toast";
 import { Zap, TestTube, CheckCircle, XCircle, RefreshCw, MessageCircle, Wifi, WifiOff, Globe, Building, Shield, Clock, Link2, Webhook, Settings2, Play, Square } from "lucide-react";
+import { useT } from "@/i18n/LocaleProvider";
+import { getLang } from "@/i18n/index";
 
 interface ConnectionTest {
   ok: boolean;
@@ -18,11 +20,11 @@ interface WAStatus {
 }
 
 const SERVICE_OPTIONS = [
-  { key: "web_development", label: "Desarrollo Web" },
-  { key: "seo", label: "SEO y Posicionamiento" },
-  { key: "ai_agents", label: "Agentes IA / Chatbots" },
+  { key: "web_development", label: "Web Development" },
+  { key: "seo", label: "SEO" },
+  { key: "ai_agents", label: "AI / Chatbots" },
   { key: "google_business", label: "Google Business Profile" },
-  { key: "social_media", label: "Redes Sociales" },
+  { key: "social_media", label: "Social Media" },
 ];
 
 const COUNTRY_OPTIONS = [
@@ -49,7 +51,7 @@ const COUNTRY_OPTIONS = [
 // ─── Validation helpers ────────────────────────────────────────────
 function validateEmail(value: string): string | null {
   if (!value) return null; // empty is OK (optional)
-  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value) ? null : "Email no valido";
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value) ? null : "validation.invalidEmail";
 }
 
 function validateUrl(value: string): string | null {
@@ -59,14 +61,14 @@ function validateUrl(value: string): string | null {
     new URL(withProto);
     return null;
   } catch {
-    return "URL no valida";
+    return "validation.invalidUrl";
   }
 }
 
 function validatePositiveInt(value: string): string | null {
   if (!value) return null;
   const n = Number(value);
-  return Number.isInteger(n) && n > 0 ? null : "Debe ser un entero positivo";
+  return Number.isInteger(n) && n > 0 ? null : "validation.mustBePositiveInt";
 }
 
 type Validator = (v: string) => string | null;
@@ -105,12 +107,14 @@ export default function SettingsPage() {
   const [touched, setTouched] = useState<Record<string, boolean>>({});
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const { toast } = useToast();
+  const { t, setLang } = useT();
 
   // Per-field validation: only shows errors for fields the user has interacted with
   const getError = (key: string): string | null => {
     if (!touched[key]) return null;
     const validator = FIELD_VALIDATORS[key];
-    return validator ? validator(settings[key] || "") : null;
+    const errorKey = validator ? validator(settings[key] || "") : null;
+    return errorKey ? t(errorKey) : null;
   };
 
   const markTouched = (key: string) => {
@@ -190,7 +194,7 @@ export default function SettingsPage() {
         for (const k of errors) next[k] = true;
         return next;
       });
-      toast("Corrige los campos con errores antes de guardar", "error");
+      toast(t("validation.fixErrors"), "error");
       return;
     }
 
@@ -202,6 +206,7 @@ export default function SettingsPage() {
     });
     setSaving(false);
     setSaved(true);
+    setLang(getLang(settings.locale));
     setTimeout(() => setSaved(false), 2000);
   };
 
@@ -260,14 +265,14 @@ export default function SettingsPage() {
       {/* Header */}
       <div className="nd-page-header">
         <div>
-          <h1>Config</h1>
-          <p className="nd-label mt-2">Ajustes globales del sistema</p>
+          <h1>{t("settings.title")}</h1>
+          <p className="nd-label mt-2">{t("settings.subtitle")}</p>
         </div>
         <div className="flex items-center gap-3">
           <Button size="sm" onClick={save} disabled={saving}>
-            {saving ? "[GUARDANDO...]" : "Guardar cambios"}
+            {saving ? t("common.saving") : t("settings.saveChanges")}
           </Button>
-          {saved && <span className="nd-label text-success">[SAVED]</span>}
+          {saved && <span className="nd-label text-success">{t("common.saved")}</span>}
         </div>
       </div>
 
@@ -276,24 +281,24 @@ export default function SettingsPage() {
         <Card className="col-span-12 lg:col-span-8">
           <h3 className="nd-heading mb-6">
             <Building className="h-4 w-4 inline mr-2" strokeWidth={1.5} />
-            Identidad de la Agencia
+            {t("settings.agencyIdentity")}
           </h3>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-5">
             <div>
-              <label className="nd-label block mb-2">Nombre de la agencia</label>
+              <label className="nd-label block mb-2">{t("settings.agencyName")}</label>
               <Input value={settings.agency_name || ""} onChange={(e) => setSettings({ ...settings, agency_name: e.target.value })} />
             </div>
             <div>
-              <label className="nd-label block mb-2">URL de la agencia</label>
-              <Input value={settings.agency_url || ""} onChange={(e) => setSettings({ ...settings, agency_url: e.target.value })} placeholder="tuagencia.com" {...fieldProps("agency_url")} />
+              <label className="nd-label block mb-2">{t("settings.agencyUrl")}</label>
+              <Input value={settings.agency_url || ""} onChange={(e) => setSettings({ ...settings, agency_url: e.target.value })} placeholder={t("settings.agencyUrlPlaceholder")} {...fieldProps("agency_url")} />
               {getError("agency_url") && <p className="text-[11px] text-red-500 mt-1">{getError("agency_url")}</p>}
             </div>
             <div className="md:col-span-2">
-              <label className="nd-label block mb-2">Descripcion</label>
-              <Input value={settings.agency_description || ""} onChange={(e) => setSettings({ ...settings, agency_description: e.target.value })} placeholder="Agencia de desarrollo web y..." />
+              <label className="nd-label block mb-2">{t("common.description")}</label>
+              <Input value={settings.agency_description || ""} onChange={(e) => setSettings({ ...settings, agency_description: e.target.value })} placeholder={t("settings.descriptionPlaceholder")} />
             </div>
             <div className="md:col-span-2">
-              <label className="nd-label block mb-3">Servicios ofrecidos</label>
+              <label className="nd-label block mb-3">{t("settings.servicesOffered")}</label>
               <div className="flex flex-wrap gap-2">
                 {SERVICE_OPTIONS.map((svc) => (
                   <button
@@ -309,7 +314,7 @@ export default function SettingsPage() {
                   </button>
                 ))}
               </div>
-              <p className="text-[11px] text-text-muted mt-2">Los servicios seleccionados se usan en el analisis y generacion de mensajes</p>
+              <p className="text-[11px] text-text-muted mt-2">{t("settings.servicesHelp")}</p>
             </div>
           </div>
         </Card>
@@ -317,39 +322,38 @@ export default function SettingsPage() {
         <Card className="col-span-12 lg:col-span-4">
           <h3 className="nd-heading mb-6">
             <Globe className="h-4 w-4 inline mr-2" strokeWidth={1.5} />
-            Pais y Localizacion
+            {t("settings.countryLocalization")}
           </h3>
           <div className="space-y-5">
             <div>
-              <label className="nd-label block mb-2">Pais objetivo</label>
-              <Select value={settings.target_country || "ES"} onChange={(e) => handleCountryChange(e.target.value)}>
+              <label className="nd-label block mb-2">{t("settings.language")}</label>
+              <Select value={settings.locale || "en-US"} onChange={(e) => setSettings({ ...settings, locale: e.target.value })}>
+                <option value="en-US">English</option>
+                <option value="es-ES">Español</option>
+              </Select>
+            </div>
+            <div>
+              <label className="nd-label block mb-2">{t("settings.targetCountry")}</label>
+              <Select value={settings.target_country || "US"} onChange={(e) => handleCountryChange(e.target.value)}>
                 {COUNTRY_OPTIONS.map((c) => (
-                  <option key={c.code} value={c.code}>{c.label}</option>
+                  <option key={c.code} value={c.code}>{t(`countries.${c.code}`)}</option>
                 ))}
               </Select>
             </div>
             <div>
-              <label className="nd-label block mb-2">Codigo de pais</label>
+              <label className="nd-label block mb-2">{t("settings.countryCode")}</label>
               <div className="flex items-center gap-2">
                 <span className="text-sm text-text-muted">+</span>
                 <Input value={settings.phone_country_code || ""} onChange={(e) => setSettings({ ...settings, phone_country_code: e.target.value })} className="w-20" />
-                <span className="text-[11px] text-text-muted">({settings.phone_digits || "9"} dig.)</span>
+                <span className="text-[11px] text-text-muted">({settings.phone_digits || "9"} {t("settings.digits")}</span>
               </div>
             </div>
             <div>
-              <label className="nd-label block mb-2">Moneda</label>
+              <label className="nd-label block mb-2">{t("settings.currency")}</label>
               <Select value={settings.currency || "EUR"} onChange={(e) => setSettings({ ...settings, currency: e.target.value })}>
-                <option value="EUR">EUR - Euro</option>
-                <option value="USD">USD - Dolar</option>
-                <option value="MXN">MXN - Peso Mexicano</option>
-                <option value="GBP">GBP - Libra</option>
-                <option value="ARS">ARS - Peso Argentino</option>
-                <option value="COP">COP - Peso Colombiano</option>
-                <option value="CLP">CLP - Peso Chileno</option>
-                <option value="PEN">PEN - Sol Peruano</option>
-                <option value="BRL">BRL - Real</option>
-                <option value="AUD">AUD - Dolar Australiano</option>
-                <option value="CAD">CAD - Dolar Canadiense</option>
+                {["EUR", "USD", "MXN", "GBP", "ARS", "COP", "CLP", "PEN", "BRL", "AUD", "CAD"].map((c) => (
+                  <option key={c} value={c}>{t(`currencies.${c}`)}</option>
+                ))}
               </Select>
             </div>
           </div>
@@ -362,27 +366,25 @@ export default function SettingsPage() {
           <h3 className="nd-heading mb-6">Email</h3>
           <div className="space-y-5">
             <div>
-              <label className="nd-label block mb-2">Email remitente</label>
+              <label className="nd-label block mb-2">{t("settings.senderEmail")}</label>
               <Input value={settings.from_email || ""} onChange={(e) => setSettings({ ...settings, from_email: e.target.value })} {...fieldProps("from_email")} />
               {getError("from_email") && <p className="text-[11px] text-red-500 mt-1">{getError("from_email")}</p>}
             </div>
             <div>
-              <label className="nd-label block mb-2">Nombre remitente</label>
+              <label className="nd-label block mb-2">{t("settings.senderName")}</label>
               <Input value={settings.from_name || ""} onChange={(e) => setSettings({ ...settings, from_name: e.target.value })} />
             </div>
             <div>
-              <label className="nd-label block mb-2">Limite diario</label>
+              <label className="nd-label block mb-2">{t("settings.dailyLimit")}</label>
               <Input type="number" value={settings.global_daily_limit || ""} onChange={(e) => setSettings({ ...settings, global_daily_limit: e.target.value })} {...fieldProps("global_daily_limit")} />
               {getError("global_daily_limit") && <p className="text-[11px] text-red-500 mt-1">{getError("global_daily_limit")}</p>}
             </div>
             <div>
-              <label className="nd-label block mb-2">Tono por defecto</label>
-              <Select value={settings.default_tone || "profesional"} onChange={(e) => setSettings({ ...settings, default_tone: e.target.value })}>
-                <option value="profesional">Profesional</option>
-                <option value="amigable">Amigable</option>
-                <option value="directo">Directo</option>
-                <option value="consultivo">Consultivo</option>
-                <option value="casual">Casual</option>
+              <label className="nd-label block mb-2">{t("settings.defaultTone")}</label>
+              <Select value={settings.default_tone || "professional"} onChange={(e) => setSettings({ ...settings, default_tone: e.target.value })}>
+                {["professional", "friendly", "direct", "consultative", "casual"].map((tone) => (
+                  <option key={tone} value={tone}>{t(`tones.${tone}`)}</option>
+                ))}
               </Select>
             </div>
           </div>
@@ -391,40 +393,40 @@ export default function SettingsPage() {
         <Card className="col-span-12 md:col-span-5" texture>
           <h3 className="nd-heading mb-6">
             <Clock className="h-4 w-4 inline mr-2" strokeWidth={1.5} />
-            Warmup y Ventana de Envio
+            {t("settings.warmupTitle")}
           </h3>
           <div className="space-y-5">
             <div>
               <Toggle
                 checked={settings.warmup_enabled === "true"}
                 onChange={(v) => setSettings({ ...settings, warmup_enabled: String(v) })}
-                label="Warmup progresivo"
+                label={t("settings.progressiveWarmup")}
               />
-              <p className="text-[11px] text-text-muted mt-2">Incrementa gradualmente el volumen de envio</p>
+              <p className="text-[11px] text-text-muted mt-2">{t("settings.warmupDesc")}</p>
             </div>
 
             {settings.warmup_enabled === "true" && (
               <div className="space-y-4 pl-4 border-l-2 border-border">
                 <div className="flex items-center gap-3">
                   <div>
-                    <label className="nd-label block mb-1">Dia</label>
+                    <label className="nd-label block mb-1">{t("settings.day")}</label>
                     <Input type="number" value={settings.warmup_day || "1"} onChange={(e) => setSettings({ ...settings, warmup_day: e.target.value })} className={`w-16 ${getError("warmup_day") ? "border-red-500" : ""}`} onBlur={() => markTouched("warmup_day")} />
                   </div>
                   <div>
-                    <label className="nd-label block mb-1">Inicio</label>
+                    <label className="nd-label block mb-1">{t("settings.start")}</label>
                     <Input type="number" value={settings.warmup_start_limit || "5"} onChange={(e) => setSettings({ ...settings, warmup_start_limit: e.target.value })} className={`w-16 ${getError("warmup_start_limit") ? "border-red-500" : ""}`} onBlur={() => markTouched("warmup_start_limit")} />
                   </div>
                   <div>
-                    <label className="nd-label block mb-1">+/dia</label>
+                    <label className="nd-label block mb-1">{t("settings.perDay")}</label>
                     <Input type="number" value={settings.warmup_increment || "5"} onChange={(e) => setSettings({ ...settings, warmup_increment: e.target.value })} className={`w-16 ${getError("warmup_increment") ? "border-red-500" : ""}`} onBlur={() => markTouched("warmup_increment")} />
                   </div>
                   <div>
-                    <label className="nd-label block mb-1">Max</label>
+                    <label className="nd-label block mb-1">{t("settings.max")}</label>
                     <Input type="number" value={settings.warmup_max_limit || "50"} onChange={(e) => setSettings({ ...settings, warmup_max_limit: e.target.value })} className={`w-16 ${getError("warmup_max_limit") ? "border-red-500" : ""}`} onBlur={() => markTouched("warmup_max_limit")} />
                   </div>
                 </div>
                 {(getError("warmup_day") || getError("warmup_start_limit") || getError("warmup_increment") || getError("warmup_max_limit")) && (
-                  <p className="text-[11px] text-red-500">Los valores de warmup deben ser enteros positivos</p>
+                  <p className="text-[11px] text-red-500">{t("settings.warmupValidation")}</p>
                 )}
                 <ProgressBar
                   value={warmupPct}
@@ -437,18 +439,18 @@ export default function SettingsPage() {
 
             <div className="flex items-center gap-3">
               <div>
-                <label className="nd-label block mb-1">Desde</label>
+                <label className="nd-label block mb-1">{t("settings.from")}</label>
                 <Input type="number" value={settings.send_window_start || "9"} onChange={(e) => setSettings({ ...settings, send_window_start: e.target.value })} className={`w-16 ${getError("send_window_start") ? "border-red-500" : ""}`} onBlur={() => markTouched("send_window_start")} />
               </div>
               <span className="text-text-muted mt-5">--</span>
               <div>
-                <label className="nd-label block mb-1">Hasta</label>
+                <label className="nd-label block mb-1">{t("settings.to")}</label>
                 <Input type="number" value={settings.send_window_end || "18"} onChange={(e) => setSettings({ ...settings, send_window_end: e.target.value })} className={`w-16 ${getError("send_window_end") ? "border-red-500" : ""}`} onBlur={() => markTouched("send_window_end")} />
               </div>
               <span className="text-[11px] text-text-muted mt-5">hrs</span>
             </div>
             {(getError("send_window_start") || getError("send_window_end")) && (
-              <p className="text-[11px] text-red-500">Las horas deben ser enteros positivos</p>
+              <p className="text-[11px] text-red-500">{t("settings.hoursValidation")}</p>
             )}
           </div>
         </Card>
@@ -456,16 +458,16 @@ export default function SettingsPage() {
         <Card className="col-span-12 md:col-span-3">
           <h3 className="nd-heading mb-6">
             <Settings2 className="h-4 w-4 inline mr-2" strokeWidth={1.5} />
-            Scraping
+            {t("settings.scraping")}
           </h3>
           <div className="space-y-5">
             <div>
-              <label className="nd-label block mb-2">Concurrencia</label>
+              <label className="nd-label block mb-2">{t("settings.concurrency")}</label>
               <Input type="number" value={settings.scrape_concurrency || ""} onChange={(e) => setSettings({ ...settings, scrape_concurrency: e.target.value })} {...fieldProps("scrape_concurrency")} />
               {getError("scrape_concurrency") && <p className="text-[11px] text-red-500 mt-1">{getError("scrape_concurrency")}</p>}
             </div>
             <div>
-              <label className="nd-label block mb-2">Delay (ms)</label>
+              <label className="nd-label block mb-2">{t("settings.delayMs")}</label>
               <Input type="number" value={settings.scrape_delay_ms || ""} onChange={(e) => setSettings({ ...settings, scrape_delay_ms: e.target.value })} {...fieldProps("scrape_delay_ms")} />
               {getError("scrape_delay_ms") && <p className="text-[11px] text-red-500 mt-1">{getError("scrape_delay_ms")}</p>}
             </div>
@@ -473,9 +475,9 @@ export default function SettingsPage() {
               <Toggle
                 checked={settings.autopilot_global === "true"}
                 onChange={(v) => setSettings({ ...settings, autopilot_global: String(v) })}
-                label="Autopilot"
+                label={t("settings.autopilot")}
               />
-              <p className="text-[11px] text-text-muted mt-2 leading-relaxed">Todo automatico</p>
+              <p className="text-[11px] text-text-muted mt-2 leading-relaxed">{t("settings.autoAll")}</p>
             </div>
           </div>
         </Card>
@@ -490,34 +492,34 @@ export default function SettingsPage() {
           </h3>
           <div className="space-y-5">
             <div className="flex items-center justify-between">
-              <span className="nd-label">Estado</span>
+              <span className="nd-label">{t("settings.waStatus")}</span>
               <div className="flex items-center gap-2">
                 {waStatus.status === "ready" ? (
-                  <Badge color="success"><Wifi className="h-3 w-3 mr-1" strokeWidth={1.5} /> CONECTADO</Badge>
+                  <Badge color="success"><Wifi className="h-3 w-3 mr-1" strokeWidth={1.5} /> {t("settings.connected")}</Badge>
                 ) : waStatus.status === "qr_pending" ? (
-                  <Badge color="warning">ESCANEAR QR</Badge>
+                  <Badge color="warning">{t("settings.scanQr")}</Badge>
                 ) : waStatus.status === "authenticating" ? (
-                  <Badge color="info"><RefreshCw className="h-3 w-3 mr-1 animate-spin" strokeWidth={1.5} /> AUTENTICANDO</Badge>
+                  <Badge color="info"><RefreshCw className="h-3 w-3 mr-1 animate-spin" strokeWidth={1.5} /> {t("settings.authenticating")}</Badge>
                 ) : waStatus.status === "error" ? (
                   <Badge color="danger"><XCircle className="h-3 w-3 mr-1" strokeWidth={1.5} /> ERROR</Badge>
                 ) : (
-                  <Badge><WifiOff className="h-3 w-3 mr-1" strokeWidth={1.5} /> DESCONECTADO</Badge>
+                  <Badge><WifiOff className="h-3 w-3 mr-1" strokeWidth={1.5} /> {t("settings.disconnected")}</Badge>
                 )}
               </div>
             </div>
 
             {waStatus.phone && (
               <div className="flex items-center justify-between">
-                <span className="nd-label">Numero</span>
+                <span className="nd-label">{t("settings.number")}</span>
                 <span className="text-sm text-text-primary font-mono">+{waStatus.phone}</span>
               </div>
             )}
 
             {waStatus.qrDataUrl && (
               <div className="flex flex-col items-center py-4">
-                <p className="nd-label mb-3">Escanea con WhatsApp</p>
+                <p className="nd-label mb-3">{t("settings.scanWithWa")}</p>
                 <img src={waStatus.qrDataUrl} alt="QR Code" className="w-48 h-48 rounded-lg" />
-                <p className="text-[10px] text-text-muted font-mono mt-2">Abre WhatsApp &gt; Dispositivos vinculados</p>
+                <p className="text-[10px] text-text-muted font-mono mt-2">{t("settings.openWaInstructions")}</p>
               </div>
             )}
 
@@ -529,20 +531,20 @@ export default function SettingsPage() {
               {waStatus.status === "disconnected" || waStatus.status === "error" ? (
                 <Button size="sm" onClick={connectWA} disabled={waConnecting}>
                   {waConnecting ? (
-                    <><RefreshCw className="h-3.5 w-3.5 animate-spin" strokeWidth={1.5} /> Conectando...</>
+                    <><RefreshCw className="h-3.5 w-3.5 animate-spin" strokeWidth={1.5} /> {t("settings.connecting")}</>
                   ) : (
-                    <><Wifi className="h-3.5 w-3.5" strokeWidth={1.5} /> Conectar WhatsApp</>
+                    <><Wifi className="h-3.5 w-3.5" strokeWidth={1.5} /> {t("settings.connectWa")}</>
                   )}
                 </Button>
               ) : waStatus.status === "ready" ? (
                 <Button size="sm" variant="danger" onClick={disconnectWA}>
-                  <WifiOff className="h-3.5 w-3.5" strokeWidth={1.5} /> Desconectar
+                  <WifiOff className="h-3.5 w-3.5" strokeWidth={1.5} /> {t("settings.disconnect")}
                 </Button>
               ) : null}
             </div>
 
             <div className="mt-4 pt-4 border-t border-border">
-              <label className="nd-label block mb-2">Limite diario WA</label>
+              <label className="nd-label block mb-2">{t("settings.waDailyLimit")}</label>
               <Input
                 type="number"
                 value={settings.wa_daily_limit || "20"}
@@ -550,7 +552,7 @@ export default function SettingsPage() {
                 {...fieldProps("wa_daily_limit")}
               />
               {getError("wa_daily_limit") && <p className="text-[11px] text-accent mt-1 font-mono">{getError("wa_daily_limit")}</p>}
-              <p className="text-[11px] text-text-muted mt-1 font-mono">Maximo de WhatsApps enviados por dia</p>
+              <p className="text-[11px] text-text-muted mt-1 font-mono">{t("settings.waDailyLimitDesc")}</p>
             </div>
           </div>
         </Card>
@@ -558,11 +560,11 @@ export default function SettingsPage() {
         <Card className="col-span-12 lg:col-span-7">
           <h3 className="nd-heading mb-6">
             <Shield className="h-4 w-4 inline mr-2" strokeWidth={1.5} />
-            Compliance / RGPD
+            {t("settings.compliance")}
           </h3>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-5">
             <div className="md:col-span-2">
-              <label className="nd-label block mb-2">Footer legal (se anade a cada email)</label>
+              <label className="nd-label block mb-2">{t("settings.legalFooter")}</label>
               <textarea
                 className="w-full px-3 py-2 border border-border rounded-lg text-sm bg-transparent text-text-primary focus:outline-none focus:ring-1 focus:ring-text-primary min-h-[80px] font-mono"
                 value={settings.legal_footer || ""}
@@ -570,25 +572,25 @@ export default function SettingsPage() {
               />
             </div>
             <div>
-              <label className="nd-label block mb-2">URL de baja (opcional)</label>
+              <label className="nd-label block mb-2">{t("settings.unsubscribeUrl")}</label>
               <Input
                 value={settings.unsubscribe_url || ""}
                 onChange={(e) => setSettings({ ...settings, unsubscribe_url: e.target.value })}
-                placeholder="/api/unsubscribe"
+                placeholder={t("settings.unsubscribeUrlPlaceholder")}
                 {...fieldProps("unsubscribe_url")}
               />
-              {getError("unsubscribe_url") ? <p className="text-[11px] text-red-500 mt-1">{getError("unsubscribe_url")}</p> : <p className="text-[11px] text-text-muted mt-1">Se anaden auto al blacklist.</p>}
+              {getError("unsubscribe_url") ? <p className="text-[11px] text-red-500 mt-1">{getError("unsubscribe_url")}</p> : <p className="text-[11px] text-text-muted mt-1">{t("settings.autoBlacklist")}</p>}
             </div>
             <div>
-              <label className="nd-label block mb-2">Reply-To (opcional)</label>
+              <label className="nd-label block mb-2">{t("settings.replyTo")}</label>
               <Input
                 value={settings.reply_to_email || ""}
                 onChange={(e) => setSettings({ ...settings, reply_to_email: e.target.value })}
-                placeholder="respuestas@tudominio.com"
+                placeholder={t("settings.replyToPlaceholder")}
                 type="email"
                 {...fieldProps("reply_to_email")}
               />
-              {getError("reply_to_email") ? <p className="text-[11px] text-red-500 mt-1">{getError("reply_to_email")}</p> : <p className="text-[11px] text-text-muted mt-1">Respuestas llegan aqui.</p>}
+              {getError("reply_to_email") ? <p className="text-[11px] text-red-500 mt-1">{getError("reply_to_email")}</p> : <p className="text-[11px] text-text-muted mt-1">{t("settings.replyToDesc")}</p>}
             </div>
           </div>
         </Card>
@@ -599,28 +601,28 @@ export default function SettingsPage() {
         <Card className="col-span-12 md:col-span-4">
           <h3 className="nd-heading mb-6">
             <Link2 className="h-4 w-4 inline mr-2" strokeWidth={1.5} />
-            Tracking
+            {t("settings.tracking")}
           </h3>
           <div>
-            <label className="nd-label block mb-2">URL base</label>
+            <label className="nd-label block mb-2">{t("settings.baseUrl")}</label>
             <Input
               value={settings.tracking_base_url || ""}
               onChange={(e) => setSettings({ ...settings, tracking_base_url: e.target.value })}
-              placeholder="https://tudominio.com"
+              placeholder={t("settings.baseUrlPlaceholder")}
               {...fieldProps("tracking_base_url")}
             />
-            {getError("tracking_base_url") ? <p className="text-[11px] text-red-500 mt-1">{getError("tracking_base_url")}</p> : <p className="text-[11px] text-text-muted mt-1">Pixel apertura y clicks. Debe ser publica.</p>}
+            {getError("tracking_base_url") ? <p className="text-[11px] text-red-500 mt-1">{getError("tracking_base_url")}</p> : <p className="text-[11px] text-text-muted mt-1">{t("settings.trackingDesc")}</p>}
           </div>
         </Card>
 
         <Card className="col-span-12 md:col-span-4">
           <h3 className="nd-heading mb-6">
             <Webhook className="h-4 w-4 inline mr-2" strokeWidth={1.5} />
-            CRM Webhook
+            {t("settings.crmWebhook")}
           </h3>
           <div className="space-y-5">
             <div>
-              <label className="nd-label block mb-2">Webhook URL</label>
+              <label className="nd-label block mb-2">{t("settings.webhookUrl")}</label>
               <Input
                 value={settings.crm_webhook_url || ""}
                 onChange={(e) => setSettings({ ...settings, crm_webhook_url: e.target.value })}
@@ -630,39 +632,39 @@ export default function SettingsPage() {
               {getError("crm_webhook_url") && <p className="text-[11px] text-red-500 mt-1">{getError("crm_webhook_url")}</p>}
             </div>
             <div>
-              <label className="nd-label block mb-2">Disparar cuando</label>
+              <label className="nd-label block mb-2">{t("settings.triggerWhen")}</label>
               <Select
                 value={settings.crm_webhook_on || "replied"}
                 onChange={(e) => setSettings({ ...settings, crm_webhook_on: e.target.value })}
               >
-                <option value="replied">Responde</option>
-                <option value="contacted">Es contactado</option>
-                <option value="replied,contacted">Ambos</option>
+                <option value="replied">{t("settings.onReply")}</option>
+                <option value="contacted">{t("settings.onContact")}</option>
+                <option value="replied,contacted">{t("settings.both")}</option>
               </Select>
             </div>
           </div>
         </Card>
 
         <Card className="col-span-12 md:col-span-4">
-          <h3 className="nd-heading mb-6">Google Maps Scraper</h3>
+          <h3 className="nd-heading mb-6">{t("settings.gmapsScraper")}</h3>
           <div className="space-y-5">
             <div>
-              <label className="nd-label block mb-2">URL del scraper</label>
+              <label className="nd-label block mb-2">{t("settings.scraperUrl")}</label>
               <Input
                 value={settings.gmaps_scraper_url || ""}
                 onChange={(e) => setSettings({ ...settings, gmaps_scraper_url: e.target.value })}
-                placeholder="http://localhost:8080"
+                placeholder={t("settings.scraperUrlPlaceholder")}
                 {...fieldProps("gmaps_scraper_url")}
               />
               {getError("gmaps_scraper_url") && <p className="text-[11px] text-red-500 mt-1">{getError("gmaps_scraper_url")}</p>}
             </div>
             <div>
-              <label className="nd-label block mb-2">API Key (opcional)</label>
+              <label className="nd-label block mb-2">{t("settings.apiKey")}</label>
               <Input
                 type="password"
                 value={settings.gmaps_scraper_api_key || ""}
                 onChange={(e) => setSettings({ ...settings, gmaps_scraper_api_key: e.target.value })}
-                placeholder="Dejar vacío si no se configuró"
+                placeholder={t("settings.apiKeyPlaceholder")}
               />
             </div>
           </div>
@@ -674,13 +676,13 @@ export default function SettingsPage() {
         <Card className="col-span-12 lg:col-span-5">
           <h3 className="nd-heading mb-5">
             <TestTube className="h-4 w-4 inline mr-2" strokeWidth={1.5} />
-            Probar conexiones
+            {t("settings.testConnections")}
           </h3>
           <Button variant="secondary" size="sm" onClick={testConnections} disabled={testing}>
             {testing ? (
-              <><RefreshCw className="h-3.5 w-3.5 animate-spin" strokeWidth={1.5} /> Probando...</>
+              <><RefreshCw className="h-3.5 w-3.5 animate-spin" strokeWidth={1.5} /> {t("settings.testing")}</>
             ) : (
-              <><TestTube className="h-3.5 w-3.5" strokeWidth={1.5} /> Probar APIs</>
+              <><TestTube className="h-3.5 w-3.5" strokeWidth={1.5} /> {t("settings.testApis")}</>
             )}
           </Button>
 
@@ -711,12 +713,12 @@ export default function SettingsPage() {
         <Card className="col-span-12 lg:col-span-5">
           <h3 className="nd-heading mb-2">
             <Clock className="h-4 w-4 inline mr-2 text-accent" strokeWidth={1.5} />
-            Scheduler automatico
+            {t("settings.scheduler")}
           </h3>
-          <p className="nd-label text-text-muted mb-4">Ejecuta scraping, generacion y envio cada 5 minutos</p>
+          <p className="nd-label text-text-muted mb-4">{t("settings.schedulerDesc")}</p>
           <div className="flex items-center gap-4">
             <Badge color={schedulerRunning ? "success" : "default"}>
-              {schedulerRunning ? "ACTIVO" : "INACTIVO"}
+              {schedulerRunning ? t("settings.schedulerActive") : t("settings.schedulerInactive")}
             </Badge>
             <Button
               size="sm"
@@ -729,13 +731,13 @@ export default function SettingsPage() {
                   body: JSON.stringify({ action }),
                 });
                 setSchedulerRunning(!schedulerRunning);
-                toast(schedulerRunning ? "Scheduler detenido" : "Scheduler iniciado", schedulerRunning ? "warning" : "success");
+                toast(schedulerRunning ? t("settings.schedulerStopped") : t("settings.schedulerStarted"), schedulerRunning ? "warning" : "success");
               }}
             >
               {schedulerRunning ? (
-                <><Square className="h-3 w-3" strokeWidth={1.5} /> Detener</>
+                <><Square className="h-3 w-3" strokeWidth={1.5} /> {t("settings.stop")}</>
               ) : (
-                <><Play className="h-3 w-3" strokeWidth={1.5} /> Iniciar</>
+                <><Play className="h-3 w-3" strokeWidth={1.5} /> {t("settings.start")}</>
               )}
             </Button>
           </div>
@@ -744,27 +746,27 @@ export default function SettingsPage() {
         <Card className="col-span-12 lg:col-span-7" texture>
           <h3 className="nd-heading mb-2">
             <Zap className="h-4 w-4 inline mr-2 text-accent" strokeWidth={1.5} />
-            Ejecutar jobs
+            {t("settings.runJobs")}
           </h3>
-          <p className="nd-label text-text-muted mb-5">Ejecuta procesos de background manualmente</p>
+          <p className="nd-label text-text-muted mb-5">{t("settings.runJobsDesc")}</p>
           <div className="flex flex-wrap gap-2">
             <Button variant="secondary" size="sm" onClick={() => runJobs("scrape")} disabled={processing}>
-              Scraping + Analisis
+              {t("settings.scrapeAnalysis")}
             </Button>
             <Button variant="secondary" size="sm" onClick={() => runJobs("generate")} disabled={processing}>
-              Generar Emails
+              {t("settings.generateEmails")}
             </Button>
             <Button variant="secondary" size="sm" onClick={() => runJobs("send")} disabled={processing}>
-              Enviar Emails
+              {t("settings.sendEmails")}
             </Button>
             <Button variant="secondary" size="sm" onClick={() => runJobs("send_wa")} disabled={processing}>
-              Enviar WhatsApps
+              {t("settings.sendWa")}
             </Button>
             <Button variant="secondary" size="sm" onClick={() => runJobs("sequences")} disabled={processing}>
-              Procesar Secuencias
+              {t("settings.processSequences")}
             </Button>
             <Button size="sm" onClick={() => runJobs("all")} disabled={processing}>
-              <Zap className="h-3 w-3" strokeWidth={1.5} /> Ejecutar todo
+              <Zap className="h-3 w-3" strokeWidth={1.5} /> {t("settings.runAll")}
             </Button>
           </div>
           {processResult && (

@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback } from "react";
 import { Card, Button, Select, Badge, StatusBadge, QualityBar, EmptyState, Spinner, Textarea, Input } from "@/components/ui";
 import { useToast } from "@/components/Toast";
 import { Mail, Check, X, RefreshCw, ChevronLeft, ChevronRight, CheckCheck, Globe, MapPin, MessageCircle, Send, FileText } from "lucide-react";
+import { useT } from "@/i18n/LocaleProvider";
 
 type ReviewTab = "emails" | "whatsapp";
 
@@ -53,6 +54,7 @@ interface WARow {
 
 export default function ReviewPage() {
   const { toast } = useToast();
+  const { t } = useT();
   const [tab, setTab] = useState<ReviewTab>("emails");
   // Email state
   const [emails, setEmails] = useState<EmailRow[]>([]);
@@ -63,7 +65,7 @@ export default function ReviewPage() {
   const [editSubject, setEditSubject] = useState("");
   const [editBody, setEditBody] = useState("");
   const [regenerating, setRegenerating] = useState(false);
-  const [regenTone, setRegenTone] = useState("profesional");
+  const [regenTone, setRegenTone] = useState("professional");
   const [regenInstructions, setRegenInstructions] = useState("");
   const [showRegen, setShowRegen] = useState(false);
   const [bulkMode, setBulkMode] = useState(false);
@@ -78,7 +80,7 @@ export default function ReviewPage() {
   const [waEditMode, setWaEditMode] = useState(false);
   const [waEditBody, setWaEditBody] = useState("");
   const [waRegenerating, setWaRegenerating] = useState(false);
-  const [waRegenTone, setWaRegenTone] = useState("profesional");
+  const [waRegenTone, setWaRegenTone] = useState("professional");
   const [waRegenInstructions, setWaRegenInstructions] = useState("");
   const [waShowRegen, setWaShowRegen] = useState(false);
   const [waBulkMode, setWaBulkMode] = useState(false);
@@ -115,7 +117,7 @@ export default function ReviewPage() {
     setSaving(true);
     await fetch("/api/emails", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id, status: "approved" }) });
     setSaving(false);
-    toast("Email aprobado", "success");
+    toast(t("review.approve"), "success");
     fetchEmails();
   };
 
@@ -123,7 +125,7 @@ export default function ReviewPage() {
     setSaving(true);
     await fetch("/api/emails", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id, status: "rejected" }) });
     setSaving(false);
-    toast("Email rechazado", "warning");
+    toast(t("review.reject"), "warning");
     fetchEmails();
   };
 
@@ -142,7 +144,7 @@ export default function ReviewPage() {
         toast(`Error: ${data.error}`, "error");
       }
     } catch {
-      toast("Error al enviar prueba", "error");
+      toast(t("common.error"), "error");
     }
     setSendingTest(false);
   };
@@ -190,15 +192,15 @@ export default function ReviewPage() {
 
   const saveAsTemplate = async () => {
     if (!current) return;
-    const name = prompt("Nombre del template:");
+    const name = prompt(t("templates.namePlaceholder"));
     if (!name) return;
-    const category = prompt("Categoria (opcional, ej: restaurantes, clinicas):");
+    const category = prompt(t("templates.categoryOptional"));
     await fetch("/api/templates", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ fromEmailId: current.email.id, name, category: category || null }),
     });
-    toast("Template guardado", "success");
+    toast(t("templates.templateSaved"), "success");
   };
 
   // WhatsApp actions
@@ -206,7 +208,7 @@ export default function ReviewPage() {
     setWaSaving(true);
     await fetch("/api/whatsapp", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id, status: "approved" }) });
     setWaSaving(false);
-    toast("WhatsApp aprobado", "success");
+    toast(t("review.approve"), "success");
     fetchWA();
   };
 
@@ -214,7 +216,7 @@ export default function ReviewPage() {
     setWaSaving(true);
     await fetch("/api/whatsapp", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id, status: "rejected" }) });
     setWaSaving(false);
-    toast("WhatsApp rechazado", "warning");
+    toast(t("review.reject"), "warning");
     fetchWA();
   };
 
@@ -274,11 +276,11 @@ export default function ReviewPage() {
       {/* Header */}
       <div className="nd-page-header">
         <div>
-          <h1>Revision</h1>
+          <h1>{t("review.title")}</h1>
           <p className="nd-label mt-2">
             {tab === "emails"
-              ? `${emails.length} emails ${emailStatus === "draft" ? "por revisar" : emailStatus}`
-              : `${waMessages.length} WhatsApps ${waStatus === "draft" ? "por revisar" : waStatus}`
+              ? `${emails.length} emails ${emailStatus === "draft" ? t("review.toReview") : emailStatus}`
+              : `${waMessages.length} WhatsApps ${waStatus === "draft" ? t("review.toReview") : waStatus}`
             }
           </p>
         </div>
@@ -302,10 +304,10 @@ export default function ReviewPage() {
           {tab === "emails" && (
             <>
               <Select className="w-36" value={emailStatus} onChange={(e) => setEmailStatus(e.target.value)}>
-                <option value="draft">Borradores</option>
-                <option value="approved">Aprobados</option>
-                <option value="sent">Enviados</option>
-                <option value="rejected">Rechazados</option>
+                <option value="draft">{t("review.drafts")}</option>
+                <option value="approved">{t("review.approved")}</option>
+                <option value="sent">{t("review.sent")}</option>
+                <option value="rejected">{t("review.rejected")}</option>
               </Select>
               {emailStatus === "draft" && emails.length > 0 && (
                 <Button variant="secondary" size="sm" onClick={() => { setBulkMode(!bulkMode); setSelectedIds(new Set()); }}>
@@ -318,10 +320,10 @@ export default function ReviewPage() {
           {tab === "whatsapp" && (
             <>
               <Select className="w-36" value={waStatus} onChange={(e) => setWaStatus(e.target.value)}>
-                <option value="draft">Borradores</option>
-                <option value="approved">Aprobados</option>
-                <option value="sent">Enviados</option>
-                <option value="rejected">Rechazados</option>
+                <option value="draft">{t("review.drafts")}</option>
+                <option value="approved">{t("review.approved")}</option>
+                <option value="sent">{t("review.sent")}</option>
+                <option value="rejected">{t("review.rejected")}</option>
               </Select>
               {waStatus === "draft" && waMessages.length > 0 && (
                 <Button variant="secondary" size="sm" onClick={() => { setWaBulkMode(!waBulkMode); setWaSelectedIds(new Set()); }}>
@@ -345,12 +347,12 @@ export default function ReviewPage() {
                     if (selectedIds.size === emails.length) setSelectedIds(new Set());
                     else setSelectedIds(new Set(emails.map((e) => e.email.id)));
                   }}>
-                    {selectedIds.size === emails.length ? "Deseleccionar" : "Seleccionar todo"}
+                    {selectedIds.size === emails.length ? t("common.deselectAll") : t("common.selectAll")}
                   </Button>
-                  <span className="nd-label text-text-muted">{selectedIds.size} seleccionados</span>
+                  <span className="nd-label text-text-muted">{selectedIds.size} {t("common.selected")}</span>
                 </div>
                 <Button size="sm" variant="success" onClick={bulkApproveEmails} disabled={selectedIds.size === 0 || saving}>
-                  <Check className="h-3.5 w-3.5" strokeWidth={1.5} /> Aprobar
+                  <Check className="h-3.5 w-3.5" strokeWidth={1.5} /> {t("common.approve")}
                 </Button>
               </div>
               <div className="max-h-60 overflow-y-auto">
@@ -370,7 +372,7 @@ export default function ReviewPage() {
           )}
 
           {!bulkMode && emails.length === 0 && (
-            <EmptyState icon={<Mail className="h-10 w-10" strokeWidth={1.5} />} title={emailStatus === "draft" ? "Sin emails por revisar" : `Sin emails ${emailStatus}`} description="Los emails se generan automaticamente o desde la ficha del lead" />
+            <EmptyState icon={<Mail className="h-10 w-10" strokeWidth={1.5} />} title={emailStatus === "draft" ? t("review.noEmailsTitle") : `${t("review.noEmailsTitle")}`} description={t("review.noEmailsDesc")} />
           )}
 
           {!bulkMode && current && (
@@ -382,7 +384,7 @@ export default function ReviewPage() {
                       <Button size="sm" variant="ghost" disabled={emailIndex === 0} onClick={() => { setEmailIndex(i => i - 1); setEditMode(false); setShowRegen(false); }}>
                         <ChevronLeft className="h-4 w-4 text-accent" strokeWidth={1.5} />
                       </Button>
-                      <span className="nd-label text-text-muted">{emailIndex + 1} de {emails.length}</span>
+                      <span className="nd-label text-text-muted">{emailIndex + 1} {t("common.of")} {emails.length}</span>
                       <Button size="sm" variant="ghost" disabled={emailIndex >= emails.length - 1} onClick={() => { setEmailIndex(i => i + 1); setEditMode(false); setShowRegen(false); }}>
                         <ChevronRight className="h-4 w-4 text-accent" strokeWidth={1.5} />
                       </Button>
@@ -393,27 +395,27 @@ export default function ReviewPage() {
                   {editMode ? (
                     <div className="space-y-4">
                       <div>
-                        <label className="nd-label block mb-2">Asunto</label>
+                        <label className="nd-label block mb-2">{t("common.subject")}</label>
                         <Input value={editSubject} onChange={(e) => setEditSubject(e.target.value)} />
                       </div>
                       <div>
-                        <label className="nd-label block mb-2">Cuerpo</label>
+                        <label className="nd-label block mb-2">{t("leads.emailBody")}</label>
                         <Textarea rows={12} value={editBody} onChange={(e) => setEditBody(e.target.value)} />
                       </div>
                       <div className="flex gap-3">
-                        <Button size="sm" onClick={saveEmailEdit} disabled={saving}>Guardar</Button>
-                        <Button size="sm" variant="secondary" onClick={() => setEditMode(false)}>Cancelar</Button>
+                        <Button size="sm" onClick={saveEmailEdit} disabled={saving}>{t("common.save")}</Button>
+                        <Button size="sm" variant="secondary" onClick={() => setEditMode(false)}>{t("common.cancel")}</Button>
                       </div>
                     </div>
                   ) : (
                     <>
                       <div className="space-y-2 mb-5">
                         <div className="flex items-baseline gap-3">
-                          <span className="nd-label flex-shrink-0">Para:</span>
+                          <span className="nd-label flex-shrink-0">{t("common.to")}</span>
                           <span className="text-sm text-text-primary font-mono">{current.email.toEmail}</span>
                         </div>
                         <div className="flex items-baseline gap-3">
-                          <span className="nd-label flex-shrink-0">Asunto:</span>
+                          <span className="nd-label flex-shrink-0">{t("common.subject")}:</span>
                           <span className="text-sm text-text-display">{current.email.subject}</span>
                         </div>
                       </div>
@@ -424,20 +426,20 @@ export default function ReviewPage() {
                   {current.email.status === "draft" && !editMode && (
                     <div className="flex flex-wrap gap-2 mt-5 pt-4 border-t border-border">
                       <Button variant="success" size="sm" onClick={() => approveEmail(current.email.id)} disabled={saving}>
-                        <Check className="h-3.5 w-3.5" strokeWidth={1.5} /> Aprobar
+                        <Check className="h-3.5 w-3.5" strokeWidth={1.5} /> {t("common.approve")}
                       </Button>
-                      <Button variant="secondary" size="sm" onClick={enterEmailEdit}>Editar</Button>
+                      <Button variant="secondary" size="sm" onClick={enterEmailEdit}>{t("common.edit")}</Button>
                       <Button variant="secondary" size="sm" onClick={() => { setShowRegen(!showRegen); setRegenTone(current.email.tone); }}>
-                        <RefreshCw className="h-3.5 w-3.5" strokeWidth={1.5} /> Regenerar
+                        <RefreshCw className="h-3.5 w-3.5" strokeWidth={1.5} /> {t("review.regenerate")}
                       </Button>
                       <Button variant="danger" size="sm" onClick={() => rejectEmail(current.email.id)} disabled={saving}>
-                        <X className="h-3.5 w-3.5" strokeWidth={1.5} /> Rechazar
+                        <X className="h-3.5 w-3.5" strokeWidth={1.5} /> {t("common.reject")}
                       </Button>
                       <Button variant="ghost" size="sm" onClick={saveAsTemplate}>
-                        <FileText className="h-3.5 w-3.5" strokeWidth={1.5} /> Guardar Template
+                        <FileText className="h-3.5 w-3.5" strokeWidth={1.5} /> {t("review.saveTemplate")}
                       </Button>
                       <Button variant="ghost" size="sm" onClick={() => sendTestEmail(current.email.id)} disabled={sendingTest}>
-                        <Send className="h-3.5 w-3.5" strokeWidth={1.5} /> {sendingTest ? "Enviando..." : "Enviar prueba"}
+                        <Send className="h-3.5 w-3.5" strokeWidth={1.5} /> {sendingTest ? t("review.sending") : t("review.sendTest")}
                       </Button>
                     </div>
                   )}
@@ -445,21 +447,19 @@ export default function ReviewPage() {
                   {showRegen && (
                     <div className="mt-4 p-4 border border-border rounded-lg space-y-4">
                       <div>
-                        <label className="nd-label block mb-2">Nuevo tono</label>
+                        <label className="nd-label block mb-2">{t("review.newTone")}</label>
                         <Select value={regenTone} onChange={(e) => setRegenTone(e.target.value)}>
-                          <option value="profesional">Profesional</option>
-                          <option value="amigable">Amigable</option>
-                          <option value="directo">Directo</option>
-                          <option value="consultivo">Consultivo</option>
-                          <option value="casual">Casual</option>
+                          {["professional", "friendly", "direct", "consultative", "casual"].map((tone) => (
+                            <option key={tone} value={tone}>{t(`tones.${tone}`)}</option>
+                          ))}
                         </Select>
                       </div>
                       <div>
-                        <label className="nd-label block mb-2">Instrucciones (opcional)</label>
-                        <Input value={regenInstructions} onChange={(e) => setRegenInstructions(e.target.value)} placeholder="Ej: menciona que ofrecemos un diagnostico gratis" />
+                        <label className="nd-label block mb-2">{t("review.instructionsOptional")}</label>
+                        <Input value={regenInstructions} onChange={(e) => setRegenInstructions(e.target.value)} placeholder={t("review.instructionsPlaceholder")} />
                       </div>
                       <Button size="sm" onClick={regenerateEmail} disabled={regenerating}>
-                        {regenerating ? "[REGENERANDO...]" : "Regenerar email"}
+                        {regenerating ? t("review.regenerating") : t("review.regenerateEmail")}
                       </Button>
                     </div>
                   )}
@@ -468,7 +468,7 @@ export default function ReviewPage() {
 
               <div>
                 <Card>
-                  <h3 className="nd-label mb-5">Informacion del negocio</h3>
+                  <h3 className="nd-label mb-5">{t("review.businessInfo")}</h3>
                   <div className="space-y-4">
                     <div>
                       <h4 className="text-[15px] text-text-display font-medium">{current.leadName}</h4>
@@ -487,17 +487,17 @@ export default function ReviewPage() {
                     )}
                     <div className="grid grid-cols-2 gap-3">
                       <div className="border border-border rounded-lg p-3">
-                        <span className="nd-label block mb-1">Calidad</span>
+                        <span className="nd-label block mb-1">{t("review.quality")}</span>
                         <QualityBar score={current.leadScore} size="sm" />
                       </div>
                       <div className="border border-border rounded-lg p-3">
-                        <span className="nd-label block mb-1">Oportunidad</span>
+                        <span className="nd-label block mb-1">{t("review.opportunity")}</span>
                         <QualityBar score={current.leadOpportunity} size="sm" />
                       </div>
                     </div>
                     {current.leadAnalysisSummary && (
                       <div className="border border-border rounded-lg p-3">
-                        <span className="nd-label block mb-1">Analisis</span>
+                        <span className="nd-label block mb-1">{t("review.analysis")}</span>
                         <p className="text-[12px] text-text-primary leading-relaxed">{current.leadAnalysisSummary}</p>
                       </div>
                     )}
@@ -525,12 +525,12 @@ export default function ReviewPage() {
                     if (waSelectedIds.size === waMessages.length) setWaSelectedIds(new Set());
                     else setWaSelectedIds(new Set(waMessages.map((m) => m.message.id)));
                   }}>
-                    {waSelectedIds.size === waMessages.length ? "Deseleccionar" : "Seleccionar todo"}
+                    {waSelectedIds.size === waMessages.length ? t("common.deselectAll") : t("common.selectAll")}
                   </Button>
-                  <span className="nd-label text-text-muted">{waSelectedIds.size} seleccionados</span>
+                  <span className="nd-label text-text-muted">{waSelectedIds.size} {t("common.selected")}</span>
                 </div>
                 <Button size="sm" variant="success" onClick={bulkApproveWA} disabled={waSelectedIds.size === 0 || waSaving}>
-                  <Check className="h-3.5 w-3.5" strokeWidth={1.5} /> Aprobar
+                  <Check className="h-3.5 w-3.5" strokeWidth={1.5} /> {t("common.approve")}
                 </Button>
               </div>
               <div className="max-h-60 overflow-y-auto">
@@ -550,7 +550,7 @@ export default function ReviewPage() {
           )}
 
           {!waBulkMode && waMessages.length === 0 && (
-            <EmptyState icon={<MessageCircle className="h-10 w-10" strokeWidth={1.5} />} title={waStatus === "draft" ? "Sin WhatsApps por revisar" : `Sin WhatsApps ${waStatus}`} description="Genera mensajes de WhatsApp desde la ficha del lead" />
+            <EmptyState icon={<MessageCircle className="h-10 w-10" strokeWidth={1.5} />} title={waStatus === "draft" ? t("review.noWasTitle") : `${t("review.noWasTitle")}`} description={t("review.noWasDesc")} />
           )}
 
           {!waBulkMode && currentWA && (
@@ -563,7 +563,7 @@ export default function ReviewPage() {
                       <Button size="sm" variant="ghost" disabled={waIndex === 0} onClick={() => { setWaIndex(i => i - 1); setWaEditMode(false); setWaShowRegen(false); }}>
                         <ChevronLeft className="h-4 w-4 text-accent" strokeWidth={1.5} />
                       </Button>
-                      <span className="nd-label text-text-muted">{waIndex + 1} de {waMessages.length}</span>
+                      <span className="nd-label text-text-muted">{waIndex + 1} {t("common.of")} {waMessages.length}</span>
                       <Button size="sm" variant="ghost" disabled={waIndex >= waMessages.length - 1} onClick={() => { setWaIndex(i => i + 1); setWaEditMode(false); setWaShowRegen(false); }}>
                         <ChevronRight className="h-4 w-4 text-accent" strokeWidth={1.5} />
                       </Button>
@@ -574,7 +574,7 @@ export default function ReviewPage() {
                   {/* Message content */}
                   <div className="space-y-2 mb-5">
                     <div className="flex items-baseline gap-3">
-                      <span className="nd-label flex-shrink-0">Para:</span>
+                      <span className="nd-label flex-shrink-0">{t("common.to")}</span>
                       <span className="text-sm text-text-primary font-mono">{currentWA.message.toPhone}</span>
                     </div>
                   </div>
@@ -582,13 +582,13 @@ export default function ReviewPage() {
                   {waEditMode ? (
                     <div className="space-y-4">
                       <div>
-                        <label className="nd-label block mb-2">Mensaje</label>
+                        <label className="nd-label block mb-2">{t("review.message")}</label>
                         <Textarea rows={6} value={waEditBody} onChange={(e) => setWaEditBody(e.target.value)} />
-                        <p className="text-[10px] text-text-muted font-mono mt-1">{waEditBody.length}/500 caracteres</p>
+                        <p className="text-[10px] text-text-muted font-mono mt-1">{waEditBody.length}/500 {t("common.characters")}</p>
                       </div>
                       <div className="flex gap-3">
-                        <Button size="sm" onClick={saveWAEdit} disabled={waSaving}>Guardar</Button>
-                        <Button size="sm" variant="secondary" onClick={() => setWaEditMode(false)}>Cancelar</Button>
+                        <Button size="sm" onClick={saveWAEdit} disabled={waSaving}>{t("common.save")}</Button>
+                        <Button size="sm" variant="secondary" onClick={() => setWaEditMode(false)}>{t("common.cancel")}</Button>
                       </div>
                     </div>
                   ) : (
@@ -596,7 +596,7 @@ export default function ReviewPage() {
                       <div className="bg-bg-tertiary rounded-lg px-4 py-3 max-w-md">
                         <p className="text-sm text-text-primary leading-relaxed whitespace-pre-wrap">{currentWA.message.body}</p>
                       </div>
-                      <p className="text-[10px] text-text-muted font-mono mt-2">{currentWA.message.body.length} caracteres</p>
+                      <p className="text-[10px] text-text-muted font-mono mt-2">{currentWA.message.body.length} {t("common.characters")}</p>
                     </div>
                   )}
 
@@ -604,14 +604,14 @@ export default function ReviewPage() {
                   {currentWA.message.status === "draft" && !waEditMode && (
                     <div className="flex flex-wrap gap-2 mt-5 pt-4 border-t border-border">
                       <Button variant="success" size="sm" onClick={() => approveWA(currentWA.message.id)} disabled={waSaving}>
-                        <Check className="h-3.5 w-3.5" strokeWidth={1.5} /> Aprobar
+                        <Check className="h-3.5 w-3.5" strokeWidth={1.5} /> {t("common.approve")}
                       </Button>
-                      <Button variant="secondary" size="sm" onClick={() => { setWaEditBody(currentWA.message.body); setWaEditMode(true); }}>Editar</Button>
+                      <Button variant="secondary" size="sm" onClick={() => { setWaEditBody(currentWA.message.body); setWaEditMode(true); }}>{t("common.edit")}</Button>
                       <Button variant="secondary" size="sm" onClick={() => { setWaShowRegen(!waShowRegen); setWaRegenTone(currentWA.message.tone); }}>
-                        <RefreshCw className="h-3.5 w-3.5" strokeWidth={1.5} /> Regenerar
+                        <RefreshCw className="h-3.5 w-3.5" strokeWidth={1.5} /> {t("review.regenerate")}
                       </Button>
                       <Button variant="danger" size="sm" onClick={() => rejectWA(currentWA.message.id)} disabled={waSaving}>
-                        <X className="h-3.5 w-3.5" strokeWidth={1.5} /> Rechazar
+                        <X className="h-3.5 w-3.5" strokeWidth={1.5} /> {t("common.reject")}
                       </Button>
                     </div>
                   )}
@@ -620,9 +620,9 @@ export default function ReviewPage() {
                     <div className="flex flex-wrap gap-2 mt-5 pt-4 border-t border-border">
                       <Button variant="success" size="sm" onClick={() => sendWA(currentWA.message.id)} disabled={waSending}>
                         {waSending ? (
-                          <><RefreshCw className="h-3.5 w-3.5 animate-spin" strokeWidth={1.5} /> Enviando...</>
+                          <><RefreshCw className="h-3.5 w-3.5 animate-spin" strokeWidth={1.5} /> {t("review.sending")}</>
                         ) : (
-                          <><Send className="h-3.5 w-3.5" strokeWidth={1.5} /> Enviar WhatsApp</>
+                          <><Send className="h-3.5 w-3.5" strokeWidth={1.5} /> {t("review.sendWa")}</>
                         )}
                       </Button>
                     </div>
@@ -632,21 +632,19 @@ export default function ReviewPage() {
                   {waShowRegen && (
                     <div className="mt-4 p-4 border border-border rounded-lg space-y-4">
                       <div>
-                        <label className="nd-label block mb-2">Nuevo tono</label>
+                        <label className="nd-label block mb-2">{t("review.newTone")}</label>
                         <Select value={waRegenTone} onChange={(e) => setWaRegenTone(e.target.value)}>
-                          <option value="profesional">Profesional</option>
-                          <option value="amigable">Amigable</option>
-                          <option value="directo">Directo</option>
-                          <option value="consultivo">Consultivo</option>
-                          <option value="casual">Casual</option>
+                          {["professional", "friendly", "direct", "consultative", "casual"].map((tone) => (
+                            <option key={tone} value={tone}>{t(`tones.${tone}`)}</option>
+                          ))}
                         </Select>
                       </div>
                       <div>
-                        <label className="nd-label block mb-2">Instrucciones (opcional)</label>
-                        <Input value={waRegenInstructions} onChange={(e) => setWaRegenInstructions(e.target.value)} placeholder="Ej: hazlo mas corto y directo" />
+                        <label className="nd-label block mb-2">{t("review.instructionsOptional")}</label>
+                        <Input value={waRegenInstructions} onChange={(e) => setWaRegenInstructions(e.target.value)} placeholder={t("review.instructionsPlaceholder")} />
                       </div>
                       <Button size="sm" onClick={regenerateWA} disabled={waRegenerating}>
-                        {waRegenerating ? "[REGENERANDO...]" : "Regenerar WhatsApp"}
+                        {waRegenerating ? t("review.regenerating") : t("review.regenerateWa")}
                       </Button>
                     </div>
                   )}
@@ -656,7 +654,7 @@ export default function ReviewPage() {
               {/* Lead info sidebar */}
               <div>
                 <Card>
-                  <h3 className="nd-label mb-5">Informacion del negocio</h3>
+                  <h3 className="nd-label mb-5">{t("review.businessInfo")}</h3>
                   <div className="space-y-4">
                     <div>
                       <h4 className="text-[15px] text-text-display font-medium">{currentWA.leadName}</h4>
@@ -680,17 +678,17 @@ export default function ReviewPage() {
                     )}
                     <div className="grid grid-cols-2 gap-3">
                       <div className="border border-border rounded-lg p-3">
-                        <span className="nd-label block mb-1">Calidad</span>
+                        <span className="nd-label block mb-1">{t("review.quality")}</span>
                         <QualityBar score={currentWA.leadScore} size="sm" />
                       </div>
                       <div className="border border-border rounded-lg p-3">
-                        <span className="nd-label block mb-1">Oportunidad</span>
+                        <span className="nd-label block mb-1">{t("review.opportunity")}</span>
                         <QualityBar score={currentWA.leadOpportunity} size="sm" />
                       </div>
                     </div>
                     {currentWA.leadAnalysisSummary && (
                       <div className="border border-border rounded-lg p-3">
-                        <span className="nd-label block mb-1">Analisis</span>
+                        <span className="nd-label block mb-1">{t("review.analysis")}</span>
                         <p className="text-[12px] text-text-primary leading-relaxed">{currentWA.leadAnalysisSummary}</p>
                       </div>
                     )}

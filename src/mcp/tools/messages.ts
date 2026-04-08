@@ -198,7 +198,7 @@ export function registerMessageTools(server: McpServer) {
             db.update(emails).set({ status: "approved", updatedAt: new Date().toISOString() }).where(eq(emails.id, id)).run();
             db.update(leads).set({ status: "email_approved" }).where(eq(leads.id, email.leadId)).run();
             db.insert(jobQueue).values({ type: "send_email", leadId: email.leadId, campaignId: email.campaignId }).run();
-            logActivity("email_approved", `Email approved via MCP for lead ID ${email.leadId}`, { leadId: email.leadId, campaignId: email.campaignId ?? undefined });
+            logActivity("email_approved", `Email approved via MCP for lead ID ${email.leadId}`, { leadId: email.leadId, campaignId: email.campaignId ?? undefined, messageKey: "activityLog.emailApprovedForLead", messageVars: { id: email.leadId } });
             approvedEmails++;
           }
         }
@@ -211,7 +211,7 @@ export function registerMessageTools(server: McpServer) {
             db.update(whatsappMessages).set({ status: "approved", updatedAt: new Date().toISOString() }).where(eq(whatsappMessages.id, id)).run();
             db.update(leads).set({ status: "wa_approved" }).where(eq(leads.id, msg.leadId)).run();
             db.insert(jobQueue).values({ type: "send_wa", leadId: msg.leadId, campaignId: msg.campaignId }).run();
-            logActivity("wa_approved", `WhatsApp approved via MCP for lead ID ${msg.leadId}`, { leadId: msg.leadId, campaignId: msg.campaignId ?? undefined });
+            logActivity("wa_approved", `WhatsApp approved via MCP for lead ID ${msg.leadId}`, { leadId: msg.leadId, campaignId: msg.campaignId ?? undefined, messageKey: "activityLog.waApproved" });
             approvedWA++;
           }
         }
@@ -245,7 +245,7 @@ export function registerMessageTools(server: McpServer) {
           const email = db.select().from(emails).where(and(eq(emails.id, id), eq(emails.status, "draft"))).get();
           if (email) {
             db.update(emails).set({ status: "rejected", updatedAt: new Date().toISOString() }).where(eq(emails.id, id)).run();
-            logActivity("email_rejected", `Email rejected via MCP${reason ? `: ${reason}` : ""}`, { leadId: email.leadId, campaignId: email.campaignId ?? undefined });
+            logActivity("email_rejected", `Email rejected via MCP${reason ? `: ${reason}` : ""}`, { leadId: email.leadId, campaignId: email.campaignId ?? undefined, messageKey: "activityLog.emailRejected" });
             rejectedEmails++;
           }
         }
@@ -256,7 +256,7 @@ export function registerMessageTools(server: McpServer) {
           const msg = db.select().from(whatsappMessages).where(and(eq(whatsappMessages.id, id), eq(whatsappMessages.status, "draft"))).get();
           if (msg) {
             db.update(whatsappMessages).set({ status: "rejected", updatedAt: new Date().toISOString() }).where(eq(whatsappMessages.id, id)).run();
-            logActivity("wa_rejected", `WhatsApp rejected via MCP${reason ? `: ${reason}` : ""}`, { leadId: msg.leadId, campaignId: msg.campaignId ?? undefined });
+            logActivity("wa_rejected", `WhatsApp rejected via MCP${reason ? `: ${reason}` : ""}`, { leadId: msg.leadId, campaignId: msg.campaignId ?? undefined, messageKey: "activityLog.waRejected" });
             rejectedWA++;
           }
         }
@@ -281,7 +281,7 @@ export function registerMessageTools(server: McpServer) {
     {
       messageId: z.number().int().describe("Message ID to regenerate"),
       channel: z.enum(["email", "whatsapp"]).describe("Message channel"),
-      tone: z.string().optional().describe("New tone (profesional, casual, urgente, amigable, etc.)"),
+      tone: z.string().optional().describe("New tone (professional, casual, urgent, friendly, etc.)"),
       instructions: z.string().optional().describe("Custom instructions for the AI"),
     },
     async ({ messageId, channel, tone, instructions }) => {

@@ -2,9 +2,11 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import { useT } from "@/i18n/LocaleProvider";
 
 export default function LoginPage() {
   const router = useRouter();
+  const { t } = useT();
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
@@ -47,12 +49,12 @@ export default function LoginPage() {
         router.refresh();
       } else if (res.status === 429) {
         setRetryAfter(data.retryAfter || 60);
-        setError("Demasiados intentos. Espera antes de reintentar.");
+        setError(t("login.tooManyAttempts"));
       } else {
-        setError(data.error || "Credenciales incorrectas");
+        setError(data.error || t("login.invalidCredentials"));
       }
     } catch {
-      setError("Error de conexion. Intenta de nuevo.");
+      setError(t("login.connectionError"));
     } finally {
       setLoading(false);
     }
@@ -73,7 +75,7 @@ export default function LoginPage() {
             PROSPECT<span className="text-accent">AI</span>
           </h1>
           <p className="nd-label text-text-secondary">
-            [AUTENTICACION REQUERIDA]
+            {t("login.title")}
           </p>
         </div>
 
@@ -82,7 +84,7 @@ export default function LoginPage() {
           <form onSubmit={handleSubmit} className="space-y-6">
             {/* Username */}
             <div>
-              <label className="nd-label block mb-3">Usuario</label>
+              <label className="nd-label block mb-3">{t("login.username")}</label>
               <input
                 type="text"
                 value={username}
@@ -97,7 +99,7 @@ export default function LoginPage() {
 
             {/* Password */}
             <div>
-              <label className="nd-label block mb-3">Contrasena</label>
+              <label className="nd-label block mb-3">{t("login.password")}</label>
               <input
                 type="password"
                 value={password}
@@ -122,7 +124,7 @@ export default function LoginPage() {
             {retryAfter > 0 && (
               <div className="border border-warning/30 rounded-lg px-4 py-3">
                 <p className="text-[11px] font-mono uppercase tracking-[0.06em] text-warning">
-                  Reintentar en {Math.floor(retryAfter / 60)}:
+                  {t("login.retryIn")} {Math.floor(retryAfter / 60)}:
                   {String(retryAfter % 60).padStart(2, "0")}
                 </p>
               </div>
@@ -145,10 +147,10 @@ export default function LoginPage() {
                       />
                     ))}
                   </span>
-                  Verificando
+                  {t("login.verifying")}
                 </span>
               ) : (
-                "Acceder"
+                t("login.submit")
               )}
             </button>
           </form>

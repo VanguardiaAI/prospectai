@@ -65,6 +65,8 @@ export async function POST(req: NextRequest) {
     logActivity("import", `Búsqueda iniciada: "${keyword.trim()}"`, {
       campaignId: campaignId ? Number(campaignId) : undefined,
       metadata: { searchJobId: job.id, scraperJobId },
+      messageKey: "activityLog.searchStarted",
+      messageVars: { keyword: keyword.trim() },
     });
 
     return NextResponse.json({ success: true, job });

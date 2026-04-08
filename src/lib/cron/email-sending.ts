@@ -67,7 +67,7 @@ export async function processEmailSending() {
     // RGPD: Check if unsubscribed
     if (isUnsubscribed(row.email.toEmail)) {
       db.update(emails).set({ status: "failed" }).where(eq(emails.id, row.email.id)).run();
-      logActivity("email_failed", `Email no enviado a ${row.email.toEmail}: se dio de baja`, { leadId: row.email.leadId });
+      logActivity("email_failed", `Email no enviado a ${row.email.toEmail}: se dio de baja`, { leadId: row.email.leadId, messageKey: "activityLog.leadUnsubscribed", messageVars: { name: row.email.toEmail } });
       continue;
     }
 
@@ -195,6 +195,8 @@ export async function processEmailSending() {
       logActivity("email_sent", `Email enviado a ${row.email.toEmail} desde ${fromEmail}`, {
         leadId: row.email.leadId,
         campaignId: row.email.campaignId ?? undefined,
+        messageKey: "activityLog.emailSentFrom",
+        messageVars: { email: row.email.toEmail, from: fromEmail },
       });
 
       sent++;
@@ -208,6 +210,8 @@ export async function processEmailSending() {
       db.update(emails).set({ status: "failed" }).where(eq(emails.id, row.email.id)).run();
       logActivity("email_failed", `Error enviando email a ${row.email.toEmail}: ${result.error}`, {
         leadId: row.email.leadId,
+        messageKey: "activityLog.errorSendingEmail",
+        messageVars: { email: row.email.toEmail },
       });
     }
   }

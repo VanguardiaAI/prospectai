@@ -38,7 +38,7 @@ export function registerManagementTools(server: McpServer) {
           value: value.toLowerCase(),
           reason: reason ?? null,
         }).run();
-        logActivity("blacklist", `Added to blacklist via MCP: ${type} "${value}"${reason ? ` - ${reason}` : ""}`);
+        logActivity("blacklist", `Added to blacklist via MCP: ${type} "${value}"${reason ? ` - ${reason}` : ""}`, { messageKey: "activityLog.leadBlacklisted", messageVars: { name: `${type} "${value}"` } });
         return { content: [{ type: "text", text: `Added to blacklist: ${type} "${value}"` }] };
       }
 
@@ -51,7 +51,7 @@ export function registerManagementTools(server: McpServer) {
           return { content: [{ type: "text", text: `"${value}" not found in blacklist.` }] };
         }
         db.delete(blacklist).where(eq(blacklist.id, entry.id)).run();
-        logActivity("blacklist", `Removed from blacklist via MCP: ${entry.type} "${value}"`);
+        logActivity("blacklist", `Removed from blacklist via MCP: ${entry.type} "${value}"`, { messageKey: "activityLog.leadBlacklisted", messageVars: { name: `${entry.type} "${value}"` } });
         return { content: [{ type: "text", text: `Removed from blacklist: ${entry.type} "${value}"` }] };
       }
 
@@ -118,7 +118,7 @@ export function registerManagementTools(server: McpServer) {
           enabled: enabled ?? true,
         }).returning().get();
 
-        logActivity("campaign_change", `Sequence step ${step.stepNumber} created for "${campaign.name}"`, { campaignId });
+        logActivity("campaign_change", `Sequence step ${step.stepNumber} created for "${campaign.name}"`, { campaignId, messageKey: "activityLog.campaignUpdated", messageVars: { name: campaign.name } });
         return { content: [{ type: "text", text: `Sequence step ${step.stepNumber} created: ${step.channel} after ${step.delayDays} days (tone: ${step.tone})` }] };
       }
 
@@ -172,7 +172,7 @@ export function registerManagementTools(server: McpServer) {
           enrolled++;
         }
 
-        logActivity("campaign_change", `${enrolled} leads enrolled in sequence for "${campaign.name}"`, { campaignId });
+        logActivity("campaign_change", `${enrolled} leads enrolled in sequence for "${campaign.name}"`, { campaignId, messageKey: "activityLog.campaignUpdated", messageVars: { name: campaign.name } });
         return { content: [{ type: "text", text: `Enrolled ${enrolled} leads in ${steps.length}-step sequence.` }] };
       }
 
@@ -309,7 +309,7 @@ export function registerManagementTools(server: McpServer) {
           status: status ?? "warming",
         }).returning().get();
 
-        logActivity("setting_change", `Sending domain added: ${domain}`, { metadata: { domainId: d.id } });
+        logActivity("setting_change", `Sending domain added: ${domain}`, { metadata: { domainId: d.id }, messageKey: "activityLog.configUpdated", messageVars: { fields: `domain: ${domain}` } });
         return { content: [{ type: "text", text: `Domain added: [ID:${d.id}] ${domain} <${fromEmail}> (${d.status})` }] };
       }
 
@@ -392,7 +392,7 @@ export function registerManagementTools(server: McpServer) {
             } else {
               db.insert(jobQueue).values({ type: "send_email", leadId: email.leadId, campaignId: email.campaignId }).run();
             }
-            logActivity("email_approved", `Email retried via MCP`, { leadId: email.leadId, campaignId: email.campaignId ?? undefined });
+            logActivity("email_approved", `Email retried via MCP`, { leadId: email.leadId, campaignId: email.campaignId ?? undefined, messageKey: "activityLog.emailApproved" });
             retriedEmails++;
           }
         }
@@ -412,7 +412,7 @@ export function registerManagementTools(server: McpServer) {
             } else {
               db.insert(jobQueue).values({ type: "send_wa", leadId: msg.leadId, campaignId: msg.campaignId }).run();
             }
-            logActivity("wa_approved", `WhatsApp retried via MCP`, { leadId: msg.leadId, campaignId: msg.campaignId ?? undefined });
+            logActivity("wa_approved", `WhatsApp retried via MCP`, { leadId: msg.leadId, campaignId: msg.campaignId ?? undefined, messageKey: "activityLog.waApproved" });
             retriedWA++;
           }
         }
@@ -451,7 +451,7 @@ export function registerManagementTools(server: McpServer) {
       if (changed.length === 0) return { content: [{ type: "text", text: "No changes specified." }] };
 
       db.update(leads).set(updates).where(eq(leads.id, leadId)).run();
-      logActivity("lead_prioritized", `Lead "${lead.name}" updated via MCP: ${changed.join(", ")}`, { leadId });
+      logActivity("lead_prioritized", `Lead "${lead.name}" updated via MCP: ${changed.join(", ")}`, { leadId, messageKey: "activityLog.campaignUpdated", messageVars: { name: lead.name } });
 
       return { content: [{ type: "text", text: `Lead [ID:${leadId}] "${lead.name}" updated: ${changed.join(", ")}` }] };
     }
@@ -492,7 +492,7 @@ export function registerManagementTools(server: McpServer) {
           status: "active",
         }).returning().get();
 
-        logActivity("campaign_change", `A/B test "${name}" created for campaign ${campaignId}`, { campaignId });
+        logActivity("campaign_change", `A/B test "${name}" created for campaign ${campaignId}`, { campaignId, messageKey: "activityLog.campaignUpdated", messageVars: { name: name ?? "" } });
         return { content: [{ type: "text", text: `A/B test created: [ID:${test.id}] "${name}" (${test.channel})` }] };
       }
 

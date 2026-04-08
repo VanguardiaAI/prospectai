@@ -53,7 +53,7 @@ export async function POST(req: NextRequest) {
       }).run();
     }
 
-    logActivity("campaign_change", `Secuencia actualizada para campaña #${campaignId} (${steps.length} pasos)`);
+    logActivity("campaign_change", `Secuencia actualizada para campaña #${campaignId} (${steps.length} pasos)`, { messageKey: "activityLog.campaignUpdated", messageVars: { name: `#${campaignId}` } });
     return NextResponse.json({ success: true, stepCount: steps.length });
   }
 
@@ -99,7 +99,7 @@ export async function POST(req: NextRequest) {
       enrolled++;
     }
 
-    logActivity("campaign_change", `${enrolled} leads enrolados en secuencia de campaña #${campaignId}`);
+    logActivity("campaign_change", `${enrolled} leads enrolados en secuencia de campaña #${campaignId}`, { messageKey: "activityLog.campaignUpdated", messageVars: { name: `#${campaignId}` } });
     return NextResponse.json({ success: true, enrolled });
   }
 

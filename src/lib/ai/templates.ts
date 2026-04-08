@@ -14,78 +14,78 @@ export async function generateEmailTemplate(
   const servicesDesc = ctx.services.map((s) => `- ${s.label}: ${s.description}`).join("\n");
 
   const purposeMap = {
-    initial: "Primer contacto, email inicial de prospección fría",
-    follow_up: "Follow-up, segundo o tercer contacto, ángulo diferente, más breve",
-    breakup: "Breakup, último mensaje de la secuencia, despedida cordial",
+    initial: "First contact, initial cold prospecting email",
+    follow_up: "Follow-up, second or third contact, different angle, shorter",
+    breakup: "Breakup, last message in the sequence, cordial farewell",
   };
 
   const wordLimits = {
-    initial: "75-125 palabras",
-    follow_up: "50-75 palabras",
-    breakup: "40-60 palabras",
+    initial: "75-125 words",
+    follow_up: "50-75 words",
+    breakup: "40-60 words",
   };
 
-  const prompt = `Eres un experto en cold email B2B y copywriting para ${ctx.name} (${ctx.url}).
+  const prompt = `You are an expert in B2B cold email and copywriting for ${ctx.name} (${ctx.url}).
 ${ctx.description}
 
-GENERA UN TEMPLATE DE EMAIL reutilizable para la industria: "${industry}"
-PROPÓSITO: ${purposeMap[purpose]}
-TONO: ${tone}
-IDIOMA: ${localeLabel}
-${customInstructions ? `INSTRUCCIONES ADICIONALES: ${customInstructions}` : ""}
+GENERATE A REUSABLE EMAIL TEMPLATE for the industry: "${industry}"
+PURPOSE: ${purposeMap[purpose]}
+TONE: ${tone}
+LANGUAGE: Write in ${localeLabel}
+${customInstructions ? `ADDITIONAL INSTRUCTIONS: ${customInstructions}` : ""}
 
-SERVICIOS QUE OFRECEMOS:
+SERVICES WE OFFER:
 ${servicesDesc}
 
-PRINCIPIO FUNDAMENTAL - ENFOQUE EN BENEFICIO:
-El dueño de negocio NO le importan problemas técnicos. Le importa tener MÁS CLIENTES y MÁS VENTAS. Todo problema debe traducirse a impacto de negocio:
-- "Sin SSL" → "Los visitantes ven 'sitio no seguro' y se van a la competencia"
-- "No responsive" → "El 70% busca desde el celular y no puede navegar bien por la página"
-- "SEO bajo" → "Cuando buscan {{category}} en {{city}}, sale la competencia y ellos no"
-- "Sin web" → "Los clientes que buscan en Google no los encuentran"
+CORE PRINCIPLE - BENEFIT-FOCUSED APPROACH:
+The business owner does NOT care about technical problems. They care about getting MORE CUSTOMERS and MORE SALES. Every problem must be translated into business impact:
+- "No SSL" → "Visitors see 'not secure' and leave for the competition"
+- "Not responsive" → "70% search from their phone and can't navigate the site properly"
+- "Low SEO" → "When people search for {{category}} in {{city}}, the competition shows up and they don't"
+- "No website" → "Customers searching on Google can't find them"
 
-REGLAS CRÍTICAS DE ANTI-SPAM Y MEJORES PRÁCTICAS (2026):
-1. LONGITUD: ${wordLimits[purpose]}. Los emails de más de 150 palabras tienen tasas de respuesta significativamente menores.
-2. FORMATO: Texto plano con HTML mínimo (solo <p>, <br>, <b>). SIN imágenes, SIN colores, SIN headers HTML.
-3. ASUNTO: 4-7 palabras, sentence case, que genere curiosidad sobre el BENEFICIO, no sobre el problema. Ej: "más clientes para {{business_name}}" NO "problemas en tu web".
-4. PALABRAS SPAM PROHIBIDAS: gratis, oferta, garantizado, exclusivo, urgente, actúa ahora, descuento, sin coste, oportunidad única, resultados garantizados, dinero, beneficio, promoción, click aquí, sin compromiso, diagnóstico gratuito.
-5. USA ALTERNATIVAS NATURALES: "te preparo un análisis" en vez de "diagnóstico gratuito", "te muestro el potencial" en vez de "oferta exclusiva", "te cuento cómo funciona" en vez de "sin compromiso".
-6. PERSONALIZACIÓN: Usa variables {{variable}}. MÍNIMO: {{business_name}} y una referencia específica al negocio.
-7. UN SOLO CTA: Pregunta suave orientada al beneficio. Ej: "Te interesaría ver cuánto potencial tiene tu zona?" NO "Agenda una demo ahora".
-8. ESTRUCTURA (Framework PAS orientado a beneficio):
-   - HOOK: 1-2 frases que demuestren que investigaste el negocio. SIN halagos genéricos.
-   - OPORTUNIDAD: 2-3 frases conectando lo detectado con clientes/ventas que podrían captar. NUNCA listes problemas técnicos a secas.
-   - CREDIBILIDAD: 1 frase sobre cómo ayudas a negocios similares (sin prometer cifras exactas).
-   - CTA: 1 frase, pregunta suave sobre el beneficio.
-9. FIRMA: Solo "{{sender_name}}, de ${ctx.name}". NUNCA "Soy ${ctx.name}". NO añadas footer legal ni link de baja (el sistema los inyecta).
-10. VARIACIÓN: El template debe sonar natural y humano, NO como un copy publicitario.
-11. PARA FOLLOW-UP: Cambia el ángulo. Si el inicial habla de web, el follow-up habla de SEO o IA. Más breve y directo.
-12. PARA BREAKUP: Despedida cordial, deja la puerta abierta, sin culpa ni presión.
-13. CUMPLIMIENTO LEGAL: El email debe poder identificarse como comunicación comercial. Remitente claramente identificado.
-14. NUNCA uses halagos genéricos como "Me encanta lo que hacéis" o "Me encanta lo que hacen".
-15. NUNCA prometas resultados exactos, usa lenguaje como "ayudamos a", "conseguimos que".
-16. NUNCA uses jerga técnica sin traducirla a impacto: nada de "SSL", "responsive", "SEO" a secas. Siempre explica qué significa para sus clientes/ventas.
+CRITICAL ANTI-SPAM RULES AND BEST PRACTICES (2026):
+1. LENGTH: ${wordLimits[purpose]}. Emails over 150 words have significantly lower response rates.
+2. FORMAT: Plain text with minimal HTML (only <p>, <br>, <b>). NO images, NO colors, NO HTML headers.
+3. SUBJECT LINE: 4-7 words, sentence case, sparking curiosity about the BENEFIT, not the problem. E.g.: "more customers for {{business_name}}" NOT "problems with your website".
+4. BANNED SPAM WORDS: free, offer, guaranteed, exclusive, urgent, act now, discount, no cost, once-in-a-lifetime, guaranteed results, money, profit, promotion, click here, no obligation, free audit.
+5. USE NATURAL ALTERNATIVES: "I'll put together an analysis" instead of "free audit", "I'll show you the potential" instead of "exclusive offer", "I'll walk you through how it works" instead of "no obligation".
+6. PERSONALIZATION: Use {{variable}} placeholders. MINIMUM: {{business_name}} and a specific reference to the business.
+7. SINGLE CTA: Soft question oriented toward the benefit. E.g.: "Would you be interested in seeing how much potential your area has?" NOT "Book a demo now".
+8. STRUCTURE (Benefit-oriented PAS Framework):
+   - HOOK: 1-2 sentences showing you researched the business. NO generic compliments.
+   - OPPORTUNITY: 2-3 sentences connecting what you found to customers/sales they could capture. NEVER list technical problems on their own.
+   - CREDIBILITY: 1 sentence about how you help similar businesses (without promising exact figures).
+   - CTA: 1 sentence, soft question about the benefit.
+9. SIGNATURE: Only "{{sender_name}}, from ${ctx.name}". NEVER "I am ${ctx.name}". Do NOT add a legal footer or unsubscribe link (the system injects those).
+10. VARIATION: The template must sound natural and human, NOT like advertising copy.
+11. FOR FOLLOW-UP: Change the angle. If the initial email talks about the website, the follow-up talks about SEO or AI. Shorter and more direct.
+12. FOR BREAKUP: Cordial farewell, leave the door open, no guilt or pressure.
+13. LEGAL COMPLIANCE: The email must be identifiable as a commercial communication. Sender clearly identified.
+14. NEVER use generic compliments like "I love what you do" or "I love what you're doing".
+15. NEVER promise exact results, use language like "we help", "we've helped businesses".
+16. NEVER use technical jargon without translating it to impact: no "SSL", "responsive", "SEO" on their own. Always explain what it means for their customers/sales.
 
-ADAPTACIÓN REGIONAL (CRÍTICO):
-El template usará la variable {{city}} para personalizar. Adapta el lenguaje al locale: ${localeLabel}. Escribe de forma natural para ese mercado.
+REGIONAL ADAPTATION (CRITICAL):
+The template will use the {{city}} variable for personalization. Adapt the language to the locale: ${localeLabel}. Write naturally for that market.
 ${writingRules}
 
-VARIABLES DISPONIBLES para usar en el template:
-- {{business_name}}: nombre del negocio
-- {{category}}: categoría/industria del negocio
-- {{city}}: ciudad del negocio
-- {{website}}: sitio web del negocio
-- {{issue}}: problema específico detectado en su presencia digital
-- {{sender_name}}: nombre del remitente
-- {{service}}: servicio recomendado
+AVAILABLE VARIABLES to use in the template:
+- {{business_name}}: business name
+- {{category}}: business category/industry
+- {{city}}: business city
+- {{website}}: business website
+- {{issue}}: specific issue detected in their digital presence
+- {{sender_name}}: sender name
+- {{service}}: recommended service
 
-Responde SOLO con JSON válido (sin markdown, sin backticks):
+Respond ONLY with valid JSON (no markdown, no backticks):
 {
-  "name": "nombre descriptivo corto del template",
-  "subject": "asunto del email con {{variables}} si aplica",
-  "bodyHtml": "contenido HTML mínimo del email (<p>, <b>, <br>)",
-  "bodyText": "versión texto plano del email",
-  "variables": ["lista", "de", "variables", "usadas"]
+  "name": "short descriptive template name",
+  "subject": "email subject with {{variables}} if applicable",
+  "bodyHtml": "minimal HTML email content (<p>, <b>, <br>)",
+  "bodyText": "plain text version of the email",
+  "variables": ["list", "of", "variables", "used"]
 }`;
 
   const result = await model.generateContent(prompt);
@@ -107,66 +107,66 @@ export async function generateWhatsAppTemplate(
   const servicesDesc = ctx.services.map((s) => `- ${s.label}: ${s.description}`).join("\n");
 
   const purposeMap = {
-    initial: "Primer contacto, mensaje inicial de prospección",
-    follow_up: "Follow-up, segundo contacto, ángulo diferente, más breve",
-    breakup: "Breakup, último mensaje, despedida cordial",
+    initial: "First contact, initial prospecting message",
+    follow_up: "Follow-up, second contact, different angle, shorter",
+    breakup: "Breakup, last message, cordial farewell",
   };
 
-  const prompt = `Eres un experto en ventas B2B por WhatsApp para ${ctx.name} (${ctx.url}).
+  const prompt = `You are an expert in B2B WhatsApp sales for ${ctx.name} (${ctx.url}).
 ${ctx.description}
 
-GENERA UN TEMPLATE DE WHATSAPP reutilizable para la industria: "${industry}"
-PROPÓSITO: ${purposeMap[purpose]}
-TONO: ${tone}
-IDIOMA: ${localeLabel}
-${customInstructions ? `INSTRUCCIONES ADICIONALES: ${customInstructions}` : ""}
+GENERATE A REUSABLE WHATSAPP TEMPLATE for the industry: "${industry}"
+PURPOSE: ${purposeMap[purpose]}
+TONE: ${tone}
+LANGUAGE: Write in ${localeLabel}
+${customInstructions ? `ADDITIONAL INSTRUCTIONS: ${customInstructions}` : ""}
 
-SERVICIOS QUE OFRECEMOS:
+SERVICES WE OFFER:
 ${servicesDesc}
 
-PRINCIPIO FUNDAMENTAL - ENFOQUE EN BENEFICIO:
-El prospecto tiene que sentir que GANA algo. No le audites ni señales errores: muéstrale cómo puede conseguir MÁS CLIENTES o MÁS VENTAS. Traduce cada problema técnico a impacto de negocio:
-- "Sin web" → "los clientes que buscan en Google no te encuentran, se van a la competencia"
-- "Web lenta/mal" → "la gente entra, no carga bien y se va"
-- "Sin presencia en redes" → "tus competidores están captando a tus clientes potenciales ahí"
+CORE PRINCIPLE - BENEFIT-FOCUSED APPROACH:
+The prospect needs to feel they are GAINING something. Don't audit them or point out errors: show them how they can get MORE CUSTOMERS or MORE SALES. Translate every technical problem into business impact:
+- "No website" → "customers searching on Google can't find you, they go to the competition"
+- "Slow/bad website" → "people visit, it doesn't load properly, and they leave"
+- "No social media presence" → "your competitors are capturing your potential customers there"
 
-REGLAS PARA WHATSAPP B2B (2026):
-1. MÁXIMO 500 caracteres. WhatsApp es conversacional, no formal.
-2. Saludo breve y natural, como si hablaras con alguien en persona.
-3. SIEMPRE traduce problemas a IMPACTO DE NEGOCIO: clientes que pierden, ventas que no llegan, competencia que les gana.
-4. NUNCA uses jerga técnica sin explicar qué pierde el negocio: nada de "SSL", "responsive", "SEO" a secas.
-5. Si el negocio no tiene web o es de baja calidad, mencionalo como OPORTUNIDAD de crecimiento, no como crítica.
-6. Ofrece algo enfocado en resultado: "ver cuántos clientes podrían captar", "análisis del potencial de tu zona". NUNCA "diagnóstico gratuito", "sin compromiso", "gratis".
-7. Cierra con pregunta abierta natural para generar respuesta. SIN signo de apertura (¿), solo cierre (?).
-8. SIN HTML, SIN formato de email.
-9. MÁXIMO 1-2 emojis si el tono lo permite. Preferiblemente 0.
-10. Firma: "{{sender_name}}, de ${ctx.name}". NUNCA "Soy ${ctx.name}". Sin links, URLs ni dominios.
-11. Debe sonar como un mensaje real de WhatsApp a un conocido profesional, NO como copy publicitario.
-12. PROHIBIDO: lenguaje de spam, promesas exageradas, urgencia artificial, "oferta por tiempo limitado", "sin compromiso".
-13. USA ALTERNATIVAS NATURALES: "te comento" en vez de "te informo", "vi que" en vez de "he observado", "qué te parece" en vez de "le interesaría".
-14. Para FOLLOW-UP: Referencia al mensaje anterior. Más breve. Nuevo ángulo de valor.
-15. Para BREAKUP: Cordial, sin presión, deja la puerta abierta.
-16. ANTI-BLOQUEO: Los mensajes repetitivos o demasiado comerciales provocan reportes y bloqueo del número. Naturalidad ante todo.
-17. PERSONALIZACIÓN: Usa variables {{variable}} para hacer el mensaje específico al prospecto.
-18. NO incluyas URLs, links ni dominios en el mensaje. Favorecen detección de spam y bloqueo del número.
+RULES FOR WHATSAPP B2B (2026):
+1. MAXIMUM 500 characters. WhatsApp is conversational, not formal.
+2. Brief and natural greeting, as if you were talking to someone in person.
+3. ALWAYS translate problems into BUSINESS IMPACT: customers they're losing, sales they're missing, competition that's beating them.
+4. NEVER use technical jargon without explaining what the business is losing: no "SSL", "responsive", "SEO" on their own.
+5. If the business has no website or a low-quality one, mention it as a GROWTH OPPORTUNITY, not as criticism.
+6. Offer something focused on results: "see how many customers you could capture", "analysis of your area's potential". NEVER "free audit", "no obligation", "free".
+7. Close with a natural open question to generate a reply. Use only a closing question mark (?).
+8. NO HTML, NO email formatting.
+9. MAXIMUM 1-2 emojis if the tone allows it. Preferably 0.
+10. Signature: "{{sender_name}}, from ${ctx.name}". NEVER "I am ${ctx.name}". No links, URLs, or domains.
+11. Must sound like a real WhatsApp message to a professional acquaintance, NOT like advertising copy.
+12. FORBIDDEN: spam language, exaggerated promises, artificial urgency, "limited time offer", "no obligation".
+13. USE NATURAL ALTERNATIVES: "I noticed" instead of "I have observed", "what do you think" instead of "would you be interested", "just reaching out" instead of "I am writing to inform you".
+14. For FOLLOW-UP: Reference the previous message. Shorter. New value angle.
+15. For BREAKUP: Cordial, no pressure, leave the door open.
+16. ANTI-BLOCK: Repetitive or overly commercial messages cause reports and number blocking. Naturalness above all.
+17. PERSONALIZATION: Use {{variable}} placeholders to make the message specific to the prospect.
+18. Do NOT include URLs, links, or domains in the message. They trigger spam detection and number blocking.
 
-ADAPTACIÓN REGIONAL (CRÍTICO):
-El template usará la variable {{city}} para personalizar. Adapta el lenguaje al locale: ${localeLabel}. Escribe de forma natural para ese mercado.
+REGIONAL ADAPTATION (CRITICAL):
+The template will use the {{city}} variable for personalization. Adapt the language to the locale: ${localeLabel}. Write naturally for that market.
 ${writingRules}
 
-VARIABLES DISPONIBLES:
-- {{business_name}}: nombre del negocio
-- {{category}}: categoría/industria
-- {{city}}: ciudad
-- {{issue}}: problema detectado
-- {{sender_name}}: nombre del remitente
-- {{service}}: servicio recomendado
+AVAILABLE VARIABLES:
+- {{business_name}}: business name
+- {{category}}: category/industry
+- {{city}}: city
+- {{issue}}: detected issue
+- {{sender_name}}: sender name
+- {{service}}: recommended service
 
-Responde SOLO con JSON válido (sin markdown, sin backticks):
+Respond ONLY with valid JSON (no markdown, no backticks):
 {
-  "name": "nombre descriptivo corto del template",
-  "message": "el mensaje de whatsapp con {{variables}}",
-  "variables": ["lista", "de", "variables", "usadas"]
+  "name": "short descriptive template name",
+  "message": "the WhatsApp message with {{variables}}",
+  "variables": ["list", "of", "variables", "used"]
 }`;
 
   const result = await model.generateContent(prompt);
