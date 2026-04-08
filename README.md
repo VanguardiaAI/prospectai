@@ -1,5 +1,7 @@
 <div align="center">
 
+**English** | [Español](README.es.md)
+
 # ProspectAI
 
 **Open source B2B prospecting engine.**
