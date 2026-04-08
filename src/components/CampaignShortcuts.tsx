@@ -19,7 +19,10 @@ import {
 } from "lucide-react";
 import { clsx } from "clsx";
 import { useT } from "@/i18n/LocaleProvider";
-import { useChatbot } from "./ChatbotProvider";
+import { useToast } from "@/components/Toast";
+import { PhaseLoader } from "./PhaseLoader";
+import { MissingConfigModal } from "./MissingConfigModal";
+import { SearchInputModal } from "./SearchInputModal";
 
 // ─── Types ──────────────────────────────────────────────────────────
 
@@ -50,54 +53,31 @@ interface CampaignWithPhases {
   metrics: { sent: number; opened: number; openRate: number; replies: number };
 }
 
+interface ConfigItem {
+  key: string;
+  type: "env" | "setting";
+  settingsSection?: string;
+}
+
 // ─── Phase Config ───────────────────────────────────────────────────
 
 const PHASES: {
   key: CampaignPhase;
   icon: typeof Search;
   labelKey: string;
-  chatCommand: (id: number, name: string) => string | null;
   navigateTo?: (id: number) => string;
 }[] = [
-  {
-    key: "search",
-    icon: Search,
-    labelKey: "shortcuts.search",
-    chatCommand: (id, name) =>
-      `Search for leads on Google Maps for campaign "${name}" (ID: ${id})`,
-  },
-  {
-    key: "analysis",
-    icon: ScanSearch,
-    labelKey: "shortcuts.analyze",
-    chatCommand: () => `Process scraping and analysis jobs`,
-  },
-  {
-    key: "generation",
-    icon: PenLine,
-    labelKey: "shortcuts.generate",
-    chatCommand: () => `Process email and WhatsApp generation jobs`,
-  },
+  { key: "search", icon: Search, labelKey: "shortcuts.search" },
+  { key: "analysis", icon: ScanSearch, labelKey: "shortcuts.analyze" },
+  { key: "generation", icon: PenLine, labelKey: "shortcuts.generate" },
   {
     key: "review",
     icon: ClipboardCheck,
     labelKey: "shortcuts.review",
-    chatCommand: () => null,
     navigateTo: (id) => `/review?campaignId=${id}`,
   },
-  {
-    key: "sending",
-    icon: Send,
-    labelKey: "shortcuts.send",
-    chatCommand: (id) =>
-      `Approve and send all pending draft messages for campaign ID ${id}`,
-  },
-  {
-    key: "engagement",
-    icon: Reply,
-    labelKey: "shortcuts.engagement",
-    chatCommand: () => `Process follow-up sequences`,
-  },
+  { key: "sending", icon: Send, labelKey: "shortcuts.send" },
+  { key: "engagement", icon: Reply, labelKey: "shortcuts.engagement" },
 ];
 
 // ─── Phase Button ───────────────────────────────────────────────────
@@ -107,52 +87,40 @@ function PhaseButton({
   phaseData,
   isCurrentPhase,
   isPast,
-  campaignId,
-  campaignName,
+  isExecuting,
+  disabled,
+  onExecute,
   t,
 }: {
   phase: (typeof PHASES)[number];
   phaseData: PhaseData;
   isCurrentPhase: boolean;
   isPast: boolean;
-  campaignId: number;
-  campaignName: string;
+  isExecuting: boolean;
+  disabled: boolean;
+  onExecute: () => void;
   t: (key: string) => string;
 }) {
-  const { sendMessage } = useChatbot();
-  const router = useRouter();
   const Icon = phase.icon;
-
   const isLocked = !isPast && !isCurrentPhase;
   const isDone = isPast || phaseData.done;
 
-  const handleClick = () => {
-    if (isLocked) return;
-
-    if (phase.navigateTo) {
-      router.push(phase.navigateTo(campaignId));
-      return;
-    }
-
-    const command = phase.chatCommand(campaignId, campaignName);
-    if (command) {
-      sendMessage(command);
-    }
-  };
-
   return (
     <button
-      onClick={handleClick}
-      disabled={isLocked}
+      onClick={onExecute}
+      disabled={isLocked || disabled}
       className={clsx(
         "flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[11px] font-mono uppercase tracking-wide",
         "transition-all duration-200 cursor-pointer",
         "disabled:cursor-not-allowed",
+        isExecuting && "ring-1 ring-accent/50 animate-pulse",
         isLocked && "bg-muted/5 text-muted/30 border border-muted/10",
         isCurrentPhase &&
+          !isExecuting &&
           "bg-accent/10 text-accent border border-accent/30 hover:bg-accent/15 shadow-sm shadow-accent/10",
         isDone &&
           !isCurrentPhase &&
+          !isExecuting &&
           "bg-success/8 text-success/70 border border-success/20 hover:bg-success/12"
       )}
     >
@@ -170,11 +138,88 @@ function PhaseButton({
 
 // ─── Campaign Row ───────────────────────────────────────────────────
 
-function CampaignRow({ campaign, t }: { campaign: CampaignWithPhases; t: (key: string) => string }) {
+function CampaignRow({
+  campaign,
+  t,
+  onRefresh,
+}: {
+  campaign: CampaignWithPhases;
+  t: (key: string) => string;
+  onRefresh: () => void;
+}) {
+  const router = useRouter();
+  const { toast } = useToast();
   const [expanded, setExpanded] = useState(true);
+  const [executingPhase, setExecutingPhase] = useState<CampaignPhase | null>(null);
+  const [missingConfig, setMissingConfig] = useState<{
+    items: ConfigItem[];
+    warnings: string[];
+  } | null>(null);
+  const [showSearchInput, setShowSearchInput] = useState(false);
+
   const totalPhases = PHASES.length;
   const completedPhases = campaign.currentPhaseIndex;
   const progressPct = Math.round((completedPhases / totalPhases) * 100);
+
+  const executePhase = useCallback(
+    async (phase: CampaignPhase, keyword?: string) => {
+      setExecutingPhase(phase);
+      try {
+        const res = await fetch(`/api/campaigns/${campaign.id}/execute`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ phase, keyword }),
+        });
+        const data = await res.json();
+
+        if (data.success) {
+          toast(t(`shortcuts.phaseComplete.${phase}`) || "Done", "success");
+          onRefresh();
+        } else if (data.error === "missing_config") {
+          setMissingConfig({ items: data.missing, warnings: data.warnings || [] });
+        } else if (data.error === "no_drafts") {
+          toast(t("shortcuts.noDrafts") || data.message, "warning");
+        } else {
+          toast(data.message || data.error || t("shortcuts.phaseError"), "error");
+        }
+      } catch {
+        toast(t("shortcuts.phaseError"), "error");
+      } finally {
+        setExecutingPhase(null);
+      }
+    },
+    [campaign.id, t, toast, onRefresh]
+  );
+
+  const handlePhaseClick = useCallback(
+    (phase: (typeof PHASES)[number]) => {
+      if (executingPhase) return;
+
+      // Review → navigate directly
+      if (phase.navigateTo) {
+        router.push(phase.navigateTo(campaign.id));
+        return;
+      }
+
+      // Search → show keyword input modal
+      if (phase.key === "search") {
+        setShowSearchInput(true);
+        return;
+      }
+
+      // All other phases → execute directly
+      executePhase(phase.key);
+    },
+    [executingPhase, router, campaign.id, executePhase]
+  );
+
+  const handleSearchSubmit = useCallback(
+    (keyword: string) => {
+      setShowSearchInput(false);
+      executePhase("search", keyword);
+    },
+    [executePhase]
+  );
 
   return (
     <div className="border border-muted/10 rounded-xl overflow-hidden">
@@ -209,7 +254,7 @@ function CampaignRow({ campaign, t }: { campaign: CampaignWithPhases; t: (key: s
 
       {/* Expanded content */}
       {expanded && (
-        <div className="px-4 pb-4">
+        <div className="px-4 pb-4 relative">
           {/* Progress bar */}
           <div className="mb-3">
             <div className="w-full h-1 bg-muted/8 rounded-full overflow-hidden">
@@ -229,8 +274,9 @@ function CampaignRow({ campaign, t }: { campaign: CampaignWithPhases; t: (key: s
                 phaseData={campaign.phases[phase.key]}
                 isCurrentPhase={idx === campaign.currentPhaseIndex}
                 isPast={idx < campaign.currentPhaseIndex}
-                campaignId={campaign.id}
-                campaignName={campaign.name}
+                isExecuting={executingPhase === phase.key}
+                disabled={!!executingPhase}
+                onExecute={() => handlePhaseClick(phase)}
                 t={t}
               />
             ))}
@@ -250,8 +296,30 @@ function CampaignRow({ campaign, t }: { campaign: CampaignWithPhases; t: (key: s
               </span>
             </div>
           )}
+
+          {/* Phase loader overlay */}
+          {executingPhase && executingPhase !== "review" && (
+            <PhaseLoader phase={executingPhase} visible />
+          )}
         </div>
       )}
+
+      {/* Missing config modal */}
+      <MissingConfigModal
+        open={!!missingConfig}
+        onClose={() => setMissingConfig(null)}
+        items={missingConfig?.items || []}
+        warnings={missingConfig?.warnings || []}
+      />
+
+      {/* Search keyword modal */}
+      <SearchInputModal
+        open={showSearchInput}
+        onClose={() => setShowSearchInput(false)}
+        onSubmit={handleSearchSubmit}
+        campaignName={campaign.name}
+        loading={executingPhase === "search"}
+      />
     </div>
   );
 }
@@ -305,7 +373,12 @@ export function CampaignShortcuts() {
 
       <div className="space-y-3">
         {campaigns.map((campaign) => (
-          <CampaignRow key={campaign.id} campaign={campaign} t={t} />
+          <CampaignRow
+            key={campaign.id}
+            campaign={campaign}
+            t={t}
+            onRefresh={fetchData}
+          />
         ))}
       </div>
     </Card>

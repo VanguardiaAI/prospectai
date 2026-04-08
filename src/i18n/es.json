@@ -730,6 +730,38 @@
     "engagement": "Seguimiento",
     "sent": "Enviados",
     "openRate": "Apertura",
-    "replies": "Respuestas"
+    "replies": "Respuestas",
+    "loading": {
+      "search": ["Conectando con scraper...", "Buscando en Google Maps...", "Recopilando datos...", "Importando resultados..."],
+      "analysis": ["Scrapeando sitios web...", "Extrayendo contactos...", "Analizando calidad web...", "Puntuando oportunidades..."],
+      "generation": ["Analizando perfiles...", "Creando emails personalizados...", "Generando mensajes WhatsApp...", "Optimizando copy..."],
+      "sending": ["Obteniendo borradores...", "Aprobando mensajes...", "Encolando para envio...", "Procesando cola de envio..."],
+      "engagement": ["Verificando respuestas...", "Identificando seguimientos...", "Generando follow-ups...", "Programando secuencias..."]
+    },
+    "phaseComplete": {
+      "search": "Busqueda iniciada correctamente",
+      "analysis": "Analisis procesado",
+      "generation": "Generacion de mensajes completada",
+      "sending": "Mensajes aprobados y encolados para envio",
+      "engagement": "Secuencias de seguimiento procesadas"
+    },
+    "phaseError": "Error al ejecutar fase",
+    "noDrafts": "No hay borradores para enviar en esta campana",
+    "missingConfig": {
+      "title": "Configuracion Requerida",
+      "subtitle": "No se puede ejecutar esta fase. Falta la siguiente configuracion:",
+      "envHint": "Variable de entorno — configurar en .env y reiniciar",
+      "settingLink": "Configurar en Ajustes",
+      "goToSettings": "Ir a Ajustes",
+      "warningsTitle": "Advertencias"
+    },
+    "searchModal": {
+      "title": "Buscar en Google Maps",
+      "campaign": "Campana",
+      "keywordLabel": "Palabra clave",
+      "keywordPlaceholder": "ej. restaurantes en Madrid",
+      "submit": "Iniciar Busqueda",
+      "cancel": "Cancelar"
+    }
   }
 }

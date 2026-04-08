@@ -271,7 +271,7 @@ export default function SettingsPage() {
       </div>
 
       {/* ─── Bento Row 1: Identity + Country ─── */}
-      <div className="grid grid-cols-12 gap-4 nd-section">
+      <div id="agency" className="grid grid-cols-12 gap-4 nd-section">
         <Card className="col-span-12 lg:col-span-8">
           <h3 className="nd-heading mb-6">
             <Building className="h-4 w-4 inline mr-2" strokeWidth={1.5} />
@@ -355,7 +355,7 @@ export default function SettingsPage() {
       </div>
 
       {/* ─── Bento Row 2: Email + Warmup + Scraping ─── */}
-      <div className="grid grid-cols-12 gap-4 nd-section">
+      <div id="email" className="grid grid-cols-12 gap-4 nd-section">
         <Card className="col-span-12 md:col-span-4">
           <h3 className="nd-heading mb-6">{t("settings.emailSection")}</h3>
           <div className="space-y-5">
@@ -478,7 +478,7 @@ export default function SettingsPage() {
       </div>
 
       {/* ─── Bento Row 3: WhatsApp + RGPD ─── */}
-      <div className="grid grid-cols-12 gap-4 nd-section">
+      <div id="compliance" className="grid grid-cols-12 gap-4 nd-section">
         <Card className="col-span-12 lg:col-span-5">
           <h3 className="nd-heading mb-6">
             <MessageCircle className="h-4 w-4 inline mr-2" strokeWidth={1.5} />
@@ -591,7 +591,7 @@ export default function SettingsPage() {
       </div>
 
       {/* ─── Bento Row 4: Tracking + CRM + Google Maps ─── */}
-      <div className="grid grid-cols-12 gap-4 nd-section">
+      <div id="scraper" className="grid grid-cols-12 gap-4 nd-section">
         <Card className="col-span-12 md:col-span-4">
           <h3 className="nd-heading mb-6">
             <Link2 className="h-4 w-4 inline mr-2" strokeWidth={1.5} />

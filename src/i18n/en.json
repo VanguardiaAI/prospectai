@@ -730,6 +730,38 @@
     "engagement": "Follow-up",
     "sent": "Sent",
     "openRate": "Open",
-    "replies": "Replies"
+    "replies": "Replies",
+    "loading": {
+      "search": ["Connecting to scraper...", "Searching Google Maps...", "Gathering business data...", "Importing results..."],
+      "analysis": ["Scraping websites...", "Extracting contact info...", "Analyzing web quality...", "Scoring opportunities..."],
+      "generation": ["Analyzing lead profiles...", "Crafting personalized emails...", "Generating WhatsApp messages...", "Optimizing copy..."],
+      "sending": ["Fetching draft messages...", "Approving messages...", "Queuing for delivery...", "Processing send queue..."],
+      "engagement": ["Checking reply status...", "Identifying follow-up targets...", "Generating follow-ups...", "Scheduling sequences..."]
+    },
+    "phaseComplete": {
+      "search": "Search started successfully",
+      "analysis": "Analysis jobs processed",
+      "generation": "Message generation complete",
+      "sending": "Messages approved and queued for sending",
+      "engagement": "Follow-up sequences processed"
+    },
+    "phaseError": "Failed to execute phase",
+    "noDrafts": "No draft messages to send for this campaign",
+    "missingConfig": {
+      "title": "Configuration Required",
+      "subtitle": "Cannot execute this phase. The following configuration is missing:",
+      "envHint": "Environment variable — set in .env and restart",
+      "settingLink": "Configure in Settings",
+      "goToSettings": "Go to Settings",
+      "warningsTitle": "Warnings"
+    },
+    "searchModal": {
+      "title": "Search Google Maps",
+      "campaign": "Campaign",
+      "keywordLabel": "Search keyword",
+      "keywordPlaceholder": "e.g. restaurantes en Madrid",
+      "submit": "Start Search",
+      "cancel": "Cancel"
+    }
   }
 }

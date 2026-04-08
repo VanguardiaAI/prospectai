@@ -11,3 +11,4 @@ export * from "./domains";
 export * from "./sequences";
 export * from "./ab-testing";
 export * from "./misc";
+export * from "./execute";
