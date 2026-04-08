@@ -6,13 +6,22 @@ import { analyzeWebsite } from "@/lib/ai";
 import { calculateOpportunityScore } from "@/lib/scorer";
 import { logActivity } from "@/lib/activity";
 
-export async function processScrapeJobs(concurrency: number, delayMs: number) {
-  const jobs = db.select().from(jobQueue)
-    .where(and(eq(jobQueue.type, "scrape"), eq(jobQueue.status, "pending")))
-    .limit(concurrency)
-    .all();
-
+export async function processScrapeJobs(concurrency: number, delayMs: number, maxJobs?: number) {
   let processed = 0;
+
+  // Loop in batches until no more pending jobs (or maxJobs reached)
+  while (true) {
+    const remaining = maxJobs != null ? maxJobs - processed : concurrency;
+    if (maxJobs != null && remaining <= 0) break;
+
+    const batchSize = Math.min(concurrency, maxJobs != null ? remaining : concurrency);
+    const jobs = db.select().from(jobQueue)
+      .where(and(eq(jobQueue.type, "scrape"), eq(jobQueue.status, "pending")))
+      .limit(batchSize)
+      .all();
+
+    if (jobs.length === 0) break;
+
   for (const job of jobs) {
     if (!job.leadId) continue;
 
@@ -128,5 +137,6 @@ export async function processScrapeJobs(concurrency: number, delayMs: number) {
     if (delayMs > 0) await new Promise((r) => setTimeout(r, delayMs));
     processed++;
   }
+  } // end while
   return processed;
 }

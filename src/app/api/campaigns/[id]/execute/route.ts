@@ -92,7 +92,7 @@ export async function POST(
   const v = validateBody(executePhaseSchema, body);
   if (!v.success) return v.response;
 
-  const { phase, keyword } = v.data;
+  const { phase, keyword, limit } = v.data;
 
   // Validate configuration
   const validators = PHASE_VALIDATORS[phase];
@@ -145,8 +145,10 @@ export async function POST(
 
         const concurrency = parseInt(getSetting("scrape_concurrency") || "3");
         const delayMs = parseInt(getSetting("scrape_delay_ms") || "2000");
-        fireAndForget("analysis", () => processScrapeJobs(concurrency, delayMs));
-        return NextResponse.json({ success: true, started: true, total: pending });
+        const maxJobs = limit ?? undefined;
+        const total = maxJobs != null ? Math.min(pending, maxJobs) : pending;
+        fireAndForget("analysis", () => processScrapeJobs(concurrency, delayMs, maxJobs));
+        return NextResponse.json({ success: true, started: true, total });
       }
 
       case "generation": {

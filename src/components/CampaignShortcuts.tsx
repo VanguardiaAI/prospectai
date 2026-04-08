@@ -23,6 +23,7 @@ import { useToast } from "@/components/Toast";
 import { PhaseLoader } from "./PhaseLoader";
 import { MissingConfigModal } from "./MissingConfigModal";
 import { SearchInputModal } from "./SearchInputModal";
+import { AnalyzeOptionsModal } from "./AnalyzeOptionsModal";
 
 // ─── Types ──────────────────────────────────────────────────────────
 
@@ -157,6 +158,8 @@ function CampaignRow({
     warnings: string[];
   } | null>(null);
   const [showSearchInput, setShowSearchInput] = useState(false);
+  const [showAnalyzeOptions, setShowAnalyzeOptions] = useState(false);
+  const [analyzePendingCount, setAnalyzePendingCount] = useState(0);
 
   const totalPhases = PHASES.length;
   const completedPhases = campaign.currentPhaseIndex;
@@ -173,14 +176,14 @@ function CampaignRow({
   }, [executingPhase, t, toast, onRefresh]);
 
   const executePhase = useCallback(
-    async (phase: CampaignPhase, keyword?: string) => {
+    async (phase: CampaignPhase, keyword?: string, limit?: number) => {
       setExecutingPhase(phase);
       setExecuteTotal(0);
       try {
         const res = await fetch(`/api/campaigns/${campaign.id}/execute`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ phase, keyword }),
+          body: JSON.stringify({ phase, keyword, limit }),
         });
         const data = await res.json();
 
@@ -225,6 +228,14 @@ function CampaignRow({
         return;
       }
 
+      // Analysis → show options modal with pending count
+      if (phase.key === "analysis") {
+        const pending = campaign.phases.analysis.pending ?? 0;
+        setAnalyzePendingCount(pending);
+        setShowAnalyzeOptions(true);
+        return;
+      }
+
       // All other phases → execute directly
       executePhase(phase.key);
     },
@@ -235,6 +246,14 @@ function CampaignRow({
     (keyword: string) => {
       setShowSearchInput(false);
       executePhase("search", keyword);
+    },
+    [executePhase]
+  );
+
+  const handleAnalyzeSubmit = useCallback(
+    (limit?: number) => {
+      setShowAnalyzeOptions(false);
+      executePhase("analysis", undefined, limit);
     },
     [executePhase]
   );
@@ -343,6 +362,16 @@ function CampaignRow({
         onSubmit={handleSearchSubmit}
         campaignName={campaign.name}
         loading={executingPhase === "search"}
+      />
+
+      {/* Analyze options modal */}
+      <AnalyzeOptionsModal
+        open={showAnalyzeOptions}
+        onClose={() => setShowAnalyzeOptions(false)}
+        onSubmit={handleAnalyzeSubmit}
+        campaignName={campaign.name}
+        pendingCount={analyzePendingCount}
+        loading={executingPhase === "analysis"}
       />
     </div>
   );

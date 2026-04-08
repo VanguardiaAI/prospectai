@@ -763,6 +763,19 @@
       "keywordPlaceholder": "e.g. restaurantes en Madrid",
       "submit": "Start Search",
       "cancel": "Cancel"
+    },
+    "analyzeModal": {
+      "title": "Analyze Leads",
+      "campaign": "Campaign",
+      "pendingCount": "{{count}} leads pending analysis",
+      "optionLabel": "How many leads to analyze",
+      "allOption": "All ({{count}})",
+      "allDescription": "Analyze all pending leads",
+      "customOption": "Custom amount",
+      "customDescription": "Choose how many leads to analyze",
+      "customPlaceholder": "max. {{max}}",
+      "submit": "Start Analysis",
+      "cancel": "Cancel"
     }
   }
 }
