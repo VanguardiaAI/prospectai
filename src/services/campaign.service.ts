@@ -1,5 +1,5 @@
 import { db } from "@/db";
-import { campaigns, emails, replies, leads, whatsappMessages } from "@/db/schema";
+import { campaigns, emails, replies, leads, whatsappMessages, jobQueue } from "@/db/schema";
 import { eq, and, sql, isNotNull, inArray } from "drizzle-orm";
 import { logActivity } from "@/lib/activity";
 import { NotFoundError } from "./errors";
@@ -268,6 +268,20 @@ export function getCampaignsWithPhases() {
         .where(and(eq(emails.campaignId, campaign.id), eq(emails.status, "sent")))
         .get()?.count ?? 0;
 
+    // Count pending + processing scrape jobs for this campaign (matches execute route's total source)
+    const pendingScrapeJobs =
+      db.select({ count: sql<number>`count(*)` })
+        .from(jobQueue)
+        .where(and(
+          eq(jobQueue.campaignId, campaign.id),
+          eq(jobQueue.type, "scrape"),
+          sql`${jobQueue.status} IN ('pending', 'processing')`
+        ))
+        .get()?.count ?? 0;
+
+    // Leads actively being processed (scraping/analyzing) also count as "pending"
+    const leadsInPipeline = (statusMap["scraping"] ?? 0) + (statusMap["analyzing"] ?? 0);
+
     const currentPhase = detectPhase(leadCount, statusMap, pendingEmailDrafts, pendingWaDrafts);
     const currentIndex = phaseIndex(currentPhase);
 
@@ -284,7 +298,7 @@ export function getCampaignsWithPhases() {
         search: { done: leadCount > 0, count: leadCount },
         analysis: {
           done: (statusMap["analyzed"] ?? 0) > 0 || currentIndex > 1,
-          pending: ANALYSIS_STATUSES.reduce((s, k) => s + (statusMap[k] ?? 0), 0),
+          pending: pendingScrapeJobs + leadsInPipeline,
           analyzed: statusMap["analyzed"] ?? 0,
         },
         generation: {

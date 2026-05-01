@@ -4,7 +4,7 @@ import { useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { Card, Badge, Spinner, ProgressBar, MetricRing, ListRow } from "@/components/ui";
 import { CampaignShortcuts } from "@/components/CampaignShortcuts";
-import { Users, BarChart3, Mail, Send, Clock, TrendingUp, Zap, Activity, ArrowUpRight, MessageCircle } from "lucide-react";
+import { Users, BarChart3, Mail, Send, Clock, TrendingUp, Zap, Activity, ArrowUpRight, MessageCircle, AlertTriangle, Settings } from "lucide-react";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, AreaChart, Area } from "recharts";
 import { useT } from "@/i18n/LocaleProvider";
 
@@ -113,9 +113,6 @@ export default function Dashboard() {
           <p className="nd-label mt-2">{t("overview.subtitle")}</p>
         </div>
         <div className="flex items-center gap-3">
-          {data.autopilotGlobal && (
-            <Badge color="success">{t("overview.autopilotOn")}</Badge>
-          )}
           {data.pendingJobs > 0 && (
             <Badge>
               <Clock className="h-3 w-3 mr-1" strokeWidth={1.5} /> {data.pendingJobs} {t("common.jobs")}
@@ -123,6 +120,26 @@ export default function Dashboard() {
           )}
         </div>
       </div>
+
+      {/* Autopilot global warning */}
+      {data.autopilotGlobal && (
+        <div className="mb-4 px-4 py-3 rounded-lg border border-warning/40 bg-warning/8 flex items-center justify-between gap-3">
+          <div className="flex items-center gap-3 min-w-0">
+            <AlertTriangle className="h-4 w-4 text-warning shrink-0" strokeWidth={1.5} />
+            <div className="min-w-0">
+              <p className="text-sm font-medium text-warning">{t("overview.autopilotWarningTitle")}</p>
+              <p className="text-xs text-warning/70 mt-0.5">{t("overview.autopilotWarningDesc")}</p>
+            </div>
+          </div>
+          <a
+            href="/settings"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[10px] font-mono uppercase tracking-wide border border-warning/30 text-warning hover:bg-warning/10 transition-colors shrink-0"
+          >
+            <Settings className="h-3 w-3" strokeWidth={1.5} />
+            {t("overview.autopilotConfig")}
+          </a>
+        </div>
+      )}
 
       {/* Bounce rate alerts */}
       {data.bounceRate7d >= 5 && (

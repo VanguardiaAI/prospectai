@@ -123,30 +123,35 @@ export async function POST(
       }
 
       case "analysis": {
-        // Count pending scrape jobs (global, not per-campaign since processor works globally)
+        // Count pending scrape jobs for THIS campaign
         const pending = db.select({ count: sql<number>`count(*)` })
           .from(jobQueue)
-          .where(and(eq(jobQueue.type, "scrape"), eq(jobQueue.status, "pending")))
+          .where(and(
+            eq(jobQueue.type, "scrape"),
+            eq(jobQueue.status, "pending"),
+            eq(jobQueue.campaignId, campaignId)
+          ))
           .get()?.count ?? 0;
 
-        if (pending === 0) {
-          // Count leads still in analysis pipeline for this campaign
-          const inPipeline = db.select({ count: sql<number>`count(*)` })
-            .from(leads)
-            .where(and(
-              eq(leads.campaignId, campaignId),
-              sql`${leads.status} IN ('imported', 'queued', 'scraping', 'scraped', 'analyzing')`
-            ))
-            .get()?.count ?? 0;
-          if (inPipeline === 0) {
-            return NextResponse.json({ success: true, started: true, total: 0 });
-          }
+        // Also count leads still in analysis pipeline (scraping/analyzing in progress)
+        const inPipeline = db.select({ count: sql<number>`count(*)` })
+          .from(leads)
+          .where(and(
+            eq(leads.campaignId, campaignId),
+            sql`${leads.status} IN ('scraping', 'scraped', 'analyzing')`
+          ))
+          .get()?.count ?? 0;
+
+        const totalPending = pending + inPipeline;
+
+        if (totalPending === 0) {
+          return NextResponse.json({ success: true, started: true, total: 0 });
         }
 
         const concurrency = parseInt(getSetting("scrape_concurrency") || "3");
         const delayMs = parseInt(getSetting("scrape_delay_ms") || "2000");
         const maxJobs = limit ?? undefined;
-        const total = maxJobs != null ? Math.min(pending, maxJobs) : pending;
+        const total = maxJobs != null ? Math.min(totalPending, maxJobs) : totalPending;
         fireAndForget("analysis", () => processScrapeJobs(concurrency, delayMs, maxJobs));
         return NextResponse.json({ success: true, started: true, total });
       }

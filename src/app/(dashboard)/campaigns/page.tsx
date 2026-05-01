@@ -4,7 +4,7 @@ import { useEffect, useState, useCallback } from "react";
 import { Card, Button, Input, Select, Toggle, Modal, StatusBadge, Badge, EmptyState, Spinner, ConfirmDialog } from "@/components/ui";
 import { useToast } from "@/components/Toast";
 import { useT } from "@/i18n/LocaleProvider";
-import { Megaphone, Plus, Edit, Trash2, ListOrdered, ArrowDown, Copy } from "lucide-react";
+import { Megaphone, Plus, Edit, Trash2, ListOrdered, ArrowDown, Copy, AlertTriangle } from "lucide-react";
 
 interface CampaignMetrics {
   sent: number;
@@ -62,12 +62,18 @@ export default function CampaignsPage() {
   const [sequenceSteps, setSequenceSteps] = useState<SequenceStep[]>([]);
   const [sequenceData, setSequenceData] = useState<Record<number, SequenceData>>({});
   const [savingSequence, setSavingSequence] = useState(false);
+  const [autopilotGlobal, setAutopilotGlobal] = useState(false);
 
   const fetchCampaigns = useCallback(async () => {
     const res = await fetch("/api/campaigns");
     const data = await res.json();
     setCampaigns(data);
     setLoading(false);
+
+    // Check global autopilot
+    fetch("/api/dashboard").then((r) => r.json()).then((d) => {
+      setAutopilotGlobal(d.autopilotGlobal ?? false);
+    }).catch(() => {});
 
     // Fetch sequence data for all campaigns
     for (const c of data) {
@@ -123,11 +129,22 @@ export default function CampaignsPage() {
   };
 
   const toggleAutopilot = async (c: Campaign) => {
-    await fetch("/api/campaigns", {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ id: c.id, autopilot: !c.autopilot }),
-    });
+    if (autopilotGlobal) {
+      // Turn off global autopilot
+      await fetch("/api/settings", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ autopilot_global: "false" }),
+      });
+      setAutopilotGlobal(false);
+      toast(t("campaigns.autopilotGlobalOff"), "success");
+    } else {
+      await fetch("/api/campaigns", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: c.id, autopilot: !c.autopilot }),
+      });
+    }
     fetchCampaigns();
   };
 
@@ -266,7 +283,15 @@ export default function CampaignsPage() {
                   </div>
                   <div className="nd-list-item">
                     <span className="nd-list-label">{t("campaigns.autopilot")}</span>
-                    <Toggle checked={c.autopilot} onChange={() => toggleAutopilot(c)} />
+                    <div className="flex items-center gap-2">
+                      {autopilotGlobal && (
+                        <span className="flex items-center gap-1 text-[10px] font-mono text-warning">
+                          <AlertTriangle className="h-3 w-3" strokeWidth={1.5} />
+                          {t("campaigns.autopilotGlobalOn")}
+                        </span>
+                      )}
+                      <Toggle checked={c.autopilot || autopilotGlobal} onChange={() => toggleAutopilot(c)} />
+                    </div>
                   </div>
                   <div className="nd-list-item">
                     <span className="nd-list-label">{t("campaigns.sequence")}</span>
