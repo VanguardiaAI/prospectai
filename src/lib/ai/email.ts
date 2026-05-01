@@ -1,8 +1,26 @@
-import { genAI, safeParseJSON, cleanJsonResponse, getAgencyContext, getLocaleLabel, getLocaleWritingRules } from "./config";
+import { getAgencyContext, getLocaleLabel, getLocaleWritingRules } from "./config";
+import { runClaudeCli } from "./claude-cli";
 import { withRetry } from "@/lib/ai/retry";
-import { geminiRateLimiter } from "@/lib/ai/rate-limiter";
 import { GEMINI_MAX_RETRIES, GEMINI_BASE_DELAY_MS } from "@/lib/constants";
+import {
+  formatEmailExamples,
+  ANTI_AI_RULES,
+  PERSONA_BLOCK,
+  SELF_CHECK_EMAIL,
+  type CopyPurpose,
+} from "./examples";
 import type { EmailGeneration, WebAnalysis } from "./types";
+
+const EMAIL_SCHEMA = {
+  type: "object",
+  properties: {
+    subject: { type: "string" },
+    bodyHtml: { type: "string" },
+    bodyText: { type: "string" },
+  },
+  required: ["subject", "bodyHtml", "bodyText"],
+  additionalProperties: false,
+} as const;
 
 export async function generateEmail(
   businessName: string,
@@ -16,11 +34,13 @@ export async function generateEmail(
   customInstructions?: string,
   leadCountry?: string
 ): Promise<EmailGeneration> {
-  const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
   const ctx = getAgencyContext();
   const effectiveCountry = leadCountry || ctx.country;
   const localeLabel = getLocaleLabel(effectiveCountry);
   const writingRules = getLocaleWritingRules(effectiveCountry);
+
+  const purpose: CopyPurpose = !sequenceStep || sequenceStep === 1 ? "initial" : "follow_up";
+  const maxWords = purpose === "initial" ? 110 : 75;
 
   // Build service-specific pitch based on analysis
   const recommendedServices = (analysis.recommendedServices || ["web_development"])
@@ -37,79 +57,85 @@ export async function generateEmail(
   if (analysis.aiAgentOpportunities?.length > 0) issueContext.push(`AI opportunities: ${analysis.aiAgentOpportunities.join(", ")}`);
 
   const stepContext = sequenceStep && sequenceStep > 1
-    ? `\nThis is FOLLOW-UP #${sequenceStep - 1}. The business already received ${sequenceStep - 1} previous message(s). DO NOT repeat what you probably already said. Change the angle: if you previously talked about web, now talk about SEO or AI. Be shorter and more direct. You can reference that you already reached out before.`
+    ? `\nESTE ES FOLLOW-UP #${sequenceStep - 1}. El negocio ya recibió ${sequenceStep - 1} mensaje(s) previo(s). NO repitas lo que probablemente ya dijiste. Cambia el ángulo: si en el inicial hablaste de web, ahora habla de SEO o de IA. Sé más breve y directo. Puedes hacer referencia a que ya escribiste antes ("la semana pasada te escribí…").`
     : "";
 
-  const extraInstructions = customInstructions ? `\nADDITIONAL INSTRUCTIONS: ${customInstructions}` : "";
+  const extraInstructions = customInstructions ? `\nINSTRUCCIONES ADICIONALES DEL USUARIO: ${customInstructions}` : "";
 
-  const prompt = `You are an expert copywriter generating prospecting emails for ${ctx.name} (${ctx.url}).
+  const examplesBlock = formatEmailExamples(purpose, 3);
+
+  const prompt = `${PERSONA_BLOCK(fromName, ctx.name)}
+
+CONTEXTO DE LA AGENCIA:
 ${ctx.description}
+URL: ${ctx.url}
 
-Your goal: write an email that makes the business owner WANT to respond because they see a clear opportunity to get more customers or more sales.
+DATOS DEL NEGOCIO AL QUE ESCRIBES:
+- Nombre: ${businessName}
+- Categoría: ${businessCategory || "Sin especificar"}
+- Ciudad: ${city || "Sin especificar"}
+- Web actual: ${websiteUrl || "No tiene"}
 
-BUSINESS DATA:
-- Name: ${businessName}
-- Category: ${businessCategory || "Not specified"}
-- City: ${city || "Not specified"}
-- Current website: ${websiteUrl || "None"}
-
-DIGITAL PRESENCE ANALYSIS:
-- Web score: ${analysis.qualityScore}/100
-- SEO score: ${analysis.seoScore ?? "N/A"}/100
+ANÁLISIS DE PRESENCIA DIGITAL:
+- Score web: ${analysis.qualityScore}/100
+- Score SEO: ${analysis.seoScore ?? "N/A"}/100
 ${issueContext.map((i) => `- ${i}`).join("\n")}
-- Summary: ${analysis.summary}
+- Resumen: ${analysis.summary}
 
-RECOMMENDED SERVICES FOR THIS BUSINESS:
+SERVICIOS RELEVANTES PARA ESTE NEGOCIO:
 ${recommendedServices}
 
-EMAIL TONE: ${tone}
+TONO PEDIDO: ${tone}
 ${stepContext}
 ${extraInstructions}
 
-FUNDAMENTAL PRINCIPLE - BENEFIT-FOCUSED:
-The prospect does NOT care about their technical problems. They care about getting MORE CUSTOMERS and MORE SALES. Every problem you mention must be translated into business impact:
-- "No SSL" -> "Visitors see a 'not secure' warning and leave for the competition"
-- "Not responsive" -> "70% of people search from their phone and can't navigate the site properly"
-- "Low SEO" -> "When someone searches for [their category] in [their city], the competition shows up and they don't"
-- "No website" -> "All the customers searching on Google for a business like theirs can't find them"
-- "Hacked/spam content" -> "Google may be penalizing the site and customers see content that damages the business image"
+PRINCIPIO FUNDAMENTAL — ENFOQUE EN BENEFICIO:
+Al destinatario NO le importan los problemas técnicos. Le importa tener MÁS CLIENTES y MÁS VENTAS. Cada problema que menciones debe traducirse a impacto de negocio:
+- "Sin SSL" → "Los visitantes ven 'sitio no seguro' y se van a la competencia"
+- "No responsive" → "El 70% busca desde el móvil y no puede navegar bien la web"
+- "SEO bajo" → "Cuando alguien busca [su categoría] en [su ciudad], aparece la competencia y ellos no"
+- "Sin web" → "Todos los clientes que buscan en Google un negocio como el suyo no los encuentran"
+- "Contenido hackeado/spam" → "Google puede estar penalizando el sitio y los clientes ven contenido que daña la imagen del negocio"
 
-EMAIL STRUCTURE (Benefit-oriented PAS Framework):
-1. HOOK (1-2 sentences): Something specific about the business that shows you researched them. Do NOT give generic compliments.
-2. OPPORTUNITY (2-3 sentences): Connect what you found with a concrete growth opportunity. Do NOT list technical problems. Talk about customers they are losing or could capture.
-3. PROOF/CREDIBILITY (1 sentence): Briefly mention how you help similar businesses (without promising exact results).
-4. CTA (1 sentence): Soft question aimed at making the prospect want to learn more. E.g.: "Would you be interested in seeing how much potential your area has?" NOT: "Schedule a call".
+ESTRUCTURA DEL EMAIL (4 bloques cortos):
+1. APERTURA específica (1-2 frases): observación concreta sobre ESTE negocio que demuestra que lo miraste de verdad. NO cumplidos genéricos.
+2. PUENTE AL PROBLEMA (1-2 frases): conecta lo que viste con clientes/ventas que están perdiendo o podrían capturar. NUNCA listes problemas técnicos sueltos.
+3. VALOR / SOCIAL PROOF breve (1 frase): cómo ayudas a negocios parecidos. Sin prometer resultados exactos.
+4. CTA suave (1 frase): pregunta abierta o "interest check". NUNCA pidas reunión directa, calendario o llamada en cold #1.
 
-INSTRUCTIONS:
-1. Write in ${localeLabel}
-2. The email must be brief (75-125 words max for initial, 50-75 for follow-up), direct, and personalized
-3. NEVER use technical jargon without translating it to business impact. No bare "SSL", "responsive", "SEO", "meta tags"
-4. Offer the most relevant solution (1-2 services max), but framed as a RESULT for the business
-5. Introduce yourself as "${fromName}, from ${ctx.name}". NEVER say "I am ${ctx.name}" or introduce yourself as if you were the company
-6. Do NOT use spam language: no "free", "no commitment", "special offer", "free audit". Use natural alternatives: "I'll put together an analysis", "I'll show you the potential", "I'll walk you through how it works"
-7. The email must feel like it was written by a real person to another real person
-8. NEVER use generic compliments like "I love what you do" or "Great project"
-9. The subject line must be short (4-7 words), in sentence case, and spark curiosity about the BENEFIT, not the problem
-10. Do NOT add any legal footer or unsubscribe text, the system injects them automatically
+LONGITUD: Cuerpo entre 75 y ${maxWords} palabras. Es un techo, no un objetivo. Si con 60 palabras dices todo, mejor.
 
-REGIONAL ADAPTATION (CRITICAL):
-The business is in ${city || "unspecified location"}. You MUST adapt your language to the country of THAT city, NOT the agency's country. If the city is in Mexico, write in Mexican Spanish. If in Argentina, in Argentine Spanish. If in Spain, in European Spanish. This is MANDATORY.
+ASUNTO: 4-7 palabras, en minúsculas (sentence case), que despierte curiosidad sobre el BENEFICIO o haga referencia específica al negocio. NO mayúsculas, NO signos de exclamación, NO palabras spam.
+
+${ANTI_AI_RULES}
+
+REGLAS ADICIONALES:
+1. Idioma: ${localeLabel}
+2. Preséntate como "${fromName}, de ${ctx.name}" si lo necesitas. NUNCA digas "Soy ${ctx.name}" ni te presentes como si fueras la empresa.
+3. NO uses jerga técnica sin traducir a impacto de negocio (no "SSL", "responsive", "SEO", "meta tags" sueltos).
+4. NO añadas pie de página legal ni texto de baja, el sistema los inyecta automáticamente.
+5. Firma solo con el nombre (sin cargo, sin URL).
+
+ADAPTACIÓN REGIONAL (CRÍTICA):
+El negocio está en ${city || "ubicación no especificada"}. Adapta el idioma al país de ESA ciudad, NO al país de la agencia. Si la ciudad está en México, español mexicano. Si en Argentina, voseo argentino. Si en España, español de España. Esto es OBLIGATORIO.
 ${writingRules}
 
-Respond ONLY with valid JSON (no markdown, no backticks):
+EJEMPLOS DEL ESTILO QUE QUEREMOS (referencia obligatoria de tono, no copies literal):
+${examplesBlock}
+
+${SELF_CHECK_EMAIL(maxWords)}
+
+Responde SOLO con JSON válido (sin markdown, sin backticks):
 {
-  "subject": "email subject",
-  "bodyHtml": "HTML email content with basic formatting (<p>, <b>, <br>, <a>)",
-  "bodyText": "plain text version of the email"
+  "subject": "asunto del email",
+  "bodyHtml": "cuerpo del email en HTML mínimo (<p>, <b>, <br>, <a>)",
+  "bodyText": "versión texto plano del email"
 }`;
 
-  const result = await withRetry(async () => {
-    await geminiRateLimiter.acquire();
-    return model.generateContent(prompt);
-  }, { maxRetries: GEMINI_MAX_RETRIES, baseDelayMs: GEMINI_BASE_DELAY_MS, label: "generate-email" });
-  const text = result.response.text().trim();
-  const jsonStr = cleanJsonResponse(text);
-  return safeParseJSON<EmailGeneration>(jsonStr, "email");
+  return withRetry(
+    () => runClaudeCli({ prompt, jsonSchema: EMAIL_SCHEMA, label: "generate-email" }) as Promise<EmailGeneration>,
+    { maxRetries: GEMINI_MAX_RETRIES, baseDelayMs: GEMINI_BASE_DELAY_MS, label: "generate-email" },
+  );
 }
 
 export async function regenerateEmail(
@@ -125,53 +151,63 @@ export async function regenerateEmail(
   instructions: string,
   leadCountry?: string
 ): Promise<EmailGeneration> {
-  const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
   const ctx = getAgencyContext();
   const effectiveCountry = leadCountry || ctx.country;
   const localeLabel = getLocaleLabel(effectiveCountry);
   const writingRules = getLocaleWritingRules(effectiveCountry);
 
-  const prompt = `You are an expert copywriter. You need to REGENERATE a prospecting email for ${ctx.name} (${ctx.url}).
+  const examplesBlock = formatEmailExamples("initial", 3);
 
-BUSINESS DATA:
-- Name: ${businessName}
-- Category: ${businessCategory || "Not specified"}
-- City: ${city || "Not specified"}
-- Website: ${websiteUrl || "None"}
-- Web quality: ${analysis.qualityScore}/100
+  const prompt = `${PERSONA_BLOCK(fromName, ctx.name)}
+
+Necesitas REGENERAR un email de prospección que ya tenías escrito, aplicando un nuevo tono o instrucciones.
+
+CONTEXTO DE LA AGENCIA:
+${ctx.description}
+
+DATOS DEL NEGOCIO:
+- Nombre: ${businessName}
+- Categoría: ${businessCategory || "Sin especificar"}
+- Ciudad: ${city || "Sin especificar"}
+- Web: ${websiteUrl || "No tiene"}
+- Calidad web: ${analysis.qualityScore}/100
 - SEO: ${analysis.seoScore ?? "N/A"}/100
 - Issues: ${analysis.issues.join(", ")}
-- SEO opportunities: ${(analysis.seoIssues || []).join(", ")}
-- AI opportunities: ${(analysis.aiAgentOpportunities || []).join(", ")}
+- Oportunidades SEO: ${(analysis.seoIssues || []).join(", ")}
+- Oportunidades IA: ${(analysis.aiAgentOpportunities || []).join(", ")}
 
-PREVIOUS EMAIL:
-Subject: ${previousSubject}
-Body: ${previousBody}
+EMAIL ANTERIOR:
+Asunto: ${previousSubject}
+Cuerpo: ${previousBody}
 
-NEW TONE: ${tone}
-ADDITIONAL INSTRUCTIONS: ${instructions || "Just change the tone"}
-SENDER: ${fromName}, from ${ctx.name}. ALWAYS introduce yourself as "${fromName}, from ${ctx.name}". NEVER say "I am ${ctx.name}".
-LANGUAGE: ${localeLabel}
-Do NOT add any legal footer or unsubscribe text, the system injects them automatically.
+NUEVO TONO: ${tone}
+INSTRUCCIONES ADICIONALES: ${instructions || "Solo cambia el tono"}
+Idioma: ${localeLabel}
 
-KEY PRINCIPLE: The email must focus on what the prospect GAINS (more customers, more sales, more visibility), NOT on listing technical problems. Translate every problem into business impact. NEVER use technical jargon without explaining what it means for their customers/sales. Avoid "free", "no commitment", "free audit" - use natural alternatives.
+PRINCIPIO CLAVE: el email se centra en lo que el destinatario GANA (más clientes, más ventas, más visibilidad), NO en listar problemas técnicos. Cada problema se traduce a impacto de negocio. NO uses "gratis", "sin compromiso", "auditoría gratis" — usa alternativas naturales.
 
-REGIONAL ADAPTATION (CRITICAL):
-The business is in ${city || "unspecified location"}. You MUST adapt your language to the country of THAT city, NOT the agency's country. If the city is in Mexico, write in Mexican Spanish. If in Argentina, in Argentine Spanish. If in Spain, in European Spanish. This is MANDATORY.
+NO añadas pie legal ni texto de baja, el sistema los inyecta.
+
+${ANTI_AI_RULES}
+
+ADAPTACIÓN REGIONAL (CRÍTICA):
+El negocio está en ${city || "ubicación no especificada"}. Adapta al país de ESA ciudad. Si está en México, español mexicano. Si en Argentina, voseo. Si en España, español de España.
 ${writingRules}
 
-Generate a different version of the email. Respond ONLY with valid JSON (no markdown, no backticks):
+EJEMPLOS DEL ESTILO QUE QUEREMOS (no copies literal, captura el tono):
+${examplesBlock}
+
+${SELF_CHECK_EMAIL(110)}
+
+Genera una versión diferente del email. Responde SOLO con JSON válido (sin markdown, sin backticks):
 {
-  "subject": "new subject",
-  "bodyHtml": "new HTML content",
-  "bodyText": "new plain text version"
+  "subject": "nuevo asunto",
+  "bodyHtml": "nuevo HTML",
+  "bodyText": "nueva versión texto plano"
 }`;
 
-  const result = await withRetry(async () => {
-    await geminiRateLimiter.acquire();
-    return model.generateContent(prompt);
-  }, { maxRetries: GEMINI_MAX_RETRIES, baseDelayMs: GEMINI_BASE_DELAY_MS, label: "regenerate-email" });
-  const text = result.response.text().trim();
-  const jsonStr = cleanJsonResponse(text);
-  return safeParseJSON<EmailGeneration>(jsonStr, "email-regen");
+  return withRetry(
+    () => runClaudeCli({ prompt, jsonSchema: EMAIL_SCHEMA, label: "regenerate-email" }) as Promise<EmailGeneration>,
+    { maxRetries: GEMINI_MAX_RETRIES, baseDelayMs: GEMINI_BASE_DELAY_MS, label: "regenerate-email" },
+  );
 }
