@@ -1,6 +1,6 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
-import { db, getSetting, setSetting } from "@/db";
+import { db, getSetting, setSetting, getApiKey } from "@/db";
 import { emails, whatsappMessages } from "@/db/schema";
 import { eq, and, sql } from "drizzle-orm";
 import { logActivity } from "@/lib/activity";
@@ -99,10 +99,11 @@ export function registerSystemTools(server: McpServer) {
       const results: Record<string, string> = {};
 
       // Gemini
-      if (process.env.GEMINI_API_KEY) {
+      const geminiKey = getApiKey("gemini_api_key", "GEMINI_API_KEY");
+      if (geminiKey) {
         try {
           const { GoogleGenerativeAI } = await import("@google/generative-ai");
-          const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+          const genAI = new GoogleGenerativeAI(geminiKey);
           const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
           await model.generateContent("Reply with OK");
           results.gemini = "Connected";
@@ -114,10 +115,11 @@ export function registerSystemTools(server: McpServer) {
       }
 
       // Resend
-      if (process.env.RESEND_API_KEY) {
+      const resendKey = getApiKey("resend_api_key", "RESEND_API_KEY");
+      if (resendKey) {
         try {
           const res = await fetch("https://api.resend.com/domains", {
-            headers: { Authorization: `Bearer ${process.env.RESEND_API_KEY}` },
+            headers: { Authorization: `Bearer ${resendKey}` },
           });
           results.resend = res.ok ? "Connected" : `Error: HTTP ${res.status}`;
         } catch (e) {

@@ -1,10 +1,14 @@
 import { Resend } from "resend";
+import { getApiKey } from "@/db";
 
 let resendInstance: Resend | null = null;
+let resendKey = "";
 
 function getResend(): Resend {
-  if (!resendInstance) {
-    resendInstance = new Resend(process.env.RESEND_API_KEY || "");
+  const key = getApiKey("resend_api_key", "RESEND_API_KEY");
+  if (!resendInstance || key !== resendKey) {
+    resendInstance = new Resend(key || "");
+    resendKey = key;
   }
   return resendInstance;
 }

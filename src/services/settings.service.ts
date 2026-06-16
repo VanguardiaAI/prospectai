@@ -14,10 +14,15 @@ export function getAllSettings() {
   return result;
 }
 
+// Secret keys are never cleared by an empty submit (the UI sends an empty field
+// when the user leaves a "configured" key untouched).
+const SECRET_KEYS = new Set(["gemini_api_key", "resend_api_key", "gmaps_scraper_api_key"]);
+
 export function updateSettings(updates: Record<string, string>) {
   const changed: string[] = [];
 
   for (const [key, value] of Object.entries(updates)) {
+    if (SECRET_KEYS.has(key) && !String(value).trim()) continue;
     const oldValue = getSetting(key);
     setSetting(key, String(value));
     if (oldValue !== String(value)) {

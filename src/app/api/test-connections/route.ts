@@ -2,13 +2,14 @@ import { NextResponse } from "next/server";
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import { testConnection as testResend } from "@/lib/resend-client";
 import { getWhatsAppStatus } from "@/lib/whatsapp-client";
+import { getApiKey } from "@/db";
 
 export async function GET() {
   const results: Record<string, { ok: boolean; error?: string }> = {};
 
   // Test Gemini
   try {
-    const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || "");
+    const genAI = new GoogleGenerativeAI(getApiKey("gemini_api_key", "GEMINI_API_KEY"));
     const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
     await model.generateContent("Responde solo: OK");
     results.gemini = { ok: true };

@@ -1,4 +1,4 @@
-import { getSetting } from "@/db";
+import { getSetting, getApiKey } from "@/db";
 
 export interface ConfigCheck {
   ok: boolean;
@@ -9,14 +9,14 @@ export interface ConfigCheck {
 export function checkGeminiConfig(): ConfigCheck {
   const missing: string[] = [];
   const warnings: string[] = [];
-  if (!process.env.GEMINI_API_KEY) missing.push("GEMINI_API_KEY env var");
+  if (!getApiKey("gemini_api_key", "GEMINI_API_KEY")) missing.push("GEMINI_API_KEY env var");
   return { ok: missing.length === 0, missing, warnings };
 }
 
 export function checkEmailConfig(): ConfigCheck {
   const missing: string[] = [];
   const warnings: string[] = [];
-  if (!process.env.RESEND_API_KEY) missing.push("RESEND_API_KEY env var");
+  if (!getApiKey("resend_api_key", "RESEND_API_KEY")) missing.push("RESEND_API_KEY env var");
   const fromEmail = getSetting("from_email");
   if (!fromEmail) missing.push("from_email setting");
   const fromName = getSetting("from_name");

@@ -1,7 +1,23 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
-import { getSetting } from "@/db";
+import { db, getSetting, getApiKey } from "@/db";
+import { agencyProfile } from "@/db/schema";
+import { eq } from "drizzle-orm";
 
-export const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || "");
+let _genAI: GoogleGenerativeAI | null = null;
+let _genAIKey = "";
+
+/**
+ * Lazily build and cache the Gemini client, re-creating it when the resolved
+ * API key changes so keys edited in the app take effect without a restart.
+ */
+export function getGenAI(): GoogleGenerativeAI {
+  const key = getApiKey("gemini_api_key", "GEMINI_API_KEY");
+  if (!_genAI || key !== _genAIKey) {
+    _genAI = new GoogleGenerativeAI(key);
+    _genAIKey = key;
+  }
+  return _genAI;
+}
 
 export function safeParseJSON<T>(jsonStr: string, label: string): T {
   try {
@@ -55,20 +71,87 @@ export interface AgencyContext {
   name: string;
   url: string;
   description: string;
+  tagline: string;
+  ownerName: string;
+  ownerRole: string;
+  city: string;
   services: { key: string; label: string; description: string }[];
+  customServices: { label: string; description: string }[];
+  valueProps: string[];
+  caseStudies: { client: string; result: string; snippet?: string }[];
   country: string;
   locale: string;
 }
 
+function parseJsonArray<T>(raw: string | null): T[] {
+  if (!raw) return [];
+  try {
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
 export function getAgencyContext(): AgencyContext {
+  let profile: typeof agencyProfile.$inferSelect | null = null;
+  try {
+    profile = db.select().from(agencyProfile).where(eq(agencyProfile.id, 1)).get() ?? null;
+  } catch {
+    profile = null;
+  }
+
   return {
-    name: getSetting("agency_name") || "ProspectAI",
-    url: getSetting("agency_url") || "",
-    description: getSetting("agency_description") || "",
+    name: profile?.name || getSetting("agency_name") || "ProspectAI",
+    url: profile?.url || getSetting("agency_url") || "",
+    description: profile?.description || getSetting("agency_description") || "",
+    tagline: profile?.tagline || "",
+    ownerName: profile?.ownerName || getSetting("from_name") || "",
+    ownerRole: profile?.ownerRole || "",
+    city: profile?.city || "",
     services: getEnabledServices(),
-    country: getSetting("target_country") || "US",
+    customServices: parseJsonArray(profile?.customServices ?? null),
+    valueProps: parseJsonArray(profile?.valueProps ?? null),
+    caseStudies: parseJsonArray(profile?.caseStudies ?? null),
+    country: profile?.country || getSetting("target_country") || "US",
     locale: getSetting("locale") || "en-US",
   };
+}
+
+// --- Agency context formatting for prompts ---
+
+export function formatAgencyContextBlock(ctx: AgencyContext): string {
+  const lines: string[] = [];
+  lines.push(`Nombre: ${ctx.name}`);
+  if (ctx.tagline) lines.push(`Propuesta: ${ctx.tagline}`);
+  if (ctx.description) lines.push(`Qué hace: ${ctx.description}`);
+  if (ctx.url) lines.push(`URL: ${ctx.url}`);
+  if (ctx.city) lines.push(`Sede: ${ctx.city}`);
+  if (ctx.ownerName || ctx.ownerRole) {
+    const role = ctx.ownerRole ? ` (${ctx.ownerRole})` : "";
+    lines.push(`Responsable: ${ctx.ownerName || "—"}${role}`);
+  }
+
+  const allServices = [
+    ...ctx.services.map((s) => `- ${s.label}: ${s.description}`),
+    ...ctx.customServices.map((s) => `- ${s.label}: ${s.description}`),
+  ];
+  if (allServices.length) {
+    lines.push("Servicios reales que ofrece:");
+    lines.push(allServices.join("\n"));
+  }
+
+  if (ctx.valueProps.length) {
+    lines.push("Diferenciadores:");
+    lines.push(ctx.valueProps.map((v) => `- ${v}`).join("\n"));
+  }
+
+  if (ctx.caseStudies.length) {
+    lines.push("Casos de éxito (úsalos solo si el ángulo encaja, NO los inventes ni los exageres):");
+    lines.push(ctx.caseStudies.map((c) => `- ${c.client}: ${c.result}${c.snippet ? ` — "${c.snippet}"` : ""}`).join("\n"));
+  }
+
+  return lines.join("\n");
 }
 
 // --- Locale helpers ---

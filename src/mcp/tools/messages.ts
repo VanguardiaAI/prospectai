@@ -1,6 +1,6 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
-import { db, getSetting } from "@/db";
+import { db, getSetting, getApiKey } from "@/db";
 import { emails, whatsappMessages, leads, jobQueue } from "@/db/schema";
 import { eq, and, sql, desc } from "drizzle-orm";
 import { logActivity } from "@/lib/activity";
@@ -285,7 +285,7 @@ export function registerMessageTools(server: McpServer) {
       instructions: z.string().optional().describe("Custom instructions for the AI"),
     },
     async ({ messageId, channel, tone, instructions }) => {
-      if (!process.env.GEMINI_API_KEY) {
+      if (!getApiKey("gemini_api_key", "GEMINI_API_KEY")) {
         return { content: [{ type: "text", text: "Cannot regenerate: GEMINI_API_KEY not configured." }], isError: true };
       }
 

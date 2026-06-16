@@ -6,6 +6,7 @@ import {
 } from "ai";
 import { createGoogleGenerativeAI } from "@ai-sdk/google";
 import { chatbotTools } from "@/lib/chatbot/tools";
+import { getApiKey } from "@/db";
 
 const SYSTEM_PROMPT = `You are ProspectAI's assistant. You help manage B2B outreach campaigns.
 You can create campaigns, search for leads, review and approve emails,
@@ -14,11 +15,11 @@ Always be concise. If a user asks to do something, use the available tools.
 Respond in the same language the user writes in.
 When reporting results, use bullet points and bold for key data.`;
 
-const google = createGoogleGenerativeAI({
-  apiKey: process.env.GEMINI_API_KEY,
-});
-
 export async function POST(req: Request) {
+  const google = createGoogleGenerativeAI({
+    apiKey: getApiKey("gemini_api_key", "GEMINI_API_KEY"),
+  });
+
   const { messages } = (await req.json()) as { messages: UIMessage[] };
 
   const modelMessages = await convertToModelMessages(messages, {

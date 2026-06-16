@@ -1,4 +1,4 @@
-import { genAI, safeParseJSON, cleanJsonResponse, getAgencyContext, getLocaleLabel } from "./config";
+import { getGenAI, safeParseJSON, cleanJsonResponse, getAgencyContext, getLocaleLabel } from "./config";
 import { withRetry } from "@/lib/ai/retry";
 import { geminiRateLimiter } from "@/lib/ai/rate-limiter";
 import { GEMINI_MAX_RETRIES, GEMINI_BASE_DELAY_MS } from "@/lib/constants";
@@ -11,7 +11,7 @@ export async function analyzeWebsite(
   scrapedContent: string,
   scrapedMeta: Record<string, string>
 ): Promise<WebAnalysis> {
-  const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+  const model = getGenAI().getGenerativeModel({ model: "gemini-2.5-flash" });
   const ctx = getAgencyContext();
   const localeLabel = getLocaleLabel(ctx.country);
   const servicesDesc = ctx.services.map((s) => `- ${s.label}: ${s.description}`).join("\n");

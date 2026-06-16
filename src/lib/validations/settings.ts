@@ -12,6 +12,7 @@ const ALLOWED_SETTINGS_KEYS = [
   "scrape_concurrency", "scrape_delay_ms",
   "autopilot_global",
   "gmaps_scraper_url", "gmaps_scraper_api_key",
+  "gemini_api_key", "resend_api_key",
   "wa_daily_limit",
   "chatbot_provider",
   "tracking_base_url",

@@ -36,6 +36,9 @@ const defaultSettings: Record<string, string> = {
   autopilot_global: "false",
   gmaps_scraper_url: "http://localhost:8081",
   gmaps_scraper_api_key: "",
+  // Provider API keys — a non-empty DB value overrides the .env var
+  gemini_api_key: "",
+  resend_api_key: "",
   // Reply-To
   reply_to_email: "",
   // Tracking
@@ -62,4 +65,15 @@ export function getSetting(key: string): string | null {
 
 export function setSetting(key: string, value: string): void {
   sqlite.prepare("INSERT OR REPLACE INTO settings (key, value, updated_at) VALUES (?, ?, datetime('now'))").run(key, value);
+}
+
+/**
+ * Resolve a provider API key: prefer the value stored in the settings table,
+ * otherwise fall back to the environment variable. Lets keys be managed from
+ * the app UI without a restart while keeping `.env` working when unset.
+ */
+export function getApiKey(settingKey: string, envName: string): string {
+  const fromDb = getSetting(settingKey);
+  if (fromDb && fromDb.trim()) return fromDb.trim();
+  return process.env[envName] || "";
 }

@@ -1,6 +1,6 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
-import { db, getSetting } from "@/db";
+import { db, getSetting, getApiKey } from "@/db";
 import { campaigns, leads, emails, whatsappMessages, searchJobs, jobQueue } from "@/db/schema";
 import { eq, and, sql, desc, isNotNull } from "drizzle-orm";
 import { logActivity } from "@/lib/activity";
@@ -239,7 +239,7 @@ export function registerOrchestrationTools(server: McpServer) {
       customInstructions: z.string().optional().describe("Custom instructions for the AI"),
     },
     async ({ campaignId, leadIds, channels = ["email"], tone, customInstructions }) => {
-      if (!process.env.GEMINI_API_KEY) {
+      if (!getApiKey("gemini_api_key", "GEMINI_API_KEY")) {
         return { content: [{ type: "text", text: "Cannot generate: GEMINI_API_KEY not configured." }], isError: true };
       }
 
