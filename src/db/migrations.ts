@@ -11,6 +11,7 @@ export function runMigrations(): void {
     quality_threshold INTEGER NOT NULL DEFAULT 40,
     autopilot INTEGER NOT NULL DEFAULT 0,
     default_tone TEXT NOT NULL DEFAULT 'professional',
+    strategy TEXT NOT NULL DEFAULT 'web_design',
     status TEXT NOT NULL DEFAULT 'active',
     created_at TEXT NOT NULL DEFAULT (datetime('now')),
     updated_at TEXT NOT NULL DEFAULT (datetime('now'))
@@ -83,6 +84,30 @@ export function runMigrations(): void {
   CREATE TABLE IF NOT EXISTS settings (
     key TEXT PRIMARY KEY,
     value TEXT NOT NULL,
+    updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+  );
+
+  CREATE TABLE IF NOT EXISTS agency_profile (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT,
+    url TEXT,
+    description TEXT,
+    tagline TEXT,
+    owner_name TEXT,
+    owner_role TEXT,
+    contact_email TEXT,
+    contact_phone TEXT,
+    services TEXT,
+    custom_services TEXT,
+    city TEXT,
+    country TEXT,
+    value_props TEXT,
+    case_studies TEXT,
+    source TEXT,
+    source_url TEXT,
+    extracted_at TEXT,
+    completed_at TEXT,
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
     updated_at TEXT NOT NULL DEFAULT (datetime('now'))
   );
 
@@ -265,4 +290,5 @@ export function runMigrations(): void {
   safeAddColumn(`ALTER TABLE ab_results ADD COLUMN whatsapp_message_id INTEGER`);
   safeAddColumn(`ALTER TABLE sending_domains ADD COLUMN warmup_start_limit INTEGER NOT NULL DEFAULT 5`);
   safeAddColumn(`ALTER TABLE sending_domains ADD COLUMN warmup_increment INTEGER NOT NULL DEFAULT 5`);
+  safeAddColumn(`ALTER TABLE campaigns ADD COLUMN strategy TEXT NOT NULL DEFAULT 'web_design'`);
 }

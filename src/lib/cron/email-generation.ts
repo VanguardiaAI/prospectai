@@ -6,6 +6,7 @@ import type { WebAnalysis } from "@/lib/ai";
 import { logActivity } from "@/lib/activity";
 import { isBlacklisted } from "@/lib/blacklist";
 import { isUnsubscribed } from "@/lib/unsubscribe";
+import { withStrategyDirective } from "@/lib/ai/strategy";
 
 export async function processEmailGenerationJobs() {
   const jobs = db.select().from(jobQueue)
@@ -77,7 +78,7 @@ export async function processEmailGenerationJobs() {
 
       const generated = await generateEmail(
         lead.name, lead.category, lead.city, lead.website, analysis, tone, fromName,
-        undefined, abCustomInstructions, detectCountryFromPhone(lead.phone) || undefined
+        undefined, withStrategyDirective(campaign?.strategy, abCustomInstructions), detectCountryFromPhone(lead.phone) || undefined
       );
 
       db.insert(emails).values({

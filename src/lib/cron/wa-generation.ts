@@ -5,6 +5,7 @@ import { generateWhatsApp, detectCountryFromPhone, defaultWebAnalysis } from "@/
 import type { WebAnalysis } from "@/lib/ai";
 import { logActivity } from "@/lib/activity";
 import { isBlacklisted } from "@/lib/blacklist";
+import { withStrategyDirective } from "@/lib/ai/strategy";
 
 export async function processWhatsAppGenerationJobs() {
   const jobs = db.select().from(jobQueue)
@@ -66,7 +67,7 @@ export async function processWhatsAppGenerationJobs() {
 
       const generated = await generateWhatsApp(
         lead.name, lead.category, lead.city, lead.website, analysis, tone, fromName,
-        undefined, abCustomInstructions, detectCountryFromPhone(lead.phone) || undefined
+        undefined, withStrategyDirective(campaign?.strategy, abCustomInstructions), detectCountryFromPhone(lead.phone) || undefined
       );
 
       db.insert(whatsappMessages).values({

@@ -92,7 +92,13 @@ export async function processScrapeJobs(concurrency: number, delayMs: number, ma
         const threshold = campaign?.qualityThreshold ?? parseInt(getSetting("quality_threshold") || "40");
         const contactEmail = updatedLead.contactEmail || updatedLead.extractedEmail || lead.email;
 
-        if (analysis.qualityScore <= threshold && contactEmail) {
+        // Strategy-aware qualification: "seo_visibility" targets sites that EXIST but
+        // rank poorly (low seoScore); "web_design" (default) targets poor/no websites.
+        const qualifies = campaign?.strategy === "seo_visibility"
+          ? analysis.hasWebsite === true && (analysis.seoScore ?? 100) <= threshold
+          : analysis.qualityScore <= threshold;
+
+        if (qualifies && contactEmail) {
           db.insert(jobQueue).values({
             type: "generate_email",
             leadId: lead.id,
@@ -101,7 +107,7 @@ export async function processScrapeJobs(concurrency: number, delayMs: number, ma
         }
 
         // Queue WA generation if lead has phone
-        if (analysis.qualityScore <= threshold && lead.phone) {
+        if (qualifies && lead.phone) {
           db.insert(jobQueue).values({
             type: "generate_wa",
             leadId: lead.id,

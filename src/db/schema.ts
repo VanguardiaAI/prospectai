@@ -9,6 +9,8 @@ export const campaigns = sqliteTable("campaigns", {
   qualityThreshold: integer("quality_threshold").notNull().default(40),
   autopilot: integer("autopilot", { mode: "boolean" }).notNull().default(false),
   defaultTone: text("default_tone").notNull().default("professional"),
+  // Campaign angle: "web_design" pitches the website, "seo_visibility" pitches Google visibility (recurring SEO)
+  strategy: text("strategy", { enum: ["web_design", "seo_visibility"] }).notNull().default("web_design"),
   status: text("status", { enum: ["active", "paused", "archived"] }).notNull().default("active"),
   createdAt: text("created_at").notNull().default(sql`(datetime('now'))`),
   updatedAt: text("updated_at").notNull().default(sql`(datetime('now'))`),
@@ -115,6 +117,36 @@ export const activityLog = sqliteTable("activity_log", {
 export const settings = sqliteTable("settings", {
   key: text("key").primaryKey(),
   value: text("value").notNull(),
+  updatedAt: text("updated_at").notNull().default(sql`(datetime('now'))`),
+});
+
+export const agencyProfile = sqliteTable("agency_profile", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  // Identity
+  name: text("name"),
+  url: text("url"),
+  description: text("description"),
+  tagline: text("tagline"), // value-prop one-liner
+  // Owner / signer
+  ownerName: text("owner_name"),
+  ownerRole: text("owner_role"),
+  contactEmail: text("contact_email"),
+  contactPhone: text("contact_phone"),
+  // Services
+  services: text("services"), // comma-separated keys (web_development,seo,...)
+  customServices: text("custom_services"), // JSON array of {label, description}
+  // Location
+  city: text("city"),
+  country: text("country"),
+  // Differentiators
+  valueProps: text("value_props"), // JSON array of strings
+  caseStudies: text("case_studies"), // JSON array of {client, result, snippet}
+  // Onboarding metadata
+  source: text("source", { enum: ["url", "manual", "skipped"] }),
+  sourceUrl: text("source_url"),
+  extractedAt: text("extracted_at"),
+  completedAt: text("completed_at"),
+  createdAt: text("created_at").notNull().default(sql`(datetime('now'))`),
   updatedAt: text("updated_at").notNull().default(sql`(datetime('now'))`),
 });
 

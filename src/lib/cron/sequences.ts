@@ -1,10 +1,11 @@
 import { db, getSetting } from "@/db";
-import { leads, emails, whatsappMessages, sequenceSteps, sequenceEnrollments } from "@/db/schema";
+import { leads, emails, whatsappMessages, sequenceSteps, sequenceEnrollments, campaigns } from "@/db/schema";
 import { eq, and, lte } from "drizzle-orm";
 import { generateEmail, generateWhatsApp, detectCountryFromPhone, defaultWebAnalysis } from "@/lib/ai";
 import type { WebAnalysis } from "@/lib/ai";
 import { logActivity } from "@/lib/activity";
 import { isUnsubscribed } from "@/lib/unsubscribe";
+import { withStrategyDirective } from "@/lib/ai/strategy";
 
 export async function processSequences() {
   const now = new Date().toISOString();
@@ -40,6 +41,8 @@ export async function processSequences() {
     const lead = db.select().from(leads).where(eq(leads.id, enrollment.leadId)).get();
     if (!lead) continue;
 
+    const campaign = db.select().from(campaigns).where(eq(campaigns.id, enrollment.campaignId)).get();
+
     const analysis: WebAnalysis = lead.analysisJson
       ? JSON.parse(lead.analysisJson)
       : defaultWebAnalysis(lead.website, lead.webQualityScore || 0, lead.analysisSummary || "");
@@ -59,7 +62,7 @@ export async function processSequences() {
 
         const generated = await generateEmail(
           lead.name, lead.category, lead.city, lead.website, analysis,
-          step.tone, fromName, step.stepNumber, step.customInstructions || undefined,
+          step.tone, fromName, step.stepNumber, withStrategyDirective(campaign?.strategy, step.customInstructions),
           detectCountryFromPhone(lead.phone) || undefined
         );
 
@@ -94,7 +97,7 @@ export async function processSequences() {
 
         const generated = await generateWhatsApp(
           lead.name, lead.category, lead.city, lead.website, analysis,
-          step.tone, fromName, step.stepNumber, step.customInstructions || undefined,
+          step.tone, fromName, step.stepNumber, withStrategyDirective(campaign?.strategy, step.customInstructions),
           detectCountryFromPhone(lead.phone) || undefined
         );
 

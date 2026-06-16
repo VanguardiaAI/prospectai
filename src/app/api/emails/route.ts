@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/db";
-import { emails, leads } from "@/db/schema";
+import { emails, leads, campaigns } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import { regenerateEmail, detectCountryFromPhone } from "@/lib/gemini";
 import type { WebAnalysis } from "@/lib/gemini";
@@ -8,6 +8,7 @@ import { getSetting } from "@/db";
 import { validateBody, bulkApproveEmailsSchema, updateEmailSchema, regenerateEmailSchema } from "@/lib/validations";
 import * as messageService from "@/services/message.service";
 import { handleServiceError } from "@/services/api-handler";
+import { withStrategyDirective } from "@/lib/ai/strategy";
 
 export async function GET(req: NextRequest) {
   try {
@@ -60,6 +61,8 @@ export async function POST(req: NextRequest) {
   const lead = db.select().from(leads).where(eq(leads.id, existingEmail.leadId)).get();
   if (!lead) return NextResponse.json({ error: "Lead not found" }, { status: 404 });
 
+  const campaign = lead.campaignId ? db.select().from(campaigns).where(eq(campaigns.id, lead.campaignId)).get() : null;
+
   const analysis: WebAnalysis = lead.analysisJson ? JSON.parse(lead.analysisJson) : {
     hasWebsite: !!lead.website,
     qualityScore: lead.webQualityScore || 0,
@@ -88,7 +91,7 @@ export async function POST(req: NextRequest) {
     fromName,
     existingEmail.subject,
     existingEmail.bodyText,
-    v.data.instructions || "",
+    withStrategyDirective(campaign?.strategy, v.data.instructions) || "",
     detectCountryFromPhone(lead.phone) || undefined
   );
 

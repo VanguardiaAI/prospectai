@@ -109,8 +109,9 @@ export function registerCampaignTools(server: McpServer) {
       qualityThreshold: z.number().int().min(0).max(100).optional().describe("Max web quality score to contact (default 40)"),
       autopilot: z.boolean().optional().describe("Auto-approve generated messages"),
       defaultTone: z.string().optional().describe("Default tone for messages (profesional, casual, etc.)"),
+      strategy: z.enum(["web_design", "seo_visibility"]).optional().describe("Campaign angle (default web_design). web_design = pitch the website, targets low web-quality leads. seo_visibility = pitch Google visibility/local SEO (recurring), targets leads that HAVE a website but low SEO; for it, qualityThreshold is read as the max seoScore to contact."),
     },
-    async ({ name, description, dailyLimit, qualityThreshold, autopilot, defaultTone }) => {
+    async ({ name, description, dailyLimit, qualityThreshold, autopilot, defaultTone, strategy }) => {
       // Idempotency: check if campaign with same name exists
       const existing = db.select().from(campaigns)
         .where(eq(campaigns.name, name))
@@ -129,6 +130,7 @@ export function registerCampaignTools(server: McpServer) {
         qualityThreshold: qualityThreshold ?? 40,
         autopilot: autopilot ?? false,
         defaultTone: defaultTone ?? "professional",
+        strategy: strategy ?? "web_design",
       }).returning().get();
 
       logActivity("campaign_change", `Campaign created via MCP: "${name}"`, {
@@ -138,7 +140,7 @@ export function registerCampaignTools(server: McpServer) {
       });
 
       return {
-        content: [{ type: "text", text: `Campaign created: [ID:${campaign.id}] "${campaign.name}" | Limit: ${campaign.dailyLimit}/day | Threshold: ${campaign.qualityThreshold} | Tone: ${campaign.defaultTone}${campaign.autopilot ? " | AUTOPILOT" : ""}` }],
+        content: [{ type: "text", text: `Campaign created: [ID:${campaign.id}] "${campaign.name}" | Strategy: ${campaign.strategy} | Limit: ${campaign.dailyLimit}/day | Threshold: ${campaign.qualityThreshold} | Tone: ${campaign.defaultTone}${campaign.autopilot ? " | AUTOPILOT" : ""}` }],
       };
     }
   );
@@ -154,6 +156,7 @@ export function registerCampaignTools(server: McpServer) {
       qualityThreshold: z.number().int().min(0).max(100).optional(),
       autopilot: z.boolean().optional(),
       defaultTone: z.string().optional(),
+      strategy: z.enum(["web_design", "seo_visibility"]).optional().describe("Campaign angle: web_design or seo_visibility"),
       status: z.enum(["active", "paused", "archived"]).optional(),
     },
     async ({ campaignId, ...updates }) => {
@@ -171,6 +174,7 @@ export function registerCampaignTools(server: McpServer) {
       if (updates.qualityThreshold !== undefined) { setValues.qualityThreshold = updates.qualityThreshold; changed.push("qualityThreshold"); }
       if (updates.autopilot !== undefined) { setValues.autopilot = updates.autopilot; changed.push("autopilot"); }
       if (updates.defaultTone !== undefined) { setValues.defaultTone = updates.defaultTone; changed.push("defaultTone"); }
+      if (updates.strategy !== undefined) { setValues.strategy = updates.strategy; changed.push("strategy"); }
       if (updates.status !== undefined) { setValues.status = updates.status; changed.push("status"); }
 
       if (changed.length === 0) {

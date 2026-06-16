@@ -9,6 +9,7 @@ import { logActivity } from "@/lib/activity";
 import { validateBody, bulkApproveWASchema, updateWASchema, waPostSchema } from "@/lib/validations";
 import * as messageService from "@/services/message.service";
 import { handleServiceError } from "@/services/api-handler";
+import { withStrategyDirective } from "@/lib/ai/strategy";
 
 // GET: list WhatsApp messages with filters
 export async function GET(req: NextRequest) {
@@ -63,13 +64,14 @@ export async function POST(req: NextRequest) {
     const lead = db.select().from(leads).where(eq(leads.id, msg.leadId)).get();
     if (!lead) return NextResponse.json({ error: "Lead not found" }, { status: 404 });
 
+    const campaign = lead.campaignId ? db.select().from(campaigns).where(eq(campaigns.id, lead.campaignId)).get() : null;
     const analysis: WebAnalysis | null = lead.analysisJson ? JSON.parse(lead.analysisJson) : null;
     const fromName = getSetting("from_name") || getSetting("agency_name") || "ProspectAI";
 
     const generated = await regenerateWhatsApp(
       lead.name, lead.category, lead.city, lead.website,
       analysis, v.data.tone || msg.tone, fromName,
-      msg.body, v.data.instructions || "",
+      msg.body, withStrategyDirective(campaign?.strategy, v.data.instructions) || "",
       detectCountryFromPhone(lead.phone) || undefined
     );
 

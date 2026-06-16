@@ -20,6 +20,7 @@ export interface CreateCampaignInput {
   qualityThreshold?: number;
   autopilot?: boolean;
   defaultTone?: string;
+  strategy?: "web_design" | "seo_visibility";
 }
 
 export interface UpdateCampaignInput {
@@ -29,6 +30,7 @@ export interface UpdateCampaignInput {
   qualityThreshold?: number;
   autopilot?: boolean;
   defaultTone?: string;
+  strategy?: "web_design" | "seo_visibility";
   status?: "active" | "paused" | "archived";
 }
 
@@ -78,7 +80,7 @@ function getCampaignMetrics(campaignIds: number[]): Record<number, CampaignMetri
 // ─── Service Functions ──────────────────────────────────────────────
 
 export function listCampaigns(opts?: { status?: string }) {
-  let query = db.select().from(campaigns).orderBy(campaigns.createdAt);
+  const query = db.select().from(campaigns).orderBy(campaigns.createdAt);
   const all = opts?.status
     ? query.where(eq(campaigns.status, opts.status as "active" | "paused" | "archived")).all()
     : query.all();
@@ -110,6 +112,7 @@ export function createCampaign(input: CreateCampaignInput, opts?: { idempotent?:
     qualityThreshold: input.qualityThreshold ?? 40,
     autopilot: input.autopilot ?? false,
     defaultTone: input.defaultTone || "professional",
+    strategy: input.strategy || "web_design",
   }).returning().get();
 
   logActivity("campaign_change", `Campaña "${campaign.name}" creada`, {
