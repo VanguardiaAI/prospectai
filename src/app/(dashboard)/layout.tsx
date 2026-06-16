@@ -1,5 +1,7 @@
 "use client";
 
+import { useEffect } from "react";
+import { useRouter, usePathname } from "next/navigation";
 import { Sidebar } from "@/components/Sidebar";
 import { CommandPalette } from "@/components/CommandPalette";
 import { ChatbotProvider } from "@/components/ChatbotProvider";
@@ -20,6 +22,25 @@ function TranslatedErrorBoundary({ children }: { children: React.ReactNode }) {
   );
 }
 
+function OnboardingGate() {
+  const router = useRouter();
+  const pathname = usePathname();
+  useEffect(() => {
+    // Don't redirect from settings (user might be reconfiguring) or auth-related routes
+    if (pathname?.startsWith("/settings")) return;
+    let cancelled = false;
+    fetch("/api/onboarding/profile")
+      .then((r) => r.json())
+      .then((d) => {
+        if (cancelled) return;
+        if (!d?.onboardingComplete) router.replace("/onboarding");
+      })
+      .catch(() => { /* silent — first run or backend hiccup */ });
+    return () => { cancelled = true; };
+  }, [pathname, router]);
+  return null;
+}
+
 export default function DashboardLayout({
   children,
 }: {
@@ -27,6 +48,7 @@ export default function DashboardLayout({
 }) {
   return (
     <ChatbotProvider>
+      <OnboardingGate />
       <Sidebar />
       <CommandPalette />
       <Chatbot />

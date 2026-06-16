@@ -1,4 +1,4 @@
-import { getAgencyContext, getLocaleLabel, getLocaleWritingRules, SERVICE_DEFINITIONS } from "./config";
+import { getAgencyContext, getLocaleLabel, getLocaleWritingRules, SERVICE_DEFINITIONS, formatAgencyContextBlock } from "./config";
 import { runClaudeCli } from "./claude-cli";
 import { withRetry } from "@/lib/ai/retry";
 import { GEMINI_MAX_RETRIES, GEMINI_BASE_DELAY_MS } from "@/lib/constants";
@@ -60,9 +60,8 @@ export async function generateWhatsApp(
 
   const prompt = `${PERSONA_BLOCK(fromName, ctx.name)}
 
-CONTEXTO DE LA AGENCIA:
-${ctx.description}
-URL: ${ctx.url}
+CONTEXTO DE LA AGENCIA QUE ESCRIBE (úsalo de forma natural, NO inventes datos que no estén aquí):
+${formatAgencyContextBlock(ctx)}
 
 DATOS DEL NEGOCIO AL QUE ESCRIBES:
 - Nombre: ${businessName}
@@ -134,6 +133,9 @@ export async function regenerateWhatsApp(
   const prompt = `${PERSONA_BLOCK(fromName, ctx.name)}
 
 Necesitas REGENERAR un mensaje de WhatsApp de prospección que ya tenías escrito, aplicando un nuevo tono o instrucciones.
+
+CONTEXTO DE LA AGENCIA QUE ESCRIBE (úsalo de forma natural, NO inventes datos que no estén aquí):
+${formatAgencyContextBlock(ctx)}
 
 DATOS DEL NEGOCIO:
 - Nombre: ${businessName}
