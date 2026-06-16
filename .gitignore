@@ -41,6 +41,12 @@ yarn-error.log*
 /data/*.db-wal
 /data/*.db-shm
 
+# app server logs / pid (from scripts/start.command)
+/logs/
+
+# local DB backups (created before destructive ops)
+/data/backups/
+
 # whatsapp-web.js session data
 .wwebjs_auth/
 .wwebjs_cache/
