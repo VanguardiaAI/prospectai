@@ -34,11 +34,21 @@ def scrape_url(url: str) -> dict:
         text_content = body.text(separator=" ", strip=True) if body else ""
         text_content = re.sub(r'\s+', ' ', text_content)[:5000]
 
-        # Extract emails
+        # Extract emails. The TLD pattern (\.[a-zA-Z]{2,}) also matches asset
+        # extensions, so filenames like `bg-info@2x.png` look like valid emails.
         email_pattern = r'[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}'
+        asset_ext = re.compile(
+            r'\.(png|jpe?g|gif|svg|webp|avif|ico|bmp|tiff?|css|js|mjs|json|woff2?|ttf|eot|otf|mp4|webm|mp3|pdf|zip)$',
+            re.IGNORECASE,
+        )
+        retina_suffix = re.compile(r'@\d+x\.', re.IGNORECASE)
         html_text = response.html or ""
         emails = list(set(re.findall(email_pattern, html_text)))
-        emails = [e for e in emails if 'example.com' not in e and 'sentry' not in e and 'wixpress' not in e]
+        emails = [
+            e for e in emails
+            if 'example.com' not in e and 'sentry' not in e and 'wixpress' not in e
+            and not asset_ext.search(e) and not retina_suffix.search(e)
+        ]
 
         # Meta info
         meta = {"title": title, "description": description}
