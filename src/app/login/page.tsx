@@ -45,7 +45,7 @@ export default function LoginPage() {
       const data = await res.json();
 
       if (res.ok) {
-        router.push("/overview");
+        router.push("/inicio");
         router.refresh();
       } else if (res.status === 429) {
         setRetryAfter(data.retryAfter || 60);

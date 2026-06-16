@@ -1,5 +1,6 @@
 {
   "sidebar": {
+    "home": "HOME",
     "dashboard": "DASHBOARD",
     "today": "TODAY",
     "campaigns": "CAMPAIGNS",
@@ -20,6 +21,20 @@
     "logout": "LOG OUT",
     "github": "GITHUB",
     "language": "LANGUAGE"
+  },
+  "home": {
+    "title": "Home",
+    "subtitle": "What needs your attention",
+    "pendingReview": "To review",
+    "replies": "Replies",
+    "sentToday": "Sent today",
+    "inQueue": "In queue",
+    "reviewTitle": "Review drafts",
+    "reviewDesc": "Approve, edit or reject emails and WhatsApps before they go out.",
+    "settingsTitle": "Settings",
+    "settingsDesc": "Agency profile, API keys and WhatsApp connection.",
+    "assistTitle": "Need leads or messages?",
+    "assistDesc": "Just ask Claude in chat: searching, importing, analyzing and writing are all done by prompt."
   },
   "login": {
     "title": "[AUTHENTICATION REQUIRED]",
@@ -214,6 +229,9 @@
     "refresh": "Refresh"
   },
   "review": {
+    "repliesTab": "Replies",
+    "noReplies": "No replies yet. Email and WhatsApp replies will show up here.",
+    "unknownLead": "Unknown lead",
     "title": "Review",
     "tone": "Tone",
     "testEmailSent": "Test email sent to {{email}}",
@@ -591,6 +609,28 @@
     "title": "Config",
     "subtitle": "Global system settings",
     "saveChanges": "Save changes",
+    "tabs": {
+      "profile": "PROFILE",
+      "connections": "CONNECTIONS",
+      "sending": "SENDING",
+      "advanced": "ADVANCED"
+    },
+    "apiKeys": {
+      "section": "API keys",
+      "desc": "Stored in the database and take priority over the .env file. Leave blank to keep the current value.",
+      "gemini": "Gemini API key",
+      "resend": "Resend API key",
+      "configured": "Configured",
+      "notSet": "Not set",
+      "keepHint": "Leave blank to keep the current key"
+    },
+    "assistant": {
+      "title": "Agency profile",
+      "description": "Want to regenerate the profile from scratch using your URL? The assistant extracts name, description, services, contact and differentiators in a couple of clicks.",
+      "launch": "Launch assistant"
+    },
+    "targetCountryHint": "Sets the regional language of messages (Mexican ≠ Argentinian ≠ Spain Spanish).",
+    "languageHint": "Dashboard interface language.",
     "agencyIdentity": "Agency Identity",
     "agencyName": "Agency name",
     "agencyUrl": "Agency URL",
@@ -781,6 +821,143 @@
       "customPlaceholder": "max. {{max}}",
       "submit": "Start Analysis",
       "cancel": "Cancel"
+    }
+  },
+  "onboarding": {
+    "title": "Set up your agency profile",
+    "subtitle": "Takes 2 minutes. The AI will use this to write messages in your voice instead of generic ones.",
+    "stepper": {
+      "step1": "How I get to know you",
+      "step2": "Agency profile",
+      "step3": "How you sign",
+      "step4": "Test and launch"
+    },
+    "step1": {
+      "url": {
+        "title": "I have a website or portfolio",
+        "description": "Paste the URL and the AI extracts name, services, contact and differentiators."
+      },
+      "manual": {
+        "title": "I'll tell you myself",
+        "description": "Fill out a short form by hand. Useful if you don't have a public site yet."
+      },
+      "skip": {
+        "title": "Skip",
+        "description": "Configure everything later in Settings. The AI will use generic defaults."
+      },
+      "recommended": "RECOMMENDED"
+    },
+    "step2": {
+      "extract": {
+        "title": "Auto-extraction",
+        "urlPlaceholder": "https://myagency.com",
+        "analyze": "Analyze",
+        "analyzing": "Analyzing...",
+        "hint": "Reading home, about, services and contact pages. Usually takes 5-15s...",
+        "success": "Done. Review the fields: what I extracted is marked, edit anything that doesn't fit.",
+        "successToast": "Analyzed {{pages}} pages in {{seconds}}s",
+        "missingUrl": "Enter a URL",
+        "failedDefault": "Could not analyze the URL",
+        "networkError": "Network error"
+      },
+      "identity": {
+        "section": "Identity",
+        "name": "Brand name *",
+        "namePlaceholder": "VanguardIA",
+        "url": "URL",
+        "urlPlaceholder": "https://...",
+        "tagline": "Value proposition (1 line)",
+        "taglinePlaceholder": "Web and SEO for dental clinics",
+        "description": "Description of what the agency does *",
+        "descriptionPlaceholder": "We design and position professional websites for SMBs and freelancers..."
+      },
+      "owner": {
+        "section": "Who signs the messages",
+        "name": "Owner name",
+        "namePlaceholder": "Pablo Luque",
+        "role": "Role",
+        "rolePlaceholder": "Founder",
+        "city": "City",
+        "cityPlaceholder": "Madrid",
+        "email": "Contact email",
+        "emailPlaceholder": "hello@...",
+        "phone": "Phone",
+        "phonePlaceholder": "+1 ..."
+      },
+      "services": {
+        "section": "Services you offer",
+        "hint": "Select the ones that apply. The AI will only propose what's marked.",
+        "additional": "Additional services detected:"
+      },
+      "valueProps": {
+        "section": "Differentiators (optional)",
+        "add": "Add",
+        "hint": "Real reasons why a client would choose you. The AI may mention them in messages.",
+        "examples": "E.g.: \"10 years specialized in dental sector\", \"Results guarantee in 90 days\"...",
+        "placeholder": "Real differentiator...",
+        "remove": "Remove"
+      },
+      "extractedBadge": "EXTRACTED",
+      "extractedField": "extracted"
+    },
+    "step3": {
+      "section": "Sender details",
+      "hint": "These go to settings. If you set an email/name before, they're pre-filled.",
+      "email": "Sender email *",
+      "emailPlaceholder": "hello@myagency.com",
+      "emailHint": "Must be verified in your Resend account.",
+      "emailInvalid": "Invalid email",
+      "name": "Name you sign with *",
+      "namePlaceholder": "Pablo",
+      "nameHint": "Appears as \"{{name}} from [your agency]\" in messages.",
+      "country": "Target country *",
+      "countryPlaceholder": "— Select country —",
+      "countryHint": "Sets the default regional language (Mexican ≠ Argentinian ≠ Spain Spanish).",
+      "tone": {
+        "section": "Default tone",
+        "hint": "Choose how you want messages to sound. You can change it per campaign later.",
+        "samples": {
+          "professional": "I checked your site and noticed your contact form isn't visible on mobile. That usually costs 2 out of 10 leads. We work with similar clinics; would you like me to show you how we'd fix it?",
+          "friendly": "Hi Marta, took a quick look at your site and it's really polished. Just one thing: on mobile the booking button is hard to find. Want me to show you a simple way to fix it?",
+          "direct": "Your site loads in 5s and that loses customers. In 2 weeks we'd get it under 1.5s. Want me to send you an analysis, no strings attached?",
+          "consultative": "I review sites in your sector and yours has three points where, by tweaking local SEO, you could capture searches the competition gets today. Want me to send it in writing?"
+        }
+      }
+    },
+    "step4": {
+      "test": {
+        "section": "Test email",
+        "recommended": "(recommended)",
+        "hint": "Send yourself an email to see how the signature looks and verify Resend works.",
+        "placeholder": "you@email.com",
+        "send": "Send test",
+        "sending": "Sending",
+        "success": "Sent. Check your inbox in a few seconds.",
+        "invalidTo": "Invalid recipient email"
+      },
+      "summary": {
+        "section": "Profile summary",
+        "agency": "Agency",
+        "tagline": "Tagline",
+        "signsAs": "Signs as",
+        "signsAsValue": "{{name}} from {{email}}",
+        "countryTone": "Country / tone",
+        "services": "Services",
+        "valueProps": "Differentiators",
+        "valuePropsCount": "{{count}} loaded"
+      },
+      "footer": "When you launch we take you to Campaigns to create the first one. Import leads (CSV or Google Maps), the AI analyzes and drafts, you approve."
+    },
+    "nav": {
+      "back": "Back",
+      "skipLater": "Skip and complete later",
+      "continue": "Continue",
+      "finishing": "Finishing",
+      "launch": "Launch my first campaign"
+    },
+    "errors": {
+      "saveFailed": "There was a problem saving the configuration",
+      "errorPrefix": "[ERROR]"
     }
   }
 }

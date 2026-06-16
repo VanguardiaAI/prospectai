@@ -1,9 +1,10 @@
 "use client";
 
 import { useEffect, useState, useCallback, useRef } from "react";
+import Link from "next/link";
 import { Card, Button, Input, Select, Toggle, Spinner, Badge, ProgressBar } from "@/components/ui";
 import { useToast } from "@/components/Toast";
-import { Zap, TestTube, CheckCircle, XCircle, RefreshCw, MessageCircle, Wifi, WifiOff, Globe, Building, Shield, Clock, Link2, Webhook, Settings2, Play, Square } from "lucide-react";
+import { Zap, TestTube, CheckCircle, XCircle, RefreshCw, MessageCircle, Wifi, WifiOff, Globe, Building, Shield, Clock, Link2, Webhook, Settings2, Play, Square, Wand2, KeyRound } from "lucide-react";
 import { useT } from "@/i18n/LocaleProvider";
 import { getLang } from "@/i18n/index";
 
@@ -22,25 +23,27 @@ interface WAStatus {
 const SERVICE_KEYS = ["web_development", "seo", "ai_agents", "google_business", "social_media"] as const;
 
 const COUNTRY_OPTIONS = [
-  { code: "ES", phoneCode: "34", phoneDigits: "9" },
-  { code: "MX", phoneCode: "52", phoneDigits: "10" },
-  { code: "AR", phoneCode: "54", phoneDigits: "10" },
-  { code: "CO", phoneCode: "57", phoneDigits: "10" },
-  { code: "CL", phoneCode: "56", phoneDigits: "9" },
-  { code: "PE", phoneCode: "51", phoneDigits: "9" },
-  { code: "EC", phoneCode: "593", phoneDigits: "9" },
-  { code: "UY", phoneCode: "598", phoneDigits: "8" },
-  { code: "US", phoneCode: "1", phoneDigits: "10" },
-  { code: "UK", phoneCode: "44", phoneDigits: "10" },
-  { code: "CA", phoneCode: "1", phoneDigits: "10" },
-  { code: "AU", phoneCode: "61", phoneDigits: "9" },
-  { code: "BR", phoneCode: "55", phoneDigits: "11" },
-  { code: "PT", phoneCode: "351", phoneDigits: "9" },
-  { code: "FR", phoneCode: "33", phoneDigits: "9" },
-  { code: "DE", phoneCode: "49", phoneDigits: "11" },
-  { code: "IT", phoneCode: "39", phoneDigits: "10" },
-  { code: "NL", phoneCode: "31", phoneDigits: "9" },
+  { code: "ES", phoneCode: "34", phoneDigits: "9", currency: "EUR" },
+  { code: "MX", phoneCode: "52", phoneDigits: "10", currency: "MXN" },
+  { code: "AR", phoneCode: "54", phoneDigits: "10", currency: "ARS" },
+  { code: "CO", phoneCode: "57", phoneDigits: "10", currency: "COP" },
+  { code: "CL", phoneCode: "56", phoneDigits: "9", currency: "CLP" },
+  { code: "PE", phoneCode: "51", phoneDigits: "9", currency: "PEN" },
+  { code: "EC", phoneCode: "593", phoneDigits: "9", currency: "USD" },
+  { code: "UY", phoneCode: "598", phoneDigits: "8", currency: "UYU" },
+  { code: "US", phoneCode: "1", phoneDigits: "10", currency: "USD" },
+  { code: "UK", phoneCode: "44", phoneDigits: "10", currency: "GBP" },
+  { code: "CA", phoneCode: "1", phoneDigits: "10", currency: "CAD" },
+  { code: "AU", phoneCode: "61", phoneDigits: "9", currency: "AUD" },
+  { code: "BR", phoneCode: "55", phoneDigits: "11", currency: "BRL" },
+  { code: "PT", phoneCode: "351", phoneDigits: "9", currency: "EUR" },
+  { code: "FR", phoneCode: "33", phoneDigits: "9", currency: "EUR" },
+  { code: "DE", phoneCode: "49", phoneDigits: "11", currency: "EUR" },
+  { code: "IT", phoneCode: "39", phoneDigits: "10", currency: "EUR" },
+  { code: "NL", phoneCode: "31", phoneDigits: "9", currency: "EUR" },
 ];
+
+type SettingsTab = "profile" | "connections" | "sending" | "advanced";
 
 // ─── Validation helpers ────────────────────────────────────────────
 function validateEmail(value: string): string | null {
@@ -99,6 +102,7 @@ export default function SettingsPage() {
   const [waConnecting, setWaConnecting] = useState(false);
   const [schedulerRunning, setSchedulerRunning] = useState(false);
   const [touched, setTouched] = useState<Record<string, boolean>>({});
+  const [activeTab, setActiveTab] = useState<SettingsTab>("profile");
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const { toast } = useToast();
   const { t, setLang } = useT();
@@ -193,10 +197,16 @@ export default function SettingsPage() {
     }
 
     setSaving(true);
+    // Drop UI-only `*_configured` flags; never send them to the API.
+    const payload: Record<string, string> = {};
+    for (const [k, v] of Object.entries(settings)) {
+      if (k.endsWith("_configured")) continue;
+      payload[k] = v;
+    }
     const res = await fetch("/api/settings", {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(settings),
+      body: JSON.stringify(payload),
     });
     setSaving(false);
     if (!res.ok) {
@@ -241,6 +251,7 @@ export default function SettingsPage() {
         target_country: code,
         phone_country_code: country.phoneCode,
         phone_digits: country.phoneDigits,
+        currency: country.currency,
       });
     }
   };
@@ -274,9 +285,57 @@ export default function SettingsPage() {
         </div>
       </div>
 
-      {/* ─── Bento Row 1: Identity + Country ─── */}
+      {/* ─── Tabs ─── */}
+      <div className="nd-section flex items-center gap-1 border-b border-border">
+        {([
+          { key: "profile", label: t("settings.tabs.profile") },
+          { key: "connections", label: t("settings.tabs.connections") },
+          { key: "sending", label: t("settings.tabs.sending") },
+          { key: "advanced", label: t("settings.tabs.advanced") },
+        ] as const).map((tab) => (
+          <button
+            key={tab.key}
+            onClick={() => setActiveTab(tab.key)}
+            className={`px-4 py-2 text-[11px] font-mono uppercase tracking-[0.04em] cursor-pointer border-b-2 -mb-px transition-colors ${
+              activeTab === tab.key
+                ? "border-accent text-text-primary"
+                : "border-transparent text-text-muted hover:text-text-secondary"
+            }`}
+          >
+            {tab.label}
+          </button>
+        ))}
+      </div>
+
+      {activeTab === "profile" && (
+        <>
+      {/* ─── Onboarding shortcut ─── */}
+      <div className="nd-section">
+        <Card className="border-accent/40">
+          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+            <div className="flex items-start gap-3">
+              <div className="text-accent mt-0.5">
+                <Wand2 className="h-5 w-5" strokeWidth={1.5} />
+              </div>
+              <div>
+                <h3 className="text-sm font-medium mb-1">{t("settings.assistant.title")}</h3>
+                <p className="text-[11px] text-text-muted leading-relaxed">
+                  {t("settings.assistant.description")}
+                </p>
+              </div>
+            </div>
+            <Link href="/onboarding">
+              <Button variant="secondary" size="sm">
+                <Wand2 className="h-3.5 w-3.5" strokeWidth={1.5} /> {t("settings.assistant.launch")}
+              </Button>
+            </Link>
+          </div>
+        </Card>
+      </div>
+
+      {/* ─── Identity (sin la card de Country/Localization) ─── */}
       <div id="agency" className="grid grid-cols-12 gap-4 nd-section">
-        <Card className="col-span-12 lg:col-span-8">
+        <Card className="col-span-12">
           <h3 className="nd-heading mb-6">
             <Building className="h-4 w-4 inline mr-2" strokeWidth={1.5} />
             {t("settings.agencyIdentity")}
@@ -317,48 +376,151 @@ export default function SettingsPage() {
           </div>
         </Card>
 
-        <Card className="col-span-12 lg:col-span-4">
-          <h3 className="nd-heading mb-6">
-            <Globe className="h-4 w-4 inline mr-2" strokeWidth={1.5} />
-            {t("settings.countryLocalization")}
+      </div>
+        </>
+      )}
+
+      {activeTab === "connections" && (
+        <>
+      {/* ─── API keys ─── */}
+      <div className="grid grid-cols-12 gap-4 nd-section">
+        <Card className="col-span-12 md:col-span-7">
+          <h3 className="nd-heading mb-2">
+            <KeyRound className="h-4 w-4 inline mr-2" strokeWidth={1.5} />
+            {t("settings.apiKeys.section")}
           </h3>
+          <p className="nd-label text-text-muted mb-5">{t("settings.apiKeys.desc")}</p>
           <div className="space-y-5">
-            <div>
-              <label className="nd-label block mb-2">{t("settings.language")}</label>
-              <Select value={settings.locale || "en-US"} onChange={(e) => setSettings({ ...settings, locale: e.target.value })}>
-                <option value="en-US">English</option>
-                <option value="es-ES">Español</option>
-              </Select>
-            </div>
-            <div>
-              <label className="nd-label block mb-2">{t("settings.targetCountry")}</label>
-              <Select value={settings.target_country || "US"} onChange={(e) => handleCountryChange(e.target.value)}>
-                {COUNTRY_OPTIONS.map((c) => (
-                  <option key={c.code} value={c.code}>{t(`countries.${c.code}`)}</option>
-                ))}
-              </Select>
-            </div>
-            <div>
-              <label className="nd-label block mb-2">{t("settings.countryCode")}</label>
-              <div className="flex items-center gap-2">
-                <span className="text-sm text-text-muted">+</span>
-                <Input value={settings.phone_country_code || ""} onChange={(e) => setSettings({ ...settings, phone_country_code: e.target.value })} className="w-20" />
-                <span className="text-[11px] text-text-muted">({settings.phone_digits || "9"} {t("settings.digits")}</span>
+            {([
+              { key: "gemini_api_key", label: t("settings.apiKeys.gemini") },
+              { key: "resend_api_key", label: t("settings.apiKeys.resend") },
+              { key: "gmaps_scraper_api_key", label: t("settings.gmapsScraper") },
+            ] as const).map((f) => (
+              <div key={f.key}>
+                <div className="flex items-center justify-between mb-2">
+                  <label className="nd-label">{f.label}</label>
+                  {settings[`${f.key}_configured`] === "true" ? (
+                    <Badge color="success"><CheckCircle className="h-3 w-3 mr-1" strokeWidth={1.5} /> {t("settings.apiKeys.configured")}</Badge>
+                  ) : (
+                    <Badge>{t("settings.apiKeys.notSet")}</Badge>
+                  )}
+                </div>
+                <Input
+                  type="password"
+                  value={settings[f.key] || ""}
+                  onChange={(e) => setSettings({ ...settings, [f.key]: e.target.value })}
+                  placeholder={settings[`${f.key}_configured`] === "true" ? "••••••••" : ""}
+                />
               </div>
-            </div>
-            <div>
-              <label className="nd-label block mb-2">{t("settings.currency")}</label>
-              <Select value={settings.currency || "EUR"} onChange={(e) => setSettings({ ...settings, currency: e.target.value })}>
-                {["EUR", "USD", "MXN", "GBP", "ARS", "COP", "CLP", "PEN", "BRL", "AUD", "CAD"].map((c) => (
-                  <option key={c} value={c}>{t(`currencies.${c}`)}</option>
-                ))}
-              </Select>
+            ))}
+            <p className="text-[11px] text-text-muted">{t("settings.apiKeys.keepHint")}</p>
+            <div className="pt-4 border-t border-border">
+              <Button variant="secondary" size="sm" onClick={testConnections} disabled={testing}>
+                {testing ? (
+                  <><RefreshCw className="h-3.5 w-3.5 animate-spin" strokeWidth={1.5} /> {t("settings.testing")}</>
+                ) : (
+                  <><TestTube className="h-3.5 w-3.5" strokeWidth={1.5} /> {t("settings.testApis")}</>
+                )}
+              </Button>
+              {testResults && (
+                <div className="mt-4">
+                  {Object.entries(testResults).map(([key, val], i) => (
+                    <div key={key} className={`nd-list-item ${i === 0 ? "pt-0" : ""}`}>
+                      <span className="nd-list-label">{key}</span>
+                      {val.ok ? (
+                        <Badge color="success"><CheckCircle className="h-3 w-3 mr-1" strokeWidth={1.5} /> OK</Badge>
+                      ) : (
+                        <Badge color="danger"><XCircle className="h-3 w-3 mr-1" strokeWidth={1.5} /> ERROR</Badge>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
         </Card>
       </div>
 
-      {/* ─── Bento Row 2: Email + Warmup + Scraping ─── */}
+      {/* ─── WhatsApp ─── */}
+      <div className="grid grid-cols-12 gap-4 nd-section">
+        <Card className="col-span-12 md:col-span-7">
+          <h3 className="nd-heading mb-6">
+            <MessageCircle className="h-4 w-4 inline mr-2" strokeWidth={1.5} />
+            {t("settings.whatsappSection")}
+          </h3>
+          <div className="space-y-5">
+            <div className="flex items-center justify-between">
+              <span className="nd-label">{t("settings.waStatus")}</span>
+              <div className="flex items-center gap-2">
+                {waStatus.status === "ready" ? (
+                  <Badge color="success"><Wifi className="h-3 w-3 mr-1" strokeWidth={1.5} /> {t("settings.connected")}</Badge>
+                ) : waStatus.status === "qr_pending" ? (
+                  <Badge color="warning">{t("settings.scanQr")}</Badge>
+                ) : waStatus.status === "authenticating" ? (
+                  <Badge color="info"><RefreshCw className="h-3 w-3 mr-1 animate-spin" strokeWidth={1.5} /> {t("settings.authenticating")}</Badge>
+                ) : waStatus.status === "error" ? (
+                  <Badge color="danger"><XCircle className="h-3 w-3 mr-1" strokeWidth={1.5} /> ERROR</Badge>
+                ) : (
+                  <Badge><WifiOff className="h-3 w-3 mr-1" strokeWidth={1.5} /> {t("settings.disconnected")}</Badge>
+                )}
+              </div>
+            </div>
+
+            {waStatus.phone && (
+              <div className="flex items-center justify-between">
+                <span className="nd-label">{t("settings.number")}</span>
+                <span className="text-sm text-text-primary font-mono">+{waStatus.phone}</span>
+              </div>
+            )}
+
+            {waStatus.qrDataUrl && (
+              <div className="flex flex-col items-center py-4">
+                <p className="nd-label mb-3">{t("settings.scanWithWa")}</p>
+                <img src={waStatus.qrDataUrl} alt="QR Code" className="w-48 h-48 rounded-lg" />
+                <p className="text-[10px] text-text-muted font-mono mt-2">{t("settings.openWaInstructions")}</p>
+              </div>
+            )}
+
+            {waStatus.error && waStatus.status === "error" && (
+              <p className="text-[11px] text-accent font-mono">[ERROR] {waStatus.error}</p>
+            )}
+
+            <div className="flex gap-2 pt-2">
+              {waStatus.status === "disconnected" || waStatus.status === "error" ? (
+                <Button size="sm" onClick={connectWA} disabled={waConnecting}>
+                  {waConnecting ? (
+                    <><RefreshCw className="h-3.5 w-3.5 animate-spin" strokeWidth={1.5} /> {t("settings.connecting")}</>
+                  ) : (
+                    <><Wifi className="h-3.5 w-3.5" strokeWidth={1.5} /> {t("settings.connectWa")}</>
+                  )}
+                </Button>
+              ) : waStatus.status === "ready" ? (
+                <Button size="sm" variant="danger" onClick={disconnectWA}>
+                  <WifiOff className="h-3.5 w-3.5" strokeWidth={1.5} /> {t("settings.disconnect")}
+                </Button>
+              ) : null}
+            </div>
+
+            <div className="mt-4 pt-4 border-t border-border">
+              <label className="nd-label block mb-2">{t("settings.waDailyLimit")}</label>
+              <Input
+                type="number"
+                value={settings.wa_daily_limit || "20"}
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setSettings({ ...settings, wa_daily_limit: e.target.value })}
+                {...fieldProps("wa_daily_limit")}
+              />
+              {getError("wa_daily_limit") && <p className="text-[11px] text-accent mt-1 font-mono">{getError("wa_daily_limit")}</p>}
+              <p className="text-[11px] text-text-muted mt-1 font-mono">{t("settings.waDailyLimitDesc")}</p>
+            </div>
+          </div>
+        </Card>
+      </div>
+        </>
+      )}
+
+      {activeTab === "sending" && (
+        <>
+      {/* ─── Email + Warmup + WhatsApp ─── */}
       <div id="email" className="grid grid-cols-12 gap-4 nd-section">
         <Card className="col-span-12 md:col-span-4">
           <h3 className="nd-heading mb-6">{t("settings.emailSection")}</h3>
@@ -371,6 +533,16 @@ export default function SettingsPage() {
             <div>
               <label className="nd-label block mb-2">{t("settings.senderName")}</label>
               <Input value={settings.from_name || ""} onChange={(e) => setSettings({ ...settings, from_name: e.target.value })} />
+            </div>
+            <div>
+              <label className="nd-label block mb-2">{t("settings.targetCountry")}</label>
+              <Select value={settings.target_country || ""} onChange={(e) => handleCountryChange(e.target.value)}>
+                <option value="">—</option>
+                {COUNTRY_OPTIONS.map((c) => (
+                  <option key={c.code} value={c.code}>{t(`countries.${c.code}`)}</option>
+                ))}
+              </Select>
+              <p className="text-[11px] text-text-muted mt-1">{t("settings.targetCountryHint")}</p>
             </div>
             <div>
               <label className="nd-label block mb-2">{t("settings.dailyLimit")}</label>
@@ -453,7 +625,16 @@ export default function SettingsPage() {
           </div>
         </Card>
 
-        <Card className="col-span-12 md:col-span-3">
+      </div>
+
+        </>
+      )}
+
+      {activeTab === "advanced" && (
+        <>
+      {/* ─── Scraping + Compliance ─── */}
+      <div id="compliance" className="grid grid-cols-12 gap-4 nd-section">
+        <Card className="col-span-12 md:col-span-5">
           <h3 className="nd-heading mb-6">
             <Settings2 className="h-4 w-4 inline mr-2" strokeWidth={1.5} />
             {t("settings.scraping")}
@@ -479,83 +660,8 @@ export default function SettingsPage() {
             </div>
           </div>
         </Card>
-      </div>
 
-      {/* ─── Bento Row 3: WhatsApp + RGPD ─── */}
-      <div id="compliance" className="grid grid-cols-12 gap-4 nd-section">
-        <Card className="col-span-12 lg:col-span-5">
-          <h3 className="nd-heading mb-6">
-            <MessageCircle className="h-4 w-4 inline mr-2" strokeWidth={1.5} />
-            {t("settings.whatsappSection")}
-          </h3>
-          <div className="space-y-5">
-            <div className="flex items-center justify-between">
-              <span className="nd-label">{t("settings.waStatus")}</span>
-              <div className="flex items-center gap-2">
-                {waStatus.status === "ready" ? (
-                  <Badge color="success"><Wifi className="h-3 w-3 mr-1" strokeWidth={1.5} /> {t("settings.connected")}</Badge>
-                ) : waStatus.status === "qr_pending" ? (
-                  <Badge color="warning">{t("settings.scanQr")}</Badge>
-                ) : waStatus.status === "authenticating" ? (
-                  <Badge color="info"><RefreshCw className="h-3 w-3 mr-1 animate-spin" strokeWidth={1.5} /> {t("settings.authenticating")}</Badge>
-                ) : waStatus.status === "error" ? (
-                  <Badge color="danger"><XCircle className="h-3 w-3 mr-1" strokeWidth={1.5} /> ERROR</Badge>
-                ) : (
-                  <Badge><WifiOff className="h-3 w-3 mr-1" strokeWidth={1.5} /> {t("settings.disconnected")}</Badge>
-                )}
-              </div>
-            </div>
-
-            {waStatus.phone && (
-              <div className="flex items-center justify-between">
-                <span className="nd-label">{t("settings.number")}</span>
-                <span className="text-sm text-text-primary font-mono">+{waStatus.phone}</span>
-              </div>
-            )}
-
-            {waStatus.qrDataUrl && (
-              <div className="flex flex-col items-center py-4">
-                <p className="nd-label mb-3">{t("settings.scanWithWa")}</p>
-                <img src={waStatus.qrDataUrl} alt="QR Code" className="w-48 h-48 rounded-lg" />
-                <p className="text-[10px] text-text-muted font-mono mt-2">{t("settings.openWaInstructions")}</p>
-              </div>
-            )}
-
-            {waStatus.error && waStatus.status === "error" && (
-              <p className="text-[11px] text-accent font-mono">[ERROR] {waStatus.error}</p>
-            )}
-
-            <div className="flex gap-2 pt-2">
-              {waStatus.status === "disconnected" || waStatus.status === "error" ? (
-                <Button size="sm" onClick={connectWA} disabled={waConnecting}>
-                  {waConnecting ? (
-                    <><RefreshCw className="h-3.5 w-3.5 animate-spin" strokeWidth={1.5} /> {t("settings.connecting")}</>
-                  ) : (
-                    <><Wifi className="h-3.5 w-3.5" strokeWidth={1.5} /> {t("settings.connectWa")}</>
-                  )}
-                </Button>
-              ) : waStatus.status === "ready" ? (
-                <Button size="sm" variant="danger" onClick={disconnectWA}>
-                  <WifiOff className="h-3.5 w-3.5" strokeWidth={1.5} /> {t("settings.disconnect")}
-                </Button>
-              ) : null}
-            </div>
-
-            <div className="mt-4 pt-4 border-t border-border">
-              <label className="nd-label block mb-2">{t("settings.waDailyLimit")}</label>
-              <Input
-                type="number"
-                value={settings.wa_daily_limit || "20"}
-                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setSettings({ ...settings, wa_daily_limit: e.target.value })}
-                {...fieldProps("wa_daily_limit")}
-              />
-              {getError("wa_daily_limit") && <p className="text-[11px] text-accent mt-1 font-mono">{getError("wa_daily_limit")}</p>}
-              <p className="text-[11px] text-text-muted mt-1 font-mono">{t("settings.waDailyLimitDesc")}</p>
-            </div>
-          </div>
-        </Card>
-
-        <Card className="col-span-12 lg:col-span-7">
+        <Card className="col-span-12 md:col-span-7">
           <h3 className="nd-heading mb-6">
             <Shield className="h-4 w-4 inline mr-2" strokeWidth={1.5} />
             {t("settings.compliance")}
@@ -772,6 +878,23 @@ export default function SettingsPage() {
           )}
         </Card>
       </div>
+
+      {/* ─── Idioma del dashboard ─── */}
+      <div className="grid grid-cols-12 gap-4 nd-section">
+        <Card className="col-span-12 md:col-span-4">
+          <h3 className="nd-heading mb-3">
+            <Globe className="h-4 w-4 inline mr-2" strokeWidth={1.5} />
+            {t("settings.language")}
+          </h3>
+          <Select value={settings.locale || "en-US"} onChange={(e) => setSettings({ ...settings, locale: e.target.value })}>
+            <option value="en-US">English</option>
+            <option value="es-ES">Español</option>
+          </Select>
+          <p className="text-[11px] text-text-muted mt-2">{t("settings.languageHint")}</p>
+        </Card>
+      </div>
+        </>
+      )}
     </div>
   );
 }

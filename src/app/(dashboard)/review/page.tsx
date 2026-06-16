@@ -3,10 +3,21 @@
 import { useEffect, useState, useCallback } from "react";
 import { Card, Button, Select, Badge, StatusBadge, QualityBar, EmptyState, Spinner, Textarea, Input } from "@/components/ui";
 import { useToast } from "@/components/Toast";
-import { Mail, Check, X, RefreshCw, ChevronLeft, ChevronRight, CheckCheck, Globe, MapPin, MessageCircle, Send, FileText } from "lucide-react";
+import { Mail, Check, X, RefreshCw, ChevronLeft, ChevronRight, CheckCheck, Globe, MapPin, MessageCircle, Send, FileText, Inbox } from "lucide-react";
 import { useT } from "@/i18n/LocaleProvider";
 
-type ReviewTab = "emails" | "whatsapp";
+type ReviewTab = "emails" | "whatsapp" | "replies";
+
+interface ReplyRow {
+  id: number;
+  leadId: number;
+  channel: string;
+  fromAddress: string;
+  body: string | null;
+  receivedAt: string;
+  leadName: string | null;
+  leadCity: string | null;
+}
 
 interface EmailRow {
   email: {
@@ -56,6 +67,8 @@ export default function ReviewPage() {
   const { toast } = useToast();
   const { t } = useT();
   const [tab, setTab] = useState<ReviewTab>("emails");
+  const [replyList, setReplyList] = useState<ReplyRow[]>([]);
+  const [repliesLoading, setRepliesLoading] = useState(true);
   // Email state
   const [emails, setEmails] = useState<EmailRow[]>([]);
   const [emailLoading, setEmailLoading] = useState(true);
@@ -106,8 +119,17 @@ export default function ReviewPage() {
     setWaLoading(false);
   }, [waStatus]);
 
+  const fetchReplies = useCallback(async () => {
+    setRepliesLoading(true);
+    const res = await fetch("/api/replies");
+    const data = await res.json();
+    setReplyList(data.replies || []);
+    setRepliesLoading(false);
+  }, []);
+
   useEffect(() => { fetchEmails(); }, [fetchEmails]);
   useEffect(() => { fetchWA(); }, [fetchWA]);
+  useEffect(() => { fetchReplies(); }, [fetchReplies]);
 
   const current = emails[emailIndex];
   const currentWA = waMessages[waIndex];
@@ -280,7 +302,9 @@ export default function ReviewPage() {
           <p className="nd-label mt-2">
             {tab === "emails"
               ? `${emails.length} emails ${emailStatus === "draft" ? t("review.toReview") : emailStatus}`
-              : `${waMessages.length} WhatsApps ${waStatus === "draft" ? t("review.toReview") : waStatus}`
+              : tab === "whatsapp"
+              ? `${waMessages.length} WhatsApps ${waStatus === "draft" ? t("review.toReview") : waStatus}`
+              : `${replyList.length} ${t("review.repliesTab")}`
             }
           </p>
         </div>
@@ -298,6 +322,12 @@ export default function ReviewPage() {
               onClick={() => { setTab("whatsapp"); setBulkMode(false); setWaBulkMode(false); }}
             >
               <MessageCircle className="h-3 w-3 inline mr-1.5" strokeWidth={1.5} />WhatsApp
+            </button>
+            <button
+              className={`px-3 py-1.5 text-[11px] font-mono uppercase tracking-[0.06em] transition-colors cursor-pointer ${tab === "replies" ? "bg-text-display text-bg-primary" : "text-text-muted hover:text-text-secondary"}`}
+              onClick={() => { setTab("replies"); setBulkMode(false); setWaBulkMode(false); }}
+            >
+              <Inbox className="h-3 w-3 inline mr-1.5" strokeWidth={1.5} />{t("review.repliesTab")}
             </button>
           </div>
 
@@ -702,6 +732,34 @@ export default function ReviewPage() {
             </div>
           )}
         </>
+      )}
+
+      {/* ═══════════ REPLIES TAB ═══════════ */}
+      {tab === "replies" && (
+        repliesLoading ? (
+          <div className="flex justify-center py-20"><Spinner /></div>
+        ) : replyList.length === 0 ? (
+          <div className="nd-section text-center py-20">
+            <Inbox className="h-8 w-8 text-text-muted mx-auto mb-3" strokeWidth={1.5} />
+            <p className="nd-label">{t("review.noReplies")}</p>
+          </div>
+        ) : (
+          <div className="nd-section space-y-3">
+            {replyList.map((r) => (
+              <Card key={r.id}>
+                <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center gap-2">
+                    <Badge>{r.channel === "whatsapp" ? "WhatsApp" : "Email"}</Badge>
+                    <span className="text-sm font-medium text-text-primary">{r.leadName || t("review.unknownLead")}</span>
+                  </div>
+                  <span className="nd-label">{r.receivedAt}</span>
+                </div>
+                <p className="text-[11px] text-text-muted font-mono mb-2">{r.fromAddress}</p>
+                <p className="text-[13px] text-text-primary leading-relaxed whitespace-pre-wrap">{r.body || ""}</p>
+              </Card>
+            ))}
+          </div>
+        )
       )}
     </div>
   );

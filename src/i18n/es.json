@@ -1,12 +1,13 @@
 {
   "sidebar": {
+    "home": "INICIO",
     "dashboard": "DASHBOARD",
     "today": "HOY",
     "campaigns": "CAMPANAS",
     "search": "BUSCAR",
     "leads": "LEADS",
     "pipeline": "PIPELINE",
-    "review": "REVISION",
+    "review": "REVISAR",
     "abTesting": "A/B TESTING",
     "templates": "TEMPLATES",
     "config": "CONFIG",
@@ -20,6 +21,20 @@
     "logout": "CERRAR SESION",
     "github": "GITHUB",
     "language": "IDIOMA"
+  },
+  "home": {
+    "title": "Inicio",
+    "subtitle": "Lo que requiere tu atención",
+    "pendingReview": "Por revisar",
+    "replies": "Respuestas",
+    "sentToday": "Enviados hoy",
+    "inQueue": "En cola",
+    "reviewTitle": "Revisar borradores",
+    "reviewDesc": "Aprueba, edita o rechaza los emails y WhatsApps antes de enviarlos.",
+    "settingsTitle": "Configuración",
+    "settingsDesc": "Perfil de la agencia, claves API y conexión de WhatsApp.",
+    "assistTitle": "¿Buscar leads o generar mensajes?",
+    "assistDesc": "Pídemelo por chat a Claude: buscar negocios, importar, analizar y redactar se hacen por prompt."
   },
   "login": {
     "title": "[AUTENTICACION REQUERIDA]",
@@ -214,6 +229,9 @@
     "refresh": "Actualizar"
   },
   "review": {
+    "repliesTab": "Respuestas",
+    "noReplies": "Aún no hay respuestas. Las respuestas de email y WhatsApp aparecerán aquí.",
+    "unknownLead": "Lead desconocido",
     "title": "Revision",
     "tone": "Tono",
     "testEmailSent": "Email de prueba enviado a {{email}}",
@@ -591,6 +609,28 @@
     "title": "Config",
     "subtitle": "Ajustes globales del sistema",
     "saveChanges": "Guardar cambios",
+    "tabs": {
+      "profile": "PERFIL",
+      "connections": "CONEXIONES",
+      "sending": "ENVÍO",
+      "advanced": "AVANZADO"
+    },
+    "apiKeys": {
+      "section": "Claves API",
+      "desc": "Se guardan en la base de datos y tienen prioridad sobre el archivo .env. Déjalas vacías para conservar la actual.",
+      "gemini": "Gemini API Key",
+      "resend": "Resend API Key",
+      "configured": "Configurada",
+      "notSet": "Sin configurar",
+      "keepHint": "Déjalo vacío para conservar la clave actual"
+    },
+    "assistant": {
+      "title": "Perfil de agencia",
+      "description": "¿Quieres regenerar el perfil desde cero a partir de tu URL? El asistente extrae nombre, descripción, servicios, contacto y diferenciadores en un par de clics.",
+      "launch": "Lanzar asistente"
+    },
+    "targetCountryHint": "Define el idioma regional de los mensajes (mexicano ≠ argentino ≠ España).",
+    "languageHint": "Idioma de la interfaz del dashboard.",
     "agencyIdentity": "Identidad de la Agencia",
     "agencyName": "Nombre de la agencia",
     "agencyUrl": "URL de la agencia",
@@ -781,6 +821,143 @@
       "customPlaceholder": "max. {{max}}",
       "submit": "Iniciar Analisis",
       "cancel": "Cancelar"
+    }
+  },
+  "onboarding": {
+    "title": "Configura tu perfil de agencia",
+    "subtitle": "Te lleva 2 minutos. La IA usará esta información para escribir mensajes con tu voz, no genéricos.",
+    "stepper": {
+      "step1": "Cómo te conozco",
+      "step2": "Perfil de agencia",
+      "step3": "Cómo firmas",
+      "step4": "Test y lanzar"
+    },
+    "step1": {
+      "url": {
+        "title": "Tengo una web o portfolio",
+        "description": "Pega la URL y la IA extrae nombre, servicios, contacto y diferenciadores."
+      },
+      "manual": {
+        "title": "Te lo cuento yo",
+        "description": "Rellena un formulario corto a mano. Útil si aún no tienes web pública."
+      },
+      "skip": {
+        "title": "Saltar",
+        "description": "Configura todo después en Settings. La IA usará valores genéricos."
+      },
+      "recommended": "RECOMENDADO"
+    },
+    "step2": {
+      "extract": {
+        "title": "Extracción automática",
+        "urlPlaceholder": "https://miagencia.com",
+        "analyze": "Analizar",
+        "analyzing": "Analizando...",
+        "hint": "Leyendo home, sobre nosotros, servicios y contacto. Suele tardar 5-15s...",
+        "success": "Listo. Revisa los campos: lo que extraje aparece marcado, edita lo que no encaje.",
+        "successToast": "Analicé {{pages}} páginas en {{seconds}}s",
+        "missingUrl": "Introduce una URL",
+        "failedDefault": "No se pudo analizar la URL",
+        "networkError": "Error de red"
+      },
+      "identity": {
+        "section": "Identidad",
+        "name": "Nombre comercial *",
+        "namePlaceholder": "VanguardIA",
+        "url": "URL",
+        "urlPlaceholder": "https://...",
+        "tagline": "Propuesta de valor (1 línea)",
+        "taglinePlaceholder": "Webs y SEO para clínicas dentales",
+        "description": "Descripción de qué hace la agencia *",
+        "descriptionPlaceholder": "Diseño y posicionamos webs profesionales para PYMEs y autónomos..."
+      },
+      "owner": {
+        "section": "Quién firma los mensajes",
+        "name": "Nombre del responsable",
+        "namePlaceholder": "Pablo Luque",
+        "role": "Cargo",
+        "rolePlaceholder": "Fundador",
+        "city": "Ciudad",
+        "cityPlaceholder": "Madrid",
+        "email": "Email de contacto",
+        "emailPlaceholder": "hola@...",
+        "phone": "Teléfono",
+        "phonePlaceholder": "+34 ..."
+      },
+      "services": {
+        "section": "Servicios que ofreces",
+        "hint": "Selecciona los que correspondan. La IA solo propondrá lo que esté marcado.",
+        "additional": "Servicios adicionales detectados:"
+      },
+      "valueProps": {
+        "section": "Diferenciadores (opcional)",
+        "add": "Añadir",
+        "hint": "Razones reales por las que un cliente te elegiría. La IA puede mencionarlos en los mensajes.",
+        "examples": "Ej: \"10 años especializados en sector dental\", \"Garantía de resultados en 90 días\"...",
+        "placeholder": "Diferenciador real...",
+        "remove": "Eliminar"
+      },
+      "extractedBadge": "EXTRAÍDOS",
+      "extractedField": "extraído"
+    },
+    "step3": {
+      "section": "Datos de envío",
+      "hint": "Estos van a settings. Si dejaste un email/nombre antes, ya están pre-rellenados.",
+      "email": "Email remitente *",
+      "emailPlaceholder": "hola@miagencia.com",
+      "emailHint": "Debe estar verificado en tu cuenta de Resend.",
+      "emailInvalid": "Email no válido",
+      "name": "Nombre con el que firmas *",
+      "namePlaceholder": "Pablo",
+      "nameHint": "Aparece como \"{{name}} de [tu agencia]\" en los mensajes.",
+      "country": "País objetivo *",
+      "countryPlaceholder": "— Selecciona país —",
+      "countryHint": "Define el idioma regional por defecto (mexicano ≠ argentino ≠ España).",
+      "tone": {
+        "section": "Tono por defecto",
+        "hint": "Elige cómo quieres que suenen los mensajes. Puedes cambiarlo por campaña después.",
+        "samples": {
+          "professional": "Vi tu web y noté que el formulario de contacto no es visible en móvil. Eso suele costar 2 de cada 10 leads. Trabajamos con clínicas similares; ¿te interesa que te muestre cómo lo resolveríamos?",
+          "friendly": "Hola Marta, eché un vistazo rápido a vuestra web y se ve muy cuidada. Solo una cosa: en móvil cuesta encontrar el botón de reserva. ¿Te apetece que te enseñe una forma sencilla de arreglarlo?",
+          "direct": "Tu web carga en 5s y eso pierde clientes. En 2 semanas la dejamos por debajo de 1.5s. ¿Te paso un análisis sin compromiso?",
+          "consultative": "Reviso webs del sector y la tuya tiene tres puntos donde, ajustando el SEO local, podrías captar las búsquedas que hoy se lleva la competencia. ¿Te interesa que te lo pase por escrito?"
+        }
+      }
+    },
+    "step4": {
+      "test": {
+        "section": "Email de prueba",
+        "recommended": "(recomendado)",
+        "hint": "Envíate un email a ti mismo para ver cómo se ve la firma y verificar que Resend funciona.",
+        "placeholder": "tu@email.com",
+        "send": "Enviar prueba",
+        "sending": "Enviando",
+        "success": "Enviado. Revisa tu bandeja en unos segundos.",
+        "invalidTo": "Email destino no válido"
+      },
+      "summary": {
+        "section": "Resumen del perfil",
+        "agency": "Agencia",
+        "tagline": "Propuesta",
+        "signsAs": "Firma como",
+        "signsAsValue": "{{name}} desde {{email}}",
+        "countryTone": "País / tono",
+        "services": "Servicios",
+        "valueProps": "Diferenciadores",
+        "valuePropsCount": "{{count}} cargados"
+      },
+      "footer": "Al lanzar te llevamos a Campañas para crear la primera. Importas leads (CSV o Google Maps), la IA los analiza, redacta y tú apruebas."
+    },
+    "nav": {
+      "back": "Volver",
+      "skipLater": "Saltar y completar después",
+      "continue": "Continuar",
+      "finishing": "Finalizando",
+      "launch": "Lanzar mi primera campaña"
+    },
+    "errors": {
+      "saveFailed": "Hubo un problema guardando la configuración",
+      "errorPrefix": "[ERROR]"
     }
   }
 }

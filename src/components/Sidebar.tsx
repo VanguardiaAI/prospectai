@@ -4,24 +4,14 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import {
-  LayoutDashboard,
-  Users,
-  Mail,
-  Megaphone,
+  Home,
+  Inbox,
   Settings,
-  Activity,
-  ShieldBan,
-  MapPin,
-  CalendarCheck,
-  FlaskConical,
-  FileText,
   LogOut,
   Sun,
   Moon,
   Menu,
   X,
-  Kanban,
-  Calendar,
 } from "lucide-react";
 import { clsx } from "clsx";
 import { useT } from "@/i18n/LocaleProvider";
@@ -30,19 +20,9 @@ export function Sidebar() {
   const { t, lang, setLang } = useT();
 
   const nav = [
-    { href: "/overview", label: t("sidebar.dashboard"), icon: LayoutDashboard },
-    { href: "/today", label: t("sidebar.today"), icon: CalendarCheck },
-    { href: "/campaigns", label: t("sidebar.campaigns"), icon: Megaphone },
-    { href: "/search", label: t("sidebar.search"), icon: MapPin },
-    { href: "/leads", label: t("sidebar.leads"), icon: Users },
-    { href: "/pipeline", label: t("sidebar.pipeline"), icon: Kanban },
-    { href: "/review", label: t("sidebar.review"), icon: Mail },
-    { href: "/ab-testing", label: t("sidebar.abTesting"), icon: FlaskConical },
-    { href: "/templates", label: t("sidebar.templates"), icon: FileText },
+    { href: "/inicio", label: t("sidebar.home"), icon: Home },
+    { href: "/review", label: t("sidebar.review"), icon: Inbox },
     { href: "/settings", label: t("sidebar.config"), icon: Settings },
-    { href: "/activity", label: t("sidebar.activity"), icon: Activity },
-    { href: "/calendar", label: t("sidebar.calendar"), icon: Calendar },
-    { href: "/blacklist", label: t("sidebar.blacklist"), icon: ShieldBan },
   ];
   const pathname = usePathname();
   const [theme, setTheme] = useState<"light" | "dark">("light");
