@@ -67,7 +67,8 @@ export async function processWhatsAppGenerationJobs() {
 
       const generated = await generateWhatsApp(
         lead.name, lead.category, lead.city, lead.website, analysis, tone, fromName,
-        undefined, withStrategyDirective(campaign?.strategy, abCustomInstructions), detectCountryFromPhone(lead.phone) || undefined
+        undefined, withStrategyDirective(campaign?.strategy, abCustomInstructions), detectCountryFromPhone(lead.phone) || undefined,
+        campaign?.agencyProfileId ?? undefined
       );
 
       db.insert(whatsappMessages).values({

@@ -3,6 +3,7 @@ import { campaigns, emails, replies, leads, whatsappMessages, jobQueue } from "@
 import { eq, and, sql, isNotNull, inArray } from "drizzle-orm";
 import { logActivity } from "@/lib/activity";
 import { NotFoundError } from "./errors";
+import { getAgencyProfileById } from "./agency-profile.service";
 
 // ─── Types ──────────────────────────────────────────────────────────
 
@@ -23,6 +24,7 @@ export interface CreateCampaignInput {
   autopilot?: boolean;
   defaultTone?: string;
   strategy?: "web_design" | "seo_visibility";
+  agencyProfileId?: number | null;
   channels?: CampaignChannel[];
 }
 
@@ -34,6 +36,7 @@ export interface UpdateCampaignInput {
   autopilot?: boolean;
   defaultTone?: string;
   strategy?: "web_design" | "seo_visibility";
+  agencyProfileId?: number | null;
   channels?: CampaignChannel[];
   status?: "active" | "paused" | "archived";
 }
@@ -147,6 +150,11 @@ export function createCampaign(input: CreateCampaignInput, opts?: { idempotent?:
     if (existing) return { campaign: existing, created: false };
   }
 
+  // The chosen profile defines the messaging angle; mirror it onto strategy so legacy
+  // code paths (gating, MCP display) stay coherent even when the profile drives generation.
+  const profile = input.agencyProfileId ? getAgencyProfileById(input.agencyProfileId) : null;
+  const strategy = profile?.strategy || input.strategy || "web_design";
+
   const campaign = db.insert(campaigns).values({
     name: input.name,
     description: input.description || null,
@@ -154,7 +162,8 @@ export function createCampaign(input: CreateCampaignInput, opts?: { idempotent?:
     qualityThreshold: input.qualityThreshold ?? 40,
     autopilot: input.autopilot ?? false,
     defaultTone: input.defaultTone || "professional",
-    strategy: input.strategy || "web_design",
+    strategy,
+    agencyProfileId: input.agencyProfileId ?? null,
     channels: serializeChannels(input.channels),
   }).returning().get();
 
@@ -170,10 +179,15 @@ export function createCampaign(input: CreateCampaignInput, opts?: { idempotent?:
 export function updateCampaign(id: number, updates: UpdateCampaignInput) {
   // channels is exposed as an array but stored as a comma-separated string.
   const { channels, ...rest } = updates;
-  const dbUpdates: Record<string, unknown> = { ...rest };
-  if (channels !== undefined) dbUpdates.channels = serializeChannels(channels);
+  const setValues: Record<string, unknown> = { ...rest };
+  // When the profile changes, mirror its angle onto the campaign's strategy.
+  if (updates.agencyProfileId) {
+    const profile = getAgencyProfileById(updates.agencyProfileId);
+    if (profile) setValues.strategy = profile.strategy;
+  }
+  if (channels !== undefined) setValues.channels = serializeChannels(channels);
 
-  const result = db.update(campaigns).set(dbUpdates).where(eq(campaigns.id, id)).returning().get();
+  const result = db.update(campaigns).set(setValues).where(eq(campaigns.id, id)).returning().get();
   if (!result) throw new NotFoundError("Campaign", id);
 
   logActivity("campaign_change", `Campaña "${result.name}" actualizada`, {

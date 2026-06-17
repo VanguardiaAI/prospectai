@@ -38,10 +38,20 @@ interface Campaign {
   qualityThreshold: number;
   autopilot: boolean;
   defaultTone: string;
+  strategy: string;
+  agencyProfileId: number | null;
   channels: Channel[];
   status: string;
   createdAt: string;
   metrics?: CampaignMetrics;
+}
+
+interface CampaignProfile {
+  id: number;
+  label: string | null;
+  name: string | null;
+  strategy: "web_design" | "seo_visibility";
+  isDefault: boolean;
 }
 
 interface SequenceStep {
@@ -65,6 +75,8 @@ export default function CampaignsPage() {
   const [showModal, setShowModal] = useState(false);
   const [editing, setEditing] = useState<Campaign | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<{ id: number; name: string } | null>(null);
+  const [profiles, setProfiles] = useState<CampaignProfile[]>([]);
+  const [defaultProfileId, setDefaultProfileId] = useState<number | null>(null);
   const [form, setForm] = useState<{
     name: string;
     description: string;
@@ -72,6 +84,7 @@ export default function CampaignsPage() {
     qualityThreshold: number;
     autopilot: boolean;
     defaultTone: string;
+    agencyProfileId: number | null;
     channels: Channel[];
   }>({
     name: "",
@@ -80,6 +93,7 @@ export default function CampaignsPage() {
     qualityThreshold: 40,
     autopilot: false,
     defaultTone: "professional",
+    agencyProfileId: null,
     channels: ["email"],
   });
 
@@ -110,11 +124,20 @@ export default function CampaignsPage() {
     }
   }, []);
 
-  useEffect(() => { fetchCampaigns(); }, [fetchCampaigns]);
+  const fetchProfiles = useCallback(async () => {
+    try {
+      const res = await fetch("/api/profiles");
+      const data = await res.json();
+      setProfiles(data.profiles ?? []);
+      setDefaultProfileId(data.defaultProfileId ?? null);
+    } catch { /* ignore */ }
+  }, []);
+
+  useEffect(() => { fetchCampaigns(); fetchProfiles(); }, [fetchCampaigns, fetchProfiles]);
 
   const openCreate = () => {
     setEditing(null);
-    setForm({ name: "", description: "", dailyLimit: 20, qualityThreshold: 40, autopilot: false, defaultTone: "professional", channels: ["email"] });
+    setForm({ name: "", description: "", dailyLimit: 20, qualityThreshold: 40, autopilot: false, defaultTone: "professional", agencyProfileId: defaultProfileId, channels: ["email"] });
     setShowModal(true);
   };
 
@@ -127,6 +150,7 @@ export default function CampaignsPage() {
       qualityThreshold: c.qualityThreshold,
       autopilot: c.autopilot,
       defaultTone: c.defaultTone,
+      agencyProfileId: c.agencyProfileId ?? defaultProfileId,
       channels: c.channels?.length ? c.channels : ["email"],
     });
     setShowModal(true);
@@ -197,6 +221,7 @@ export default function CampaignsPage() {
         qualityThreshold: c.qualityThreshold,
         autopilot: c.autopilot,
         defaultTone: c.defaultTone,
+        agencyProfileId: c.agencyProfileId,
         channels: c.channels?.length ? c.channels : ["email"],
       }),
     });
@@ -276,7 +301,7 @@ export default function CampaignsPage() {
           icon={<Megaphone className="h-10 w-10" strokeWidth={1.5} />}
           title={t("campaigns.noCampaigns")}
           description={t("campaigns.noCampaignsDesc")}
-          action={<Button size="sm" onClick={() => { setEditing(null); setShowModal(true); }}><Plus className="h-3.5 w-3.5" strokeWidth={1.5} /> {t("campaigns.newCampaign")}</Button>}
+          action={<Button size="sm" onClick={openCreate}><Plus className="h-3.5 w-3.5" strokeWidth={1.5} /> {t("campaigns.newCampaign")}</Button>}
         />
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
@@ -284,6 +309,7 @@ export default function CampaignsPage() {
             const sd = sequenceData[c.id];
             const stepCount = sd?.steps?.length || 0;
             const activeEnrollments = sd?.enrollments?.filter((e) => e.status === "active").length || 0;
+            const profile = profiles.find((p) => p.id === (c.agencyProfileId ?? defaultProfileId)) || profiles.find((p) => p.isDefault) || null;
 
             return (
               <Card key={c.id} className="flex flex-col">
@@ -310,6 +336,17 @@ export default function CampaignsPage() {
                     <span className="nd-list-label">{t("campaigns.tone")}</span>
                     <span className="text-[11px] text-text-primary font-mono uppercase">{c.defaultTone}</span>
                   </div>
+                  {profile && (
+                    <div className="nd-list-item">
+                      <span className="nd-list-label">{t("campaigns.profile")}</span>
+                      <div className="flex items-center gap-2">
+                        <span className="text-[11px] text-text-primary">{profile.label || profile.name}</span>
+                        <Badge color={profile.strategy === "seo_visibility" ? "info" : "default"}>
+                          {profile.strategy === "seo_visibility" ? t("profiles.angleSeo") : t("profiles.angleWeb")}
+                        </Badge>
+                      </div>
+                    </div>
+                  )}
                   <div className="nd-list-item">
                     <span className="nd-list-label">{t("campaigns.channelsLabel")}</span>
                     <div className="flex items-center gap-1.5">
@@ -391,6 +428,22 @@ export default function CampaignsPage() {
             <label className="nd-label block mb-2">{t("common.description")}</label>
             <Input value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} placeholder={t("campaigns.descriptionPlaceholder")} />
           </div>
+          {profiles.length > 0 && (
+            <div>
+              <label className="nd-label block mb-2">{t("campaigns.profile")}</label>
+              <Select
+                value={form.agencyProfileId ?? ""}
+                onChange={(e) => setForm({ ...form, agencyProfileId: e.target.value ? Number(e.target.value) : null })}
+              >
+                {profiles.map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {(p.label || p.name || `#${p.id}`)} · {p.strategy === "seo_visibility" ? t("profiles.angleSeo") : t("profiles.angleWeb")}{p.isDefault ? ` (${t("profiles.default")})` : ""}
+                  </option>
+                ))}
+              </Select>
+              <p className="text-[11px] text-text-muted mt-2">{t("campaigns.profileHelp")}</p>
+            </div>
+          )}
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="nd-label block mb-2">{t("campaigns.dailyLimit")}</label>

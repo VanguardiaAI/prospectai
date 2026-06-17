@@ -92,7 +92,8 @@ export async function POST(req: NextRequest) {
     existingEmail.subject,
     existingEmail.bodyText,
     withStrategyDirective(campaign?.strategy, v.data.instructions) || "",
-    detectCountryFromPhone(lead.phone) || undefined
+    detectCountryFromPhone(lead.phone) || undefined,
+    campaign?.agencyProfileId ?? undefined
   );
 
   const updated = db.update(emails).set({

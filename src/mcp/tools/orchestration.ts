@@ -277,9 +277,21 @@ export function registerOrchestrationTools(server: McpServer) {
       let emailCount = 0;
       let waCount = 0;
 
+      // Resolve each campaign's agency profile once (leads may span campaigns via leadIds)
+      const profileCache = new Map<number, number | null>();
+      const resolveProfileId = (campaignId: number | null): number | undefined => {
+        if (!campaignId) return undefined;
+        if (!profileCache.has(campaignId)) {
+          const c = db.select({ pid: campaigns.agencyProfileId }).from(campaigns).where(eq(campaigns.id, campaignId)).get();
+          profileCache.set(campaignId, c?.pid ?? null);
+        }
+        return profileCache.get(campaignId) ?? undefined;
+      };
+
       for (const lead of eligibleLeads) {
         const contactEmail = lead.contactEmail || lead.extractedEmail || lead.email;
         const analysis = lead.analysisJson ? JSON.parse(lead.analysisJson) : defaultWebAnalysis(lead.website, lead.webQualityScore ?? 0, lead.analysisSummary ?? "");
+        const agencyProfileId = resolveProfileId(lead.campaignId);
 
         // Check for existing drafts to prevent duplicates
         const existingEmail = contactEmail ? db.select({ id: emails.id }).from(emails)
@@ -299,7 +311,7 @@ export function registerOrchestrationTools(server: McpServer) {
             try {
               const result = await generateEmail(
                 lead.name, lead.category, lead.city, lead.website, analysis,
-                defaultTone, fromName, undefined, customInstructions
+                defaultTone, fromName, undefined, customInstructions, undefined, agencyProfileId
               );
 
               db.insert(emails).values({
@@ -334,7 +346,7 @@ export function registerOrchestrationTools(server: McpServer) {
             try {
               const result = await generateWhatsApp(
                 lead.name, lead.category, lead.city, lead.website, analysis,
-                defaultTone, fromName, undefined, customInstructions
+                defaultTone, fromName, undefined, customInstructions, undefined, agencyProfileId
               );
 
               db.insert(whatsappMessages).values({
