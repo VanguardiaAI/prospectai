@@ -5,6 +5,7 @@ import { getClient } from "@/lib/whatsapp-client";
 import { logActivity } from "@/lib/activity";
 import { triggerCrmWebhook } from "@/lib/crm-webhook";
 import { prioritizeLeadOnReply } from "@/lib/lead-prioritization";
+import { logger } from "@/lib/logger";
 
 // Track which client instance has the listener to avoid duplicates.
 let waListenerClient: ReturnType<typeof getClient> = null;
@@ -20,11 +21,19 @@ export function setupWhatsAppReplyListener(): void {
 
   waClient.on("message", async (msg) => {
     try {
-      const from = msg.from.replace("@c.us", "");
+      // Resolve the sender's real phone number. msg.from can be a LID
+      // ("<id>@lid", WhatsApp privacy addressing) rather than "<number>@c.us",
+      // so prefer the contact's number. Match leads on the last 10 digits to
+      // sidestep country-prefix differences (e.g. Mexico's 52 vs 521).
+      const contact = await msg.getContact().catch(() => null);
+      const rawFrom = (contact?.number || msg.from).replace(/\D/g, "");
+      const last10 = rawFrom.slice(-10);
+      logger.info({ from: msg.from, contactNumber: contact?.number ?? null, last10 }, "WhatsApp incoming message");
+      if (!last10) return;
 
-      // Find lead by phone number
+      // Find lead by phone number (last 10 digits)
       const lead = db.select().from(leads)
-        .where(sql`REPLACE(REPLACE(REPLACE(${leads.phone}, ' ', ''), '-', ''), '+', '') LIKE '%' || ${from}`)
+        .where(sql`REPLACE(REPLACE(REPLACE(${leads.phone}, ' ', ''), '-', ''), '+', '') LIKE '%' || ${last10}`)
         .get();
 
       if (!lead) return;
@@ -34,7 +43,7 @@ export function setupWhatsAppReplyListener(): void {
         leadId: lead.id,
         campaignId: lead.campaignId,
         channel: "whatsapp",
-        fromAddress: from,
+        fromAddress: rawFrom,
         body: msg.body,
       }).run();
 
@@ -50,11 +59,11 @@ export function setupWhatsAppReplyListener(): void {
       // Prioritize lead: set status to "replied", boost opportunityScore
       prioritizeLeadOnReply(lead.id);
 
-      logActivity("wa_sent", `Respuesta WhatsApp recibida de ${lead.name} (${from})`, {
+      logActivity("wa_sent", `Respuesta WhatsApp recibida de ${lead.name} (${rawFrom})`, {
         leadId: lead.id,
         campaignId: lead.campaignId ?? undefined,
         messageKey: "activityLog.waSentTo",
-        messageVars: { phone: from },
+        messageVars: { phone: rawFrom },
       });
 
       // CRM webhook
