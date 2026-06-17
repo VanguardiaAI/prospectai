@@ -8,6 +8,7 @@ import * as settingsService from "@/services/settings.service";
 import * as blacklistService from "@/services/blacklist.service";
 import * as searchService from "@/services/search.service";
 import * as agencyProfileService from "@/services/agency-profile.service";
+import { isSafeSetting, SAFE_SETTINGS_KEYS } from "@/mcp/helpers/validators";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
@@ -208,20 +209,96 @@ const toolDefs = {
     },
   }),
 
+  list_whatsapp_drafts: zTool({
+    description:
+      "List WhatsApp message drafts pending review (with lead context).",
+    parameters: z.object({
+      limit: z.number().int().optional().describe("Max drafts to return (default 100)"),
+    }),
+    execute: async ({ limit }) => {
+      return messageService.listWhatsAppMessages({ status: "draft", limit });
+    },
+  }),
+
   approve_messages: zTool({
     description:
-      "Approve draft email messages for sending. Approved messages are sent by the background scheduler.",
+      "Approve draft messages for sending. Pass emailIds and/or whatsappIds. Approved emails are sent by the background scheduler; approved WhatsApp messages are sent from Review.",
     parameters: z.object({
-      emailIds: z
-        .array(z.number().int())
-        .describe("Email IDs to approve"),
+      emailIds: z.array(z.number().int()).optional().describe("Email draft IDs to approve"),
+      whatsappIds: z.array(z.number().int()).optional().describe("WhatsApp draft IDs to approve"),
     }),
-    execute: async ({ emailIds }) => {
-      return messageService.approveEmails(emailIds);
+    execute: async ({ emailIds, whatsappIds }) => {
+      if (!emailIds?.length && !whatsappIds?.length) {
+        return { error: "Provide emailIds and/or whatsappIds." };
+      }
+      const result: Record<string, unknown> = {};
+      if (emailIds?.length) result.emails = messageService.approveEmails(emailIds);
+      if (whatsappIds?.length) result.whatsapp = messageService.approveWhatsApp(whatsappIds);
+      return result;
+    },
+  }),
+
+  reject_messages: zTool({
+    description:
+      "Reject draft messages (email and/or WhatsApp) so they are never sent.",
+    parameters: z.object({
+      emailIds: z.array(z.number().int()).optional().describe("Email draft IDs to reject"),
+      whatsappIds: z.array(z.number().int()).optional().describe("WhatsApp draft IDs to reject"),
+    }),
+    execute: async ({ emailIds, whatsappIds }) => {
+      let rejected = 0;
+      for (const id of emailIds ?? []) { messageService.updateEmail(id, { status: "rejected" }); rejected++; }
+      for (const id of whatsappIds ?? []) { messageService.updateWhatsApp(id, { status: "rejected" }); rejected++; }
+      return { rejected };
+    },
+  }),
+
+  edit_message: zTool({
+    description:
+      "Edit a draft message's content before approving. For email pass subject and/or body; for WhatsApp pass body. Keeps the message in draft.",
+    parameters: z.object({
+      channel: z.enum(["email", "whatsapp"]).describe("Which message store"),
+      id: z.number().int().describe("Message ID"),
+      subject: z.string().optional().describe("New subject (email only)"),
+      body: z.string().optional().describe("New message body / text"),
+    }),
+    execute: async ({ channel, id, subject, body }) => {
+      if (channel === "email") {
+        const updates: { subject?: string; bodyHtml?: string; bodyText?: string } = {};
+        if (subject !== undefined) updates.subject = subject;
+        if (body !== undefined) {
+          updates.bodyText = body;
+          updates.bodyHtml = `<p>${body.replace(/\n/g, "</p><p>")}</p>`;
+        }
+        return messageService.updateEmail(id, updates);
+      }
+      return messageService.updateWhatsApp(id, { body });
     },
   }),
 
   // ─── Analytics ─────────────────────────────────────────────────────
+  get_replies: zTool({
+    description:
+      "Read inbound replies (email + WhatsApp) with AI-classified intent (interested / question / not_interested / auto_reply / unsubscribe / other). Filter by campaign, status (unread/handled) or channel.",
+    parameters: z.object({
+      campaignId: z.number().int().optional().describe("Filter by campaign"),
+      status: z.enum(["unread", "handled"]).optional().describe("Triage status"),
+      channel: z.enum(["email", "whatsapp"]).optional().describe("Reply channel"),
+      limit: z.number().int().optional().describe("Max replies (default 30)"),
+    }),
+    execute: async (args) => {
+      return analyticsService.getReplies(args);
+    },
+  }),
+
+  get_sending_quota: zTool({
+    description:
+      "Today's sending snapshot: emails/WhatsApp sent today, effective daily limit (with warmup), drafts ready to send, active sequences and pending jobs.",
+    parameters: z.object({}),
+    execute: async () => {
+      return analyticsService.getTodayMetrics();
+    },
+  }),
   get_dashboard: zTool({
     description:
       "Get comprehensive dashboard metrics: total leads, sends today, open/click/reply rates, active campaigns, pending jobs, warmup status.",
@@ -372,16 +449,41 @@ const toolDefs = {
 
   update_settings: zTool({
     description:
-      "Update operational settings (agency name, tone, daily limits, etc.). Cannot modify API keys or secrets.",
+      "Update operational settings (agency name, tone, daily limits, etc.). API keys, passwords and any secret/auth key are BLOCKED and silently dropped — tell the user to open Settings for those.",
     parameters: z.object({
       settings: z
         .record(z.string(), z.string())
         .describe(
-          "Key-value pairs to update. Allowed keys include: agency_name, agency_url, agency_description, agency_services, target_country, default_tone, global_daily_limit, wa_daily_limit, from_email, from_name"
+          `Key-value pairs to update. Only these keys are allowed; anything else is rejected: ${SAFE_SETTINGS_KEYS.join(", ")}`
         ),
     }),
     execute: async ({ settings }) => {
-      return settingsService.updateSettings(settings);
+      // Security boundary: the chat agent must never write secrets (API keys,
+      // SMTP/IMAP passwords, etc.). Mirror the MCP server's allowlist so the two
+      // agent surfaces behave identically.
+      const allowed: Record<string, string> = {};
+      const blocked: string[] = [];
+      for (const [key, value] of Object.entries(settings)) {
+        if (isSafeSetting(key)) allowed[key] = value;
+        else blocked.push(key);
+      }
+      if (Object.keys(allowed).length === 0) {
+        return {
+          updated: [],
+          blocked,
+          message: blocked.length
+            ? `Nothing updated. These keys can't be changed from chat (secrets/API keys or unknown): ${blocked.join(", ")}. Ask the user to open Settings.`
+            : "No settings provided.",
+        };
+      }
+      settingsService.updateSettings(allowed);
+      return {
+        updated: Object.keys(allowed),
+        blocked,
+        ...(blocked.length
+          ? { note: `Ignored protected/unknown keys: ${blocked.join(", ")}` }
+          : {}),
+      };
     },
   }),
 

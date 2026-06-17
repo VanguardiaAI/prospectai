@@ -117,7 +117,7 @@ export default function OnboardingPage() {
     fetch("/api/onboarding/profile")
       .then((r) => r.json())
       .then((d) => {
-        if (d?.onboardingComplete) router.replace("/overview");
+        if (d?.onboardingComplete) router.replace("/inicio");
       })
       .catch(() => { /* ignore — primer arranque */ });
   }, [router]);
@@ -301,7 +301,7 @@ export default function OnboardingPage() {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ source: "skipped", markComplete: true }),
         });
-        router.replace("/overview");
+        router.replace("/inicio");
         return;
       }
       const profileOk = await persistProfile(true);

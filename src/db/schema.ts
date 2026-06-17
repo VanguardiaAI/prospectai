@@ -296,6 +296,13 @@ export const replies = sqliteTable("replies", {
   channel: text("channel", { enum: ["email", "whatsapp"] }).notNull(),
   fromAddress: text("from_address").notNull(), // email or phone
   body: text("body"),
+  // Triage state + AI-classified intent so replies become an actionable inbox,
+  // not just a read-only log.
+  status: text("status", { enum: ["unread", "handled"] }).notNull().default("unread"),
+  intent: text("intent", {
+    enum: ["interested", "question", "not_interested", "auto_reply", "unsubscribe", "other"],
+  }),
+  handledAt: text("handled_at"),
   receivedAt: text("received_at").notNull().default(sql`(datetime('now'))`),
   createdAt: text("created_at").notNull().default(sql`(datetime('now'))`),
 });

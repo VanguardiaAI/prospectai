@@ -5,7 +5,6 @@ import { useEffect, useState, useRef, useCallback, useMemo } from "react";
 import { Search, Command } from "lucide-react";
 import {
   LayoutDashboard,
-  CalendarCheck,
   Megaphone,
   MapPin,
   Users,
@@ -45,7 +44,6 @@ export function CommandPalette() {
 
   const pages = [
     { href: "/", label: t("sidebar.dashboard"), icon: LayoutDashboard },
-    { href: "/today", label: t("sidebar.today"), icon: CalendarCheck },
     { href: "/campaigns", label: t("sidebar.campaigns"), icon: Megaphone },
     { href: "/search", label: t("sidebar.search"), icon: MapPin },
     { href: "/leads", label: t("sidebar.leads"), icon: Users },

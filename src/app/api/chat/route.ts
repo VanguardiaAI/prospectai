@@ -14,7 +14,9 @@ import {
   cliToolNames,
   CLI_MCP_SERVER_NAME,
 } from "@/lib/chatbot/tools";
-import { getApiKey } from "@/db";
+import { getApiKey, db } from "@/db";
+import { campaigns } from "@/db/schema";
+import { eq } from "drizzle-orm";
 import { getAiProvider } from "@/lib/ai/provider";
 
 const SYSTEM_PROMPT = `You are ProspectAI's assistant. You help manage B2B outreach campaigns.
@@ -140,7 +142,24 @@ export async function POST(req: Request) {
     );
   }
 
-  const { messages } = (await req.json()) as { messages: UIMessage[] };
+  const { messages, campaignId } = (await req.json()) as {
+    messages: UIMessage[];
+    campaignId?: number | null;
+  };
+
+  // Global campaign scope: the UI tells us which campaign the user is viewing so
+  // the agent scopes ambiguous requests to it (matching the dashboard/Review).
+  let system = SYSTEM_PROMPT;
+  if (campaignId != null && Number.isFinite(campaignId)) {
+    const camp = db
+      .select({ name: campaigns.name, channels: campaigns.channels, status: campaigns.status })
+      .from(campaigns)
+      .where(eq(campaigns.id, campaignId))
+      .get();
+    if (camp) {
+      system += `\n\nCURRENT CONTEXT: The user is viewing the campaign "${camp.name}" (id ${campaignId}, channels: ${camp.channels}, status: ${camp.status}). Scope ambiguous requests — leads, drafts, replies, metrics, approvals — to this campaign by passing campaignId=${campaignId} to tools, unless the user explicitly asks about all campaigns or names another one.`;
+    }
+  }
 
   // The claude_cli bridge ignores the `tools` option (it runs its own tool loop
   // via the in-process MCP server), so we only wire `tools` for the API providers.
@@ -148,13 +167,13 @@ export async function POST(req: Request) {
     resolved.kind === "cli"
       ? streamText({
           model: resolved.model,
-          system: SYSTEM_PROMPT,
+          system,
           messages: await convertToModelMessages(messages),
           stopWhen: stepCountIs(10),
         })
       : streamText({
           model: resolved.model,
-          system: SYSTEM_PROMPT,
+          system,
           messages: await convertToModelMessages(messages, { tools: chatbotTools }),
           tools: chatbotTools,
           stopWhen: stepCountIs(10),
