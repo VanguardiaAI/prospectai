@@ -678,6 +678,78 @@ body {
 .nd-link:hover { color: var(--text-display); }
 .nd-link:hover::after { transform: scaleX(1); }
 
+/* ─── Review inbox (master–detail list) ─── */
+.rv-row {
+  position: relative;
+  width: 100%;
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  padding: 13px 14px 13px 15px;
+  text-align: left;
+  border-left: 2px solid transparent;
+  cursor: pointer;
+  transition:
+    background var(--duration-micro) var(--ease-out),
+    border-color var(--duration-micro) var(--ease-out);
+}
+.rv-row + .rv-row { border-top: 1px solid var(--border); }
+.rv-row:hover { background: var(--surface-raised); }
+.rv-row[data-active="true"] {
+  background: var(--surface-raised);
+  border-left-color: var(--accent);
+}
+.rv-icon {
+  flex-shrink: 0;
+  width: 36px;
+  height: 36px;
+  display: grid;
+  place-items: center;
+  border-radius: 11px;
+  background: var(--black);
+  border: 1px solid var(--border-visible);
+}
+.rv-icon[data-ch="whatsapp"] { border-color: rgba(37, 211, 102, 0.35); }
+.rv-icon[data-ch="email"] { border-color: rgba(var(--accent-rgb), 0.35); }
+.rv-chan {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-family: var(--font-data);
+  font-size: 9.5px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+}
+/* Chat bubble for the WhatsApp detail view */
+.rv-bubble {
+  position: relative;
+  max-width: 32rem;
+  padding: 12px 15px;
+  border-radius: 16px 16px 16px 5px;
+  background: var(--surface-raised);
+  border: 1px solid var(--border-visible);
+}
+.rv-bubble::after {
+  content: "";
+  position: absolute;
+  left: -1px;
+  bottom: -1px;
+  width: 14px;
+  height: 14px;
+  background: radial-gradient(circle at top right, transparent 70%, var(--surface-raised) 71%);
+  border-left: 1px solid var(--border-visible);
+  border-bottom: 1px solid var(--border-visible);
+  border-bottom-left-radius: 4px;
+}
+/* Email "letter" frame */
+.rv-letter {
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: var(--black);
+  box-shadow: var(--shadow-sm);
+}
+
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {
     animation-duration: 0.001ms !important;

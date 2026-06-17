@@ -281,7 +281,20 @@
     "quality": "Calidad",
     "opportunity": "Oportunidad",
     "analysis": "Analisis",
-    "message": "Mensaje"
+    "message": "Mensaje",
+    "messagesTab": "Mensajes",
+    "allChannels": "Todos",
+    "searchPlaceholder": "Buscar lead, asunto o mensaje...",
+    "selectMessageTitle": "Selecciona un mensaje",
+    "selectMessageDesc": "Elige un mensaje de la bandeja para ver el detalle completo y actuar sobre el.",
+    "noMessagesTitle": "Bandeja vacia",
+    "noMessagesDesc": "Los borradores de email y WhatsApp apareceran aqui en cuanto se generen.",
+    "send": "Enviar",
+    "approveSend": "Aprobar y enviar",
+    "messagesCount": "mensajes",
+    "noMatch": "Ningun mensaje coincide con la busqueda",
+    "recipient": "Destinatario",
+    "draftLabel": "Borrador"
   },
   "campaigns": {
     "title": "Campanas",

@@ -1,12 +1,15 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useMemo } from "react";
 import { Card, Button, Select, Badge, StatusBadge, QualityBar, EmptyState, Spinner, Textarea, Input, Segment } from "@/components/ui";
 import { useToast } from "@/components/Toast";
-import { Mail, Check, X, RefreshCw, ChevronLeft, ChevronRight, CheckCheck, Globe, MapPin, MessageCircle, Send, FileText, Inbox } from "lucide-react";
+import { Mail, Check, X, RefreshCw, CheckCheck, Globe, MapPin, Send, FileText, Inbox, Search } from "lucide-react";
+import { WhatsAppIcon } from "@/components/icons/Brands";
 import { useT } from "@/i18n/LocaleProvider";
 
-type ReviewTab = "emails" | "whatsapp" | "replies";
+type Mode = "messages" | "replies";
+type Channel = "email" | "whatsapp";
+type ChannelFilter = "all" | Channel;
 
 interface ReplyRow {
   id: number;
@@ -63,235 +66,328 @@ interface WARow {
   leadAnalysisSummary: string | null;
 }
 
+/** Normalized inbox entry — a single message regardless of channel. */
+interface InboxItem {
+  key: string;
+  channel: Channel;
+  id: number;
+  leadId: number;
+  leadName: string | null;
+  leadCategory: string | null;
+  leadCity: string | null;
+  leadWebsite: string | null;
+  leadPhone: string | null;
+  leadScore: number | null;
+  leadOpportunity: number | null;
+  leadAnalysisSummary: string | null;
+  status: string;
+  tone: string;
+  createdAt: string;
+  recipient: string;
+  title: string;   // subject (email) or first line (whatsapp)
+  preview: string; // body snippet for the list
+  bodyHtml: string | null;
+  bodyText: string;
+}
+
+const TONES = ["professional", "friendly", "direct", "consultative", "casual"];
+
+function toItemFromEmail(r: EmailRow): InboxItem {
+  return {
+    key: `email:${r.email.id}`,
+    channel: "email",
+    id: r.email.id,
+    leadId: r.email.leadId,
+    leadName: r.leadName,
+    leadCategory: r.leadCategory,
+    leadCity: r.leadCity,
+    leadWebsite: r.leadWebsite,
+    leadPhone: null,
+    leadScore: r.leadScore,
+    leadOpportunity: r.leadOpportunity,
+    leadAnalysisSummary: r.leadAnalysisSummary,
+    status: r.email.status,
+    tone: r.email.tone,
+    createdAt: r.email.createdAt,
+    recipient: r.email.toEmail,
+    title: r.email.subject,
+    preview: r.email.bodyText,
+    bodyHtml: r.email.bodyHtml,
+    bodyText: r.email.bodyText,
+  };
+}
+
+function toItemFromWA(r: WARow): InboxItem {
+  return {
+    key: `whatsapp:${r.message.id}`,
+    channel: "whatsapp",
+    id: r.message.id,
+    leadId: r.message.leadId,
+    leadName: r.leadName,
+    leadCategory: r.leadCategory,
+    leadCity: r.leadCity,
+    leadWebsite: r.leadWebsite,
+    leadPhone: r.leadPhone,
+    leadScore: r.leadScore,
+    leadOpportunity: r.leadOpportunity,
+    leadAnalysisSummary: r.leadAnalysisSummary,
+    status: r.message.status,
+    tone: r.message.tone,
+    createdAt: r.message.createdAt,
+    recipient: r.message.toPhone,
+    title: r.message.body.split("\n")[0],
+    preview: r.message.body,
+    bodyHtml: null,
+    bodyText: r.message.body,
+  };
+}
+
+function ChannelGlyph({ channel, size = 17 }: { channel: Channel; size?: number }) {
+  return channel === "whatsapp" ? (
+    <WhatsAppIcon size={size} />
+  ) : (
+    <Mail className="text-accent" style={{ width: size, height: size }} strokeWidth={1.6} />
+  );
+}
+
 export default function ReviewPage() {
   const { toast } = useToast();
   const { t } = useT();
-  const [tab, setTab] = useState<ReviewTab>("emails");
+
+  const [mode, setMode] = useState<Mode>("messages");
+  const [status, setStatus] = useState("draft");
+  const [channelFilter, setChannelFilter] = useState<ChannelFilter>("all");
+  const [search, setSearch] = useState("");
+
+  const [emails, setEmails] = useState<EmailRow[]>([]);
+  const [waMessages, setWaMessages] = useState<WARow[]>([]);
+  const [loading, setLoading] = useState(true);
+
   const [replyList, setReplyList] = useState<ReplyRow[]>([]);
   const [repliesLoading, setRepliesLoading] = useState(true);
-  // Email state
-  const [emails, setEmails] = useState<EmailRow[]>([]);
-  const [emailLoading, setEmailLoading] = useState(true);
-  const [emailIndex, setEmailIndex] = useState(0);
-  const [emailStatus, setEmailStatus] = useState("draft");
+
+  const [selectedKey, setSelectedKey] = useState<string | null>(null);
+
+  // Per-message editor state (only one message is open at a time)
   const [editMode, setEditMode] = useState(false);
   const [editSubject, setEditSubject] = useState("");
   const [editBody, setEditBody] = useState("");
-  const [regenerating, setRegenerating] = useState(false);
+  const [showRegen, setShowRegen] = useState(false);
   const [regenTone, setRegenTone] = useState("professional");
   const [regenInstructions, setRegenInstructions] = useState("");
-  const [showRegen, setShowRegen] = useState(false);
-  const [bulkMode, setBulkMode] = useState(false);
-  const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
+  const [regenerating, setRegenerating] = useState(false);
   const [saving, setSaving] = useState(false);
   const [sendingTest, setSendingTest] = useState(false);
-  // WhatsApp state
-  const [waMessages, setWaMessages] = useState<WARow[]>([]);
-  const [waLoading, setWaLoading] = useState(true);
-  const [waIndex, setWaIndex] = useState(0);
-  const [waStatus, setWaStatus] = useState("draft");
-  const [waEditMode, setWaEditMode] = useState(false);
-  const [waEditBody, setWaEditBody] = useState("");
-  const [waRegenerating, setWaRegenerating] = useState(false);
-  const [waRegenTone, setWaRegenTone] = useState("professional");
-  const [waRegenInstructions, setWaRegenInstructions] = useState("");
-  const [waShowRegen, setWaShowRegen] = useState(false);
-  const [waBulkMode, setWaBulkMode] = useState(false);
-  const [waSelectedIds, setWaSelectedIds] = useState<Set<number>>(new Set());
-  const [waSaving, setWaSaving] = useState(false);
-  const [waSending, setWaSending] = useState(false);
+  const [sending, setSending] = useState(false);
 
-  const fetchEmails = useCallback(async () => {
-    setEmailLoading(true);
-    const res = await fetch(`/api/emails?status=${emailStatus}&limit=100`);
-    const data = await res.json();
-    setEmails(data.emails);
-    setEmailIndex(0);
-    setEmailLoading(false);
-  }, [emailStatus]);
+  // Bulk selection
+  const [bulkMode, setBulkMode] = useState(false);
+  const [bulkKeys, setBulkKeys] = useState<Set<string>>(new Set());
 
-  const fetchWA = useCallback(async () => {
-    setWaLoading(true);
-    const res = await fetch(`/api/whatsapp?status=${waStatus}&limit=100`);
-    const data = await res.json();
-    setWaMessages(data.messages);
-    setWaIndex(0);
-    setWaLoading(false);
-  }, [waStatus]);
+  const fetchMessages = useCallback(async () => {
+    try {
+      const [er, wr] = await Promise.all([
+        fetch(`/api/emails?status=${status}&limit=100`).then((r) => r.json()),
+        fetch(`/api/whatsapp?status=${status}&limit=100`).then((r) => r.json()),
+      ]);
+      setEmails(er.emails || []);
+      setWaMessages(wr.messages || []);
+    } finally {
+      setLoading(false);
+    }
+  }, [status]);
 
   const fetchReplies = useCallback(async () => {
-    setRepliesLoading(true);
-    const res = await fetch("/api/replies");
-    const data = await res.json();
-    setReplyList(data.replies || []);
-    setRepliesLoading(false);
+    try {
+      const res = await fetch("/api/replies");
+      const data = await res.json();
+      setReplyList(data.replies || []);
+    } finally {
+      setRepliesLoading(false);
+    }
   }, []);
 
-  useEffect(() => { fetchEmails(); }, [fetchEmails]);
-  useEffect(() => { fetchWA(); }, [fetchWA]);
+  useEffect(() => { fetchMessages(); }, [fetchMessages]);
   useEffect(() => { fetchReplies(); }, [fetchReplies]);
 
-  const current = emails[emailIndex];
-  const currentWA = waMessages[waIndex];
+  // Build the unified, sorted, filtered inbox
+  const allItems = useMemo<InboxItem[]>(() => {
+    const merged = [...emails.map(toItemFromEmail), ...waMessages.map(toItemFromWA)];
+    merged.sort((a, b) => (a.createdAt < b.createdAt ? 1 : a.createdAt > b.createdAt ? -1 : 0));
+    return merged;
+  }, [emails, waMessages]);
 
-  // Email actions
-  const approveEmail = async (id: number) => {
-    setSaving(true);
-    await fetch("/api/emails", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id, status: "approved" }) });
-    setSaving(false);
-    toast(t("review.approve"), "success");
-    fetchEmails();
+  const items = useMemo<InboxItem[]>(() => {
+    const q = search.trim().toLowerCase();
+    return allItems.filter((it) => {
+      if (channelFilter !== "all" && it.channel !== channelFilter) return false;
+      if (!q) return true;
+      return (
+        (it.leadName || "").toLowerCase().includes(q) ||
+        it.title.toLowerCase().includes(q) ||
+        it.preview.toLowerCase().includes(q) ||
+        it.recipient.toLowerCase().includes(q)
+      );
+    });
+  }, [allItems, channelFilter, search]);
+
+  const emailCount = useMemo(() => allItems.filter((i) => i.channel === "email").length, [allItems]);
+  const waCount = useMemo(() => allItems.filter((i) => i.channel === "whatsapp").length, [allItems]);
+
+  // Derive the effective selection during render (no effect): fall back to the
+  // first visible message whenever the current one is filtered out or gone.
+  const effectiveKey = useMemo(() => {
+    if (selectedKey && items.some((i) => i.key === selectedKey)) return selectedKey;
+    return items[0]?.key ?? null;
+  }, [items, selectedKey]);
+  const selected = useMemo(() => items.find((i) => i.key === effectiveKey) || null, [items, effectiveKey]);
+
+  const selectMessage = (key: string) => {
+    setSelectedKey(key);
+    setEditMode(false);
+    setShowRegen(false);
   };
 
-  const rejectEmail = async (id: number) => {
+  const endpointFor = (ch: Channel) => (ch === "email" ? "/api/emails" : "/api/whatsapp");
+
+  // ── Actions (channel-aware, operate on the open message) ──
+  const setStatusFor = async (item: InboxItem, newStatus: string) => {
     setSaving(true);
-    await fetch("/api/emails", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id, status: "rejected" }) });
+    await fetch(endpointFor(item.channel), {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id: item.id, status: newStatus }),
+    });
     setSaving(false);
-    toast(t("review.reject"), "warning");
-    fetchEmails();
+    toast(newStatus === "approved" ? t("review.approve") : t("review.reject"), newStatus === "approved" ? "success" : "warning");
+    fetchMessages();
   };
 
-  const sendTestEmail = async (emailId: number) => {
+  const enterEdit = (item: InboxItem) => {
+    setEditSubject(item.title);
+    setEditBody(item.bodyText);
+    setShowRegen(false);
+    setEditMode(true);
+  };
+
+  const saveEdit = async () => {
+    if (!selected) return;
+    setSaving(true);
+    if (selected.channel === "email") {
+      await fetch("/api/emails", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          id: selected.id,
+          subject: editSubject,
+          bodyHtml: `<p>${editBody.replace(/\n/g, "</p><p>")}</p>`,
+          bodyText: editBody,
+        }),
+      });
+    } else {
+      await fetch("/api/whatsapp", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: selected.id, body: editBody }),
+      });
+    }
+    setEditMode(false);
+    setSaving(false);
+    fetchMessages();
+  };
+
+  const regenerate = async () => {
+    if (!selected) return;
+    setRegenerating(true);
+    const body = selected.channel === "email"
+      ? { emailId: selected.id, tone: regenTone, instructions: regenInstructions }
+      : { messageId: selected.id, tone: regenTone, instructions: regenInstructions };
+    await fetch(endpointFor(selected.channel), {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+    setRegenerating(false);
+    setShowRegen(false);
+    fetchMessages();
+  };
+
+  const sendTestEmail = async (item: InboxItem) => {
     setSendingTest(true);
     try {
       const res = await fetch("/api/emails/test", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ emailId }),
+        body: JSON.stringify({ emailId: item.id }),
       });
       const data = await res.json();
-      if (data.success) {
-        toast(t("review.testEmailSent", { email: data.sentTo }), "success");
-      } else {
-        toast(`Error: ${data.error}`, "error");
-      }
+      if (data.success) toast(t("review.testEmailSent", { email: data.sentTo }), "success");
+      else toast(`Error: ${data.error}`, "error");
     } catch {
       toast(t("common.error"), "error");
     }
     setSendingTest(false);
   };
 
-  const saveEmailEdit = async () => {
-    if (!current) return;
-    setSaving(true);
-    await fetch("/api/emails", {
-      method: "PUT", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ id: current.email.id, subject: editSubject, bodyHtml: `<p>${editBody.replace(/\n/g, "</p><p>")}</p>`, bodyText: editBody }),
-    });
-    setEditMode(false);
-    setSaving(false);
-    fetchEmails();
-  };
-
-  const regenerateEmail = async () => {
-    if (!current) return;
-    setRegenerating(true);
-    await fetch("/api/emails", {
-      method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ emailId: current.email.id, tone: regenTone, instructions: regenInstructions }),
-    });
-    setRegenerating(false);
-    setShowRegen(false);
-    fetchEmails();
-  };
-
-  const bulkApproveEmails = async () => {
-    if (selectedIds.size === 0) return;
-    setSaving(true);
-    await fetch("/api/emails", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ bulkApprove: true, ids: [...selectedIds] }) });
-    setSelectedIds(new Set());
-    setBulkMode(false);
-    setSaving(false);
-    fetchEmails();
-  };
-
-  const enterEmailEdit = () => {
-    if (!current) return;
-    setEditSubject(current.email.subject);
-    setEditBody(current.email.bodyText);
-    setEditMode(true);
-  };
-
-  const saveAsTemplate = async () => {
-    if (!current) return;
+  const saveAsTemplate = async (item: InboxItem) => {
     const name = prompt(t("templates.namePlaceholder"));
     if (!name) return;
     const category = prompt(t("templates.categoryOptional"));
     await fetch("/api/templates", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ fromEmailId: current.email.id, name, category: category || null }),
+      body: JSON.stringify({ fromEmailId: item.id, name, category: category || null }),
     });
     toast(t("templates.templateSaved"), "success");
   };
 
-  // WhatsApp actions
-  const approveWA = async (id: number) => {
-    setWaSaving(true);
-    await fetch("/api/whatsapp", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id, status: "approved" }) });
-    setWaSaving(false);
-    toast(t("review.approve"), "success");
-    fetchWA();
-  };
-
-  const rejectWA = async (id: number) => {
-    setWaSaving(true);
-    await fetch("/api/whatsapp", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id, status: "rejected" }) });
-    setWaSaving(false);
-    toast(t("review.reject"), "warning");
-    fetchWA();
-  };
-
-  const saveWAEdit = async () => {
-    if (!currentWA) return;
-    setWaSaving(true);
-    await fetch("/api/whatsapp", {
-      method: "PUT", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ id: currentWA.message.id, body: waEditBody }),
-    });
-    setWaEditMode(false);
-    setWaSaving(false);
-    fetchWA();
-  };
-
-  const regenerateWA = async () => {
-    if (!currentWA) return;
-    setWaRegenerating(true);
-    await fetch("/api/whatsapp", {
-      method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ messageId: currentWA.message.id, tone: waRegenTone, instructions: waRegenInstructions }),
-    });
-    setWaRegenerating(false);
-    setWaShowRegen(false);
-    fetchWA();
-  };
-
-  const bulkApproveWA = async () => {
-    if (waSelectedIds.size === 0) return;
-    setWaSaving(true);
-    await fetch("/api/whatsapp", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ bulkApprove: true, ids: [...waSelectedIds] }) });
-    setWaSelectedIds(new Set());
-    setWaBulkMode(false);
-    setWaSaving(false);
-    fetchWA();
-  };
-
-  const sendWA = async (id: number) => {
-    setWaSending(true);
+  const sendWA = async (item: InboxItem) => {
+    setSending(true);
     const res = await fetch("/api/whatsapp", {
-      method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ messageId: id, action: "send" }),
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ messageId: item.id, action: "send" }),
     });
     const data = await res.json();
-    setWaSending(false);
-    if (!data.success) {
-      alert(`Error: ${data.error}`);
-    }
-    fetchWA();
+    setSending(false);
+    if (!data.success) toast(`Error: ${data.error}`, "error");
+    fetchMessages();
   };
 
-  if (tab === "emails" && emailLoading) return <div className="flex justify-center py-20"><Spinner /></div>;
-  if (tab === "whatsapp" && waLoading) return <div className="flex justify-center py-20"><Spinner /></div>;
+  const toggleBulk = (key: string) => {
+    const next = new Set(bulkKeys);
+    if (next.has(key)) next.delete(key); else next.add(key);
+    setBulkKeys(next);
+  };
+
+  const bulkApprove = async () => {
+    if (bulkKeys.size === 0) return;
+    setSaving(true);
+    const emailIds: number[] = [];
+    const waIds: number[] = [];
+    items.forEach((it) => {
+      if (!bulkKeys.has(it.key)) return;
+      if (it.channel === "email") emailIds.push(it.id);
+      else waIds.push(it.id);
+    });
+    await Promise.all([
+      emailIds.length
+        ? fetch("/api/emails", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ bulkApprove: true, ids: emailIds }) })
+        : Promise.resolve(),
+      waIds.length
+        ? fetch("/api/whatsapp", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ bulkApprove: true, ids: waIds }) })
+        : Promise.resolve(),
+    ]);
+    setBulkKeys(new Set());
+    setBulkMode(false);
+    setSaving(false);
+    toast(t("review.approve"), "success");
+    fetchMessages();
+  };
+
+  const subtitle = mode === "messages"
+    ? `${items.length} ${t("review.messagesCount")} · ${status === "draft" ? t("review.toReview") : t(`review.${status}`)}`
+    : `${replyList.length} ${t("review.repliesTab")}`;
 
   return (
     <div>
@@ -299,452 +395,338 @@ export default function ReviewPage() {
       <div className="nd-page-header">
         <div>
           <h1>{t("review.title")}</h1>
-          <p className="nd-label mt-2">
-            {tab === "emails"
-              ? `${emails.length} emails ${emailStatus === "draft" ? t("review.toReview") : emailStatus}`
-              : tab === "whatsapp"
-              ? `${waMessages.length} WhatsApps ${waStatus === "draft" ? t("review.toReview") : waStatus}`
-              : `${replyList.length} ${t("review.repliesTab")}`
-            }
-          </p>
+          <p className="nd-label mt-2">{subtitle}</p>
         </div>
-        <div className="flex items-center gap-3">
-          {/* Tab toggle */}
-          <Segment
-            value={tab}
-            onChange={(v) => { setTab(v); setBulkMode(false); setWaBulkMode(false); }}
-            options={[
-              { value: "emails", label: <><Mail className="h-3 w-3" strokeWidth={1.5} />Emails</> },
-              { value: "whatsapp", label: <><MessageCircle className="h-3 w-3" strokeWidth={1.5} />WhatsApp</> },
-              { value: "replies", label: <><Inbox className="h-3 w-3" strokeWidth={1.5} />{t("review.repliesTab")}</> },
-            ]}
-          />
-
-          {tab === "emails" && (
-            <>
-              <Select className="w-36" value={emailStatus} onChange={(e) => setEmailStatus(e.target.value)}>
-                <option value="draft">{t("review.drafts")}</option>
-                <option value="approved">{t("review.approved")}</option>
-                <option value="sent">{t("review.sent")}</option>
-                <option value="rejected">{t("review.rejected")}</option>
-              </Select>
-              {emailStatus === "draft" && emails.length > 0 && (
-                <Button variant="secondary" size="sm" onClick={() => { setBulkMode(!bulkMode); setSelectedIds(new Set()); }}>
-                  <CheckCheck className="h-3.5 w-3.5" strokeWidth={1.5} /> {bulkMode ? t("common.cancel") : t("common.bulk")}
-                </Button>
-              )}
-            </>
-          )}
-
-          {tab === "whatsapp" && (
-            <>
-              <Select className="w-36" value={waStatus} onChange={(e) => setWaStatus(e.target.value)}>
-                <option value="draft">{t("review.drafts")}</option>
-                <option value="approved">{t("review.approved")}</option>
-                <option value="sent">{t("review.sent")}</option>
-                <option value="rejected">{t("review.rejected")}</option>
-              </Select>
-              {waStatus === "draft" && waMessages.length > 0 && (
-                <Button variant="secondary" size="sm" onClick={() => { setWaBulkMode(!waBulkMode); setWaSelectedIds(new Set()); }}>
-                  <CheckCheck className="h-3.5 w-3.5" strokeWidth={1.5} /> {waBulkMode ? t("common.cancel") : t("common.bulk")}
-                </Button>
-              )}
-            </>
-          )}
-        </div>
+        <Segment
+          value={mode}
+          onChange={(v) => setMode(v)}
+          options={[
+            { value: "messages", label: <><Inbox className="h-3 w-3" strokeWidth={1.6} />{t("review.messagesTab")}</> },
+            { value: "replies", label: <><Send className="h-3 w-3 rotate-180" strokeWidth={1.6} />{t("review.repliesTab")}</> },
+          ]}
+        />
       </div>
 
-      {/* ═══════════ EMAIL TAB ═══════════ */}
-      {tab === "emails" && (
+      {/* ════════ MESSAGES (unified inbox) ════════ */}
+      {mode === "messages" && (
         <>
-          {/* Bulk mode */}
-          {bulkMode && emails.length > 0 && (
-            <Card className="nd-section">
-              <div className="flex items-center justify-between mb-4">
-                <div className="flex items-center gap-3">
-                  <Button size="sm" variant="ghost" onClick={() => {
-                    if (selectedIds.size === emails.length) setSelectedIds(new Set());
-                    else setSelectedIds(new Set(emails.map((e) => e.email.id)));
-                  }}>
-                    {selectedIds.size === emails.length ? t("common.deselectAll") : t("common.selectAll")}
-                  </Button>
-                  <span className="nd-label text-text-muted">{selectedIds.size} {t("common.selected")}</span>
-                </div>
-                <Button size="sm" variant="success" onClick={bulkApproveEmails} disabled={selectedIds.size === 0 || saving}>
-                  <Check className="h-3.5 w-3.5" strokeWidth={1.5} /> {t("common.approve")}
-                </Button>
-              </div>
-              <div className="max-h-60 overflow-y-auto">
-                {emails.map((row, i) => (
-                  <label key={row.email.id} className={`flex items-center gap-3 py-2.5 cursor-pointer ${i > 0 ? "border-t border-border" : ""}`}>
-                    <input type="checkbox" checked={selectedIds.has(row.email.id)} onChange={() => {
-                      const next = new Set(selectedIds);
-                      if (next.has(row.email.id)) next.delete(row.email.id); else next.add(row.email.id);
-                      setSelectedIds(next);
-                    }} className="rounded" />
-                    <span className="text-sm text-text-primary flex-1 truncate">{row.leadName}</span>
-                    <span className="nd-label text-text-muted truncate max-w-[200px]">{row.email.subject}</span>
-                  </label>
-                ))}
-              </div>
-            </Card>
-          )}
-
-          {!bulkMode && emails.length === 0 && (
-            <EmptyState icon={<Mail className="h-10 w-10" strokeWidth={1.5} />} title={emailStatus === "draft" ? t("review.noEmailsTitle") : `${t("review.noEmailsTitle")}`} description={t("review.noEmailsDesc")} />
-          )}
-
-          {!bulkMode && current && (
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-              <div className="lg:col-span-2">
-                <Card>
-                  <div className="flex items-center justify-between mb-5 pb-4 border-b border-border">
-                    <div className="flex items-center gap-3">
-                      <Button size="sm" variant="ghost" disabled={emailIndex === 0} onClick={() => { setEmailIndex(i => i - 1); setEditMode(false); setShowRegen(false); }}>
-                        <ChevronLeft className="h-4 w-4 text-accent" strokeWidth={1.5} />
-                      </Button>
-                      <span className="nd-label text-text-muted">{emailIndex + 1} {t("common.of")} {emails.length}</span>
-                      <Button size="sm" variant="ghost" disabled={emailIndex >= emails.length - 1} onClick={() => { setEmailIndex(i => i + 1); setEditMode(false); setShowRegen(false); }}>
-                        <ChevronRight className="h-4 w-4 text-accent" strokeWidth={1.5} />
-                      </Button>
-                    </div>
-                    <StatusBadge status={current.email.status} />
-                  </div>
-
-                  {editMode ? (
-                    <div className="space-y-4">
-                      <div>
-                        <label className="nd-label block mb-2">{t("common.subject")}</label>
-                        <Input value={editSubject} onChange={(e) => setEditSubject(e.target.value)} />
-                      </div>
-                      <div>
-                        <label className="nd-label block mb-2">{t("leads.emailBody")}</label>
-                        <Textarea rows={12} value={editBody} onChange={(e) => setEditBody(e.target.value)} />
-                      </div>
-                      <div className="flex gap-3">
-                        <Button size="sm" onClick={saveEmailEdit} disabled={saving}>{t("common.save")}</Button>
-                        <Button size="sm" variant="secondary" onClick={() => setEditMode(false)}>{t("common.cancel")}</Button>
-                      </div>
-                    </div>
-                  ) : (
-                    <>
-                      <div className="space-y-2 mb-5">
-                        <div className="flex items-baseline gap-3">
-                          <span className="nd-label flex-shrink-0">{t("common.to")}</span>
-                          <span className="text-sm text-text-primary font-mono">{current.email.toEmail}</span>
-                        </div>
-                        <div className="flex items-baseline gap-3">
-                          <span className="nd-label flex-shrink-0">{t("common.subject")}:</span>
-                          <span className="text-sm text-text-display">{current.email.subject}</span>
-                        </div>
-                      </div>
-                      <div className="border border-border rounded-lg px-5 py-4 text-sm text-text-primary leading-relaxed" dangerouslySetInnerHTML={{ __html: current.email.bodyHtml }} />
-                    </>
-                  )}
-
-                  {current.email.status === "draft" && !editMode && (
-                    <div className="flex flex-wrap gap-2 mt-5 pt-4 border-t border-border">
-                      <Button variant="success" size="sm" onClick={() => approveEmail(current.email.id)} disabled={saving}>
-                        <Check className="h-3.5 w-3.5" strokeWidth={1.5} /> {t("common.approve")}
-                      </Button>
-                      <Button variant="secondary" size="sm" onClick={enterEmailEdit}>{t("common.edit")}</Button>
-                      <Button variant="secondary" size="sm" onClick={() => { setShowRegen(!showRegen); setRegenTone(current.email.tone); }}>
-                        <RefreshCw className="h-3.5 w-3.5" strokeWidth={1.5} /> {t("review.regenerate")}
-                      </Button>
-                      <Button variant="danger" size="sm" onClick={() => rejectEmail(current.email.id)} disabled={saving}>
-                        <X className="h-3.5 w-3.5" strokeWidth={1.5} /> {t("common.reject")}
-                      </Button>
-                      <Button variant="ghost" size="sm" onClick={saveAsTemplate}>
-                        <FileText className="h-3.5 w-3.5" strokeWidth={1.5} /> {t("review.saveTemplate")}
-                      </Button>
-                      <Button variant="ghost" size="sm" onClick={() => sendTestEmail(current.email.id)} disabled={sendingTest}>
-                        <Send className="h-3.5 w-3.5" strokeWidth={1.5} /> {sendingTest ? t("review.sending") : t("review.sendTest")}
-                      </Button>
-                    </div>
-                  )}
-
-                  {showRegen && (
-                    <div className="mt-4 p-4 border border-border rounded-lg space-y-4">
-                      <div>
-                        <label className="nd-label block mb-2">{t("review.newTone")}</label>
-                        <Select value={regenTone} onChange={(e) => setRegenTone(e.target.value)}>
-                          {["professional", "friendly", "direct", "consultative", "casual"].map((tone) => (
-                            <option key={tone} value={tone}>{t(`tones.${tone}`)}</option>
-                          ))}
-                        </Select>
-                      </div>
-                      <div>
-                        <label className="nd-label block mb-2">{t("review.instructionsOptional")}</label>
-                        <Input value={regenInstructions} onChange={(e) => setRegenInstructions(e.target.value)} placeholder={t("review.instructionsPlaceholder")} />
-                      </div>
-                      <Button size="sm" onClick={regenerateEmail} disabled={regenerating}>
-                        {regenerating ? t("review.regenerating") : t("review.regenerateEmail")}
-                      </Button>
-                    </div>
-                  )}
-                </Card>
-              </div>
-
-              <div>
-                <Card dots title={t("review.businessInfo")}>
-                  <div className="space-y-4">
-                    <div>
-                      <h4 className="text-[15px] text-text-display font-medium">{current.leadName}</h4>
-                      {current.leadCategory && <p className="nd-label text-text-muted mt-1">{current.leadCategory}</p>}
-                    </div>
-                    {current.leadCity && (
-                      <div className="flex items-center gap-2 text-sm text-text-secondary">
-                        <MapPin className="h-3.5 w-3.5 flex-shrink-0" strokeWidth={1.5} /> {current.leadCity}
-                      </div>
-                    )}
-                    {current.leadWebsite && (
-                      <div className="flex items-center gap-2 text-sm">
-                        <Globe className="h-3.5 w-3.5 text-text-secondary flex-shrink-0" strokeWidth={1.5} />
-                        <a href={current.leadWebsite.startsWith("http") ? current.leadWebsite : `https://${current.leadWebsite}`} target="_blank" rel="noopener noreferrer" className="text-text-primary hover:text-text-display truncate transition-colors">{current.leadWebsite}</a>
-                      </div>
-                    )}
-                    <div className="grid grid-cols-2 gap-3">
-                      <div className="border border-border rounded-lg p-3">
-                        <span className="nd-label block mb-1">{t("review.quality")}</span>
-                        <QualityBar score={current.leadScore} size="sm" />
-                      </div>
-                      <div className="border border-border rounded-lg p-3">
-                        <span className="nd-label block mb-1">{t("review.opportunity")}</span>
-                        <QualityBar score={current.leadOpportunity} size="sm" />
-                      </div>
-                    </div>
-                    {current.leadAnalysisSummary && (
-                      <div className="border border-border rounded-lg p-3">
-                        <span className="nd-label block mb-1">{t("review.analysis")}</span>
-                        <p className="text-[12px] text-text-primary leading-relaxed">{current.leadAnalysisSummary}</p>
-                      </div>
-                    )}
-                    <div className="pt-3 border-t border-border">
-                      <span className="nd-label block mb-1.5">{t("review.tone")}</span>
-                      <Badge>{current.email.tone.toUpperCase()}</Badge>
-                    </div>
-                  </div>
-                </Card>
-              </div>
+          {/* Toolbar */}
+          <div className="flex flex-wrap items-center gap-3 mb-4">
+            <Segment
+              value={channelFilter}
+              onChange={(v) => setChannelFilter(v)}
+              options={[
+                { value: "all", label: <>{t("review.allChannels")} <span className="font-mono text-text-muted">{allItems.length}</span></> },
+                { value: "email", label: <><Mail className="h-3 w-3 text-accent" strokeWidth={1.6} />{emailCount}</> },
+                { value: "whatsapp", label: <><WhatsAppIcon size={12} />{waCount}</> },
+              ]}
+            />
+            <Select className="w-36" value={status} onChange={(e) => setStatus(e.target.value)}>
+              <option value="draft">{t("review.drafts")}</option>
+              <option value="approved">{t("review.approved")}</option>
+              <option value="sent">{t("review.sent")}</option>
+              <option value="rejected">{t("review.rejected")}</option>
+            </Select>
+            <div className="relative flex-1 min-w-[180px]">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-text-muted pointer-events-none" strokeWidth={1.6} />
+              <Input className="!pl-9" placeholder={t("review.searchPlaceholder")} value={search} onChange={(e) => setSearch(e.target.value)} />
             </div>
-          )}
-        </>
-      )}
+            {status === "draft" && allItems.length > 0 && (
+              <Button variant={bulkMode ? "secondary" : "ghost"} size="sm" onClick={() => { setBulkMode(!bulkMode); setBulkKeys(new Set()); }}>
+                <CheckCheck className="h-3.5 w-3.5" strokeWidth={1.6} /> {bulkMode ? t("common.cancel") : t("common.bulk")}
+              </Button>
+            )}
+          </div>
 
-      {/* ═══════════ WHATSAPP TAB ═══════════ */}
-      {tab === "whatsapp" && (
-        <>
-          {/* Bulk mode */}
-          {waBulkMode && waMessages.length > 0 && (
-            <Card className="nd-section">
-              <div className="flex items-center justify-between mb-4">
+          {/* Bulk action bar */}
+          {bulkMode && (
+            <Card flush className="mb-4 px-5 py-3">
+              <div className="flex items-center justify-between gap-3">
                 <div className="flex items-center gap-3">
                   <Button size="sm" variant="ghost" onClick={() => {
-                    if (waSelectedIds.size === waMessages.length) setWaSelectedIds(new Set());
-                    else setWaSelectedIds(new Set(waMessages.map((m) => m.message.id)));
+                    if (bulkKeys.size === items.length) setBulkKeys(new Set());
+                    else setBulkKeys(new Set(items.map((i) => i.key)));
                   }}>
-                    {waSelectedIds.size === waMessages.length ? t("common.deselectAll") : t("common.selectAll")}
+                    {bulkKeys.size === items.length && items.length > 0 ? t("common.deselectAll") : t("common.selectAll")}
                   </Button>
-                  <span className="nd-label text-text-muted">{waSelectedIds.size} {t("common.selected")}</span>
+                  <span className="nd-label text-text-muted">{bulkKeys.size} {t("common.selected")}</span>
                 </div>
-                <Button size="sm" variant="success" onClick={bulkApproveWA} disabled={waSelectedIds.size === 0 || waSaving}>
-                  <Check className="h-3.5 w-3.5" strokeWidth={1.5} /> {t("common.approve")}
+                <Button size="sm" variant="success" onClick={bulkApprove} disabled={bulkKeys.size === 0 || saving}>
+                  <Check className="h-3.5 w-3.5" strokeWidth={1.6} /> {t("common.approve")}
                 </Button>
-              </div>
-              <div className="max-h-60 overflow-y-auto">
-                {waMessages.map((row, i) => (
-                  <label key={row.message.id} className={`flex items-center gap-3 py-2.5 cursor-pointer ${i > 0 ? "border-t border-border" : ""}`}>
-                    <input type="checkbox" checked={waSelectedIds.has(row.message.id)} onChange={() => {
-                      const next = new Set(waSelectedIds);
-                      if (next.has(row.message.id)) next.delete(row.message.id); else next.add(row.message.id);
-                      setWaSelectedIds(next);
-                    }} className="rounded" />
-                    <span className="text-sm text-text-primary flex-1 truncate">{row.leadName}</span>
-                    <span className="nd-label text-text-muted truncate max-w-[250px]">{row.message.body.substring(0, 50)}...</span>
-                  </label>
-                ))}
               </div>
             </Card>
           )}
 
-          {!waBulkMode && waMessages.length === 0 && (
-            <EmptyState icon={<MessageCircle className="h-10 w-10" strokeWidth={1.5} />} title={waStatus === "draft" ? t("review.noWasTitle") : `${t("review.noWasTitle")}`} description={t("review.noWasDesc")} />
-          )}
-
-          {!waBulkMode && currentWA && (
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-              <div className="lg:col-span-2">
-                <Card>
-                  {/* Navigation */}
-                  <div className="flex items-center justify-between mb-5 pb-4 border-b border-border">
-                    <div className="flex items-center gap-3">
-                      <Button size="sm" variant="ghost" disabled={waIndex === 0} onClick={() => { setWaIndex(i => i - 1); setWaEditMode(false); setWaShowRegen(false); }}>
-                        <ChevronLeft className="h-4 w-4 text-accent" strokeWidth={1.5} />
-                      </Button>
-                      <span className="nd-label text-text-muted">{waIndex + 1} {t("common.of")} {waMessages.length}</span>
-                      <Button size="sm" variant="ghost" disabled={waIndex >= waMessages.length - 1} onClick={() => { setWaIndex(i => i + 1); setWaEditMode(false); setWaShowRegen(false); }}>
-                        <ChevronRight className="h-4 w-4 text-accent" strokeWidth={1.5} />
-                      </Button>
-                    </div>
-                    <StatusBadge status={currentWA.message.status} />
-                  </div>
-
-                  {/* Message content */}
-                  <div className="space-y-2 mb-5">
-                    <div className="flex items-baseline gap-3">
-                      <span className="nd-label flex-shrink-0">{t("common.to")}</span>
-                      <span className="text-sm text-text-primary font-mono">{currentWA.message.toPhone}</span>
-                    </div>
-                  </div>
-
-                  {waEditMode ? (
-                    <div className="space-y-4">
-                      <div>
-                        <label className="nd-label block mb-2">{t("review.message")}</label>
-                        <Textarea rows={6} value={waEditBody} onChange={(e) => setWaEditBody(e.target.value)} />
-                        <p className="text-[10px] text-text-muted font-mono mt-1">{waEditBody.length}/500 {t("common.characters")}</p>
-                      </div>
-                      <div className="flex gap-3">
-                        <Button size="sm" onClick={saveWAEdit} disabled={waSaving}>{t("common.save")}</Button>
-                        <Button size="sm" variant="secondary" onClick={() => setWaEditMode(false)}>{t("common.cancel")}</Button>
-                      </div>
+          {loading ? (
+            <div className="flex justify-center py-20"><Spinner /></div>
+          ) : allItems.length === 0 ? (
+            <EmptyState icon={<Inbox className="h-10 w-10" strokeWidth={1.4} />} title={t("review.noMessagesTitle")} description={t("review.noMessagesDesc")} />
+          ) : (
+            <div className="grid grid-cols-1 lg:grid-cols-[minmax(300px,380px)_1fr] gap-4 items-start">
+              {/* ── List pane ── */}
+              <Card flush className="overflow-hidden lg:sticky lg:top-4">
+                <div className="lg:max-h-[calc(100vh-190px)] overflow-y-auto">
+                  {items.length === 0 ? (
+                    <div className="px-5 py-12 text-center">
+                      <p className="nd-label text-text-muted">{t("review.noMatch")}</p>
                     </div>
                   ) : (
-                    <div className="border border-border rounded-lg px-5 py-4">
-                      <div className="bg-bg-tertiary rounded-lg px-4 py-3 max-w-md">
-                        <p className="text-sm text-text-primary leading-relaxed whitespace-pre-wrap">{currentWA.message.body}</p>
+                    items.map((it) => {
+                      const active = !bulkMode && it.key === effectiveKey;
+                      return (
+                        <div
+                          key={it.key}
+                          role="button"
+                          tabIndex={0}
+                          data-active={active}
+                          className="rv-row nd-enter-fade"
+                          onClick={() => { if (bulkMode) toggleBulk(it.key); else selectMessage(it.key); }}
+                          onKeyDown={(e) => { if (e.key === "Enter") { if (bulkMode) toggleBulk(it.key); else selectMessage(it.key); } }}
+                        >
+                          {bulkMode ? (
+                            <input
+                              type="checkbox"
+                              className="mt-3 flex-shrink-0"
+                              checked={bulkKeys.has(it.key)}
+                              onChange={() => toggleBulk(it.key)}
+                              onClick={(e) => e.stopPropagation()}
+                            />
+                          ) : (
+                            <div className="rv-icon" data-ch={it.channel}>
+                              <ChannelGlyph channel={it.channel} />
+                            </div>
+                          )}
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center justify-between gap-2">
+                              <span className="text-sm text-text-display font-medium truncate">{it.leadName || t("review.unknownLead")}</span>
+                              <span className="nd-chip-dot mt-0.5" style={{ background: it.status === "approved" || it.status === "sent" ? "var(--success)" : it.status === "rejected" ? "var(--accent)" : "var(--text-disabled)" }} />
+                            </div>
+                            <p className="text-[12.5px] text-text-secondary truncate mt-0.5">{it.title || it.preview}</p>
+                            <div className="flex items-center gap-2 mt-1.5">
+                              <span className="rv-chan">
+                                <ChannelGlyph channel={it.channel} size={11} />
+                                {it.channel === "whatsapp" ? "WhatsApp" : "Email"}
+                              </span>
+                              {it.leadCity && (
+                                <span className="nd-label text-text-muted truncate">· {it.leadCity}</span>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })
+                  )}
+                </div>
+              </Card>
+
+              {/* ── Detail pane ── */}
+              <div className="space-y-4">
+                {!selected ? (
+                  <EmptyState icon={<Mail className="h-10 w-10" strokeWidth={1.4} />} title={t("review.selectMessageTitle")} description={t("review.selectMessageDesc")} />
+                ) : (
+                  <>
+                    {/* Message card */}
+                    <Card className="nd-enter-fade" key={selected.key}>
+                      {/* Header */}
+                      <div className="flex items-center justify-between gap-3 mb-5 pb-4 border-b border-border">
+                        <div className="flex items-center gap-3 min-w-0">
+                          <div className="rv-icon" data-ch={selected.channel}>
+                            <ChannelGlyph channel={selected.channel} />
+                          </div>
+                          <div className="min-w-0">
+                            <span className="rv-chan">{selected.channel === "whatsapp" ? "WhatsApp" : "Email"}</span>
+                            <div className="flex items-baseline gap-2">
+                              <span className="nd-label flex-shrink-0">{t("common.to")}</span>
+                              <span className="text-sm text-text-primary font-mono truncate">{selected.recipient}</span>
+                            </div>
+                          </div>
+                        </div>
+                        <StatusBadge status={selected.status} />
                       </div>
-                      <p className="text-[10px] text-text-muted font-mono mt-2">{currentWA.message.body.length} {t("common.characters")}</p>
-                    </div>
-                  )}
 
-                  {/* Actions */}
-                  {currentWA.message.status === "draft" && !waEditMode && (
-                    <div className="flex flex-wrap gap-2 mt-5 pt-4 border-t border-border">
-                      <Button variant="success" size="sm" onClick={() => approveWA(currentWA.message.id)} disabled={waSaving}>
-                        <Check className="h-3.5 w-3.5" strokeWidth={1.5} /> {t("common.approve")}
-                      </Button>
-                      <Button variant="secondary" size="sm" onClick={() => { setWaEditBody(currentWA.message.body); setWaEditMode(true); }}>{t("common.edit")}</Button>
-                      <Button variant="secondary" size="sm" onClick={() => { setWaShowRegen(!waShowRegen); setWaRegenTone(currentWA.message.tone); }}>
-                        <RefreshCw className="h-3.5 w-3.5" strokeWidth={1.5} /> {t("review.regenerate")}
-                      </Button>
-                      <Button variant="danger" size="sm" onClick={() => rejectWA(currentWA.message.id)} disabled={waSaving}>
-                        <X className="h-3.5 w-3.5" strokeWidth={1.5} /> {t("common.reject")}
-                      </Button>
-                    </div>
-                  )}
+                      {/* Body */}
+                      {editMode ? (
+                        <div className="space-y-4">
+                          {selected.channel === "email" && (
+                            <div>
+                              <label className="nd-label block mb-2">{t("common.subject")}</label>
+                              <Input value={editSubject} onChange={(e) => setEditSubject(e.target.value)} />
+                            </div>
+                          )}
+                          <div>
+                            <label className="nd-label block mb-2">{selected.channel === "email" ? t("leads.emailBody") : t("review.message")}</label>
+                            <Textarea rows={selected.channel === "email" ? 12 : 6} value={editBody} onChange={(e) => setEditBody(e.target.value)} />
+                            {selected.channel === "whatsapp" && (
+                              <p className="text-[10px] text-text-muted font-mono mt-1">{editBody.length}/500 {t("common.characters")}</p>
+                            )}
+                          </div>
+                          <div className="flex gap-3">
+                            <Button size="sm" onClick={saveEdit} disabled={saving}>{t("common.save")}</Button>
+                            <Button size="sm" variant="secondary" onClick={() => setEditMode(false)}>{t("common.cancel")}</Button>
+                          </div>
+                        </div>
+                      ) : selected.channel === "email" ? (
+                        <>
+                          <div className="flex items-baseline gap-3 mb-4">
+                            <span className="nd-label flex-shrink-0">{t("common.subject")}</span>
+                            <span className="text-[15px] text-text-display font-medium">{selected.title}</span>
+                          </div>
+                          <div
+                            className="rv-letter px-6 py-5 text-sm text-text-primary leading-relaxed"
+                            dangerouslySetInnerHTML={{ __html: selected.bodyHtml || `<p>${selected.bodyText}</p>` }}
+                          />
+                        </>
+                      ) : (
+                        <div>
+                          <div className="rv-bubble">
+                            <p className="text-sm text-text-primary leading-relaxed whitespace-pre-wrap">{selected.bodyText}</p>
+                          </div>
+                          <p className="text-[10px] text-text-muted font-mono mt-2">{selected.bodyText.length} {t("common.characters")}</p>
+                        </div>
+                      )}
 
-                  {currentWA.message.status === "approved" && (
-                    <div className="flex flex-wrap gap-2 mt-5 pt-4 border-t border-border">
-                      <Button variant="success" size="sm" onClick={() => sendWA(currentWA.message.id)} disabled={waSending}>
-                        {waSending ? (
-                          <><RefreshCw className="h-3.5 w-3.5 animate-spin" strokeWidth={1.5} /> {t("review.sending")}</>
-                        ) : (
-                          <><Send className="h-3.5 w-3.5" strokeWidth={1.5} /> {t("review.sendWa")}</>
+                      {/* Action bar */}
+                      {!editMode && selected.status === "draft" && (
+                        <div className="flex flex-wrap gap-2 mt-5 pt-4 border-t border-border">
+                          <Button variant="success" size="sm" onClick={() => setStatusFor(selected, "approved")} disabled={saving}>
+                            <Check className="h-3.5 w-3.5" strokeWidth={1.6} /> {t("common.approve")}
+                          </Button>
+                          <Button variant="secondary" size="sm" onClick={() => enterEdit(selected)}>{t("common.edit")}</Button>
+                          <Button variant="secondary" size="sm" onClick={() => { setShowRegen(!showRegen); setRegenTone(selected.tone); setRegenInstructions(""); }}>
+                            <RefreshCw className="h-3.5 w-3.5" strokeWidth={1.6} /> {t("review.regenerate")}
+                          </Button>
+                          <Button variant="danger" size="sm" onClick={() => setStatusFor(selected, "rejected")} disabled={saving}>
+                            <X className="h-3.5 w-3.5" strokeWidth={1.6} /> {t("common.reject")}
+                          </Button>
+                          {selected.channel === "email" && (
+                            <>
+                              <Button variant="ghost" size="sm" onClick={() => saveAsTemplate(selected)}>
+                                <FileText className="h-3.5 w-3.5" strokeWidth={1.6} /> {t("review.saveTemplate")}
+                              </Button>
+                              <Button variant="ghost" size="sm" onClick={() => sendTestEmail(selected)} disabled={sendingTest}>
+                                <Send className="h-3.5 w-3.5" strokeWidth={1.6} /> {sendingTest ? t("review.sending") : t("review.sendTest")}
+                              </Button>
+                            </>
+                          )}
+                        </div>
+                      )}
+
+                      {!editMode && selected.status === "approved" && selected.channel === "whatsapp" && (
+                        <div className="flex flex-wrap gap-2 mt-5 pt-4 border-t border-border">
+                          <Button variant="success" size="sm" onClick={() => sendWA(selected)} disabled={sending}>
+                            {sending ? (
+                              <><RefreshCw className="h-3.5 w-3.5 animate-spin" strokeWidth={1.6} /> {t("review.sending")}</>
+                            ) : (
+                              <><Send className="h-3.5 w-3.5" strokeWidth={1.6} /> {t("review.sendWa")}</>
+                            )}
+                          </Button>
+                        </div>
+                      )}
+
+                      {/* Regenerate panel */}
+                      {showRegen && !editMode && (
+                        <div className="mt-4 p-4 border border-border rounded-lg space-y-4">
+                          <div>
+                            <label className="nd-label block mb-2">{t("review.newTone")}</label>
+                            <Select value={regenTone} onChange={(e) => setRegenTone(e.target.value)}>
+                              {TONES.map((tone) => <option key={tone} value={tone}>{t(`tones.${tone}`)}</option>)}
+                            </Select>
+                          </div>
+                          <div>
+                            <label className="nd-label block mb-2">{t("review.instructionsOptional")}</label>
+                            <Input value={regenInstructions} onChange={(e) => setRegenInstructions(e.target.value)} placeholder={t("review.instructionsPlaceholder")} />
+                          </div>
+                          <Button size="sm" onClick={regenerate} disabled={regenerating}>
+                            {regenerating ? t("review.regenerating") : selected.channel === "email" ? t("review.regenerateEmail") : t("review.regenerateWa")}
+                          </Button>
+                        </div>
+                      )}
+                    </Card>
+
+                    {/* Business info card */}
+                    <Card dots title={t("review.businessInfo")} className="nd-enter-fade">
+                      <div className="space-y-4">
+                        <div>
+                          <h4 className="text-[15px] text-text-display font-medium">{selected.leadName || t("review.unknownLead")}</h4>
+                          {selected.leadCategory && <p className="nd-label text-text-muted mt-1">{selected.leadCategory}</p>}
+                        </div>
+                        <div className="flex flex-wrap gap-x-5 gap-y-2">
+                          {selected.leadCity && (
+                            <div className="flex items-center gap-2 text-sm text-text-secondary">
+                              <MapPin className="h-3.5 w-3.5 flex-shrink-0" strokeWidth={1.6} /> {selected.leadCity}
+                            </div>
+                          )}
+                          {selected.channel === "whatsapp" && selected.leadPhone && (
+                            <div className="flex items-center gap-2 text-sm text-text-secondary">
+                              <WhatsAppIcon size={14} /> {selected.leadPhone}
+                            </div>
+                          )}
+                          {selected.leadWebsite && (
+                            <div className="flex items-center gap-2 text-sm min-w-0">
+                              <Globe className="h-3.5 w-3.5 text-text-secondary flex-shrink-0" strokeWidth={1.6} />
+                              <a href={selected.leadWebsite.startsWith("http") ? selected.leadWebsite : `https://${selected.leadWebsite}`} target="_blank" rel="noopener noreferrer" className="nd-link truncate">{selected.leadWebsite}</a>
+                            </div>
+                          )}
+                        </div>
+                        <div className="grid grid-cols-2 gap-3">
+                          <div className="border border-border rounded-lg p-3">
+                            <span className="nd-label block mb-1">{t("review.quality")}</span>
+                            <QualityBar score={selected.leadScore} size="sm" />
+                          </div>
+                          <div className="border border-border rounded-lg p-3">
+                            <span className="nd-label block mb-1">{t("review.opportunity")}</span>
+                            <QualityBar score={selected.leadOpportunity} size="sm" />
+                          </div>
+                        </div>
+                        {selected.leadAnalysisSummary && (
+                          <div className="border border-border rounded-lg p-3">
+                            <span className="nd-label block mb-1">{t("review.analysis")}</span>
+                            <p className="text-[12px] text-text-primary leading-relaxed">{selected.leadAnalysisSummary}</p>
+                          </div>
                         )}
-                      </Button>
-                    </div>
-                  )}
-
-                  {/* Regenerate options */}
-                  {waShowRegen && (
-                    <div className="mt-4 p-4 border border-border rounded-lg space-y-4">
-                      <div>
-                        <label className="nd-label block mb-2">{t("review.newTone")}</label>
-                        <Select value={waRegenTone} onChange={(e) => setWaRegenTone(e.target.value)}>
-                          {["professional", "friendly", "direct", "consultative", "casual"].map((tone) => (
-                            <option key={tone} value={tone}>{t(`tones.${tone}`)}</option>
-                          ))}
-                        </Select>
+                        <div className="pt-3 border-t border-border">
+                          <span className="nd-label block mb-1.5">{t("review.tone")}</span>
+                          <Badge>{selected.tone.toUpperCase()}</Badge>
+                        </div>
                       </div>
-                      <div>
-                        <label className="nd-label block mb-2">{t("review.instructionsOptional")}</label>
-                        <Input value={waRegenInstructions} onChange={(e) => setWaRegenInstructions(e.target.value)} placeholder={t("review.instructionsPlaceholder")} />
-                      </div>
-                      <Button size="sm" onClick={regenerateWA} disabled={waRegenerating}>
-                        {waRegenerating ? t("review.regenerating") : t("review.regenerateWa")}
-                      </Button>
-                    </div>
-                  )}
-                </Card>
-              </div>
-
-              {/* Lead info sidebar */}
-              <div>
-                <Card dots title={t("review.businessInfo")}>
-                  <div className="space-y-4">
-                    <div>
-                      <h4 className="text-[15px] text-text-display font-medium">{currentWA.leadName}</h4>
-                      {currentWA.leadCategory && <p className="nd-label text-text-muted mt-1">{currentWA.leadCategory}</p>}
-                    </div>
-                    {currentWA.leadCity && (
-                      <div className="flex items-center gap-2 text-sm text-text-secondary">
-                        <MapPin className="h-3.5 w-3.5 flex-shrink-0" strokeWidth={1.5} /> {currentWA.leadCity}
-                      </div>
-                    )}
-                    {currentWA.leadPhone && (
-                      <div className="flex items-center gap-2 text-sm text-text-secondary">
-                        <MessageCircle className="h-3.5 w-3.5 flex-shrink-0" strokeWidth={1.5} /> {currentWA.leadPhone}
-                      </div>
-                    )}
-                    {currentWA.leadWebsite && (
-                      <div className="flex items-center gap-2 text-sm">
-                        <Globe className="h-3.5 w-3.5 text-text-secondary flex-shrink-0" strokeWidth={1.5} />
-                        <a href={currentWA.leadWebsite.startsWith("http") ? currentWA.leadWebsite : `https://${currentWA.leadWebsite}`} target="_blank" rel="noopener noreferrer" className="text-text-primary hover:text-text-display truncate transition-colors">{currentWA.leadWebsite}</a>
-                      </div>
-                    )}
-                    <div className="grid grid-cols-2 gap-3">
-                      <div className="border border-border rounded-lg p-3">
-                        <span className="nd-label block mb-1">{t("review.quality")}</span>
-                        <QualityBar score={currentWA.leadScore} size="sm" />
-                      </div>
-                      <div className="border border-border rounded-lg p-3">
-                        <span className="nd-label block mb-1">{t("review.opportunity")}</span>
-                        <QualityBar score={currentWA.leadOpportunity} size="sm" />
-                      </div>
-                    </div>
-                    {currentWA.leadAnalysisSummary && (
-                      <div className="border border-border rounded-lg p-3">
-                        <span className="nd-label block mb-1">{t("review.analysis")}</span>
-                        <p className="text-[12px] text-text-primary leading-relaxed">{currentWA.leadAnalysisSummary}</p>
-                      </div>
-                    )}
-                    <div className="pt-3 border-t border-border">
-                      <span className="nd-label block mb-1.5">{t("review.tone")}</span>
-                      <Badge>{currentWA.message.tone.toUpperCase()}</Badge>
-                    </div>
-                  </div>
-                </Card>
+                    </Card>
+                  </>
+                )}
               </div>
             </div>
           )}
         </>
       )}
 
-      {/* ═══════════ REPLIES TAB ═══════════ */}
-      {tab === "replies" && (
+      {/* ════════ REPLIES (inbound) ════════ */}
+      {mode === "replies" && (
         repliesLoading ? (
           <div className="flex justify-center py-20"><Spinner /></div>
         ) : replyList.length === 0 ? (
-          <div className="nd-section text-center py-20">
-            <Inbox className="h-8 w-8 text-text-muted mx-auto mb-3" strokeWidth={1.5} />
-            <p className="nd-label">{t("review.noReplies")}</p>
-          </div>
+          <EmptyState icon={<Inbox className="h-10 w-10" strokeWidth={1.4} />} title={t("review.repliesTab")} description={t("review.noReplies")} />
         ) : (
-          <div className="nd-section space-y-3">
-            {replyList.map((r) => (
-              <Card key={r.id}>
-                <div className="flex items-center justify-between mb-2">
-                  <div className="flex items-center gap-2">
-                    <Badge>{r.channel === "whatsapp" ? "WhatsApp" : "Email"}</Badge>
-                    <span className="text-sm font-medium text-text-primary">{r.leadName || t("review.unknownLead")}</span>
+          <div className="space-y-3">
+            {replyList.map((r) => {
+              const ch: Channel = r.channel === "whatsapp" ? "whatsapp" : "email";
+              return (
+                <Card key={r.id} className="nd-enter-fade">
+                  <div className="flex items-start gap-3">
+                    <div className="rv-icon" data-ch={ch}>
+                      <ChannelGlyph channel={ch} />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center justify-between gap-2 mb-1">
+                        <span className="text-sm font-medium text-text-display truncate">{r.leadName || t("review.unknownLead")}</span>
+                        <span className="nd-label text-text-muted flex-shrink-0">{r.receivedAt}</span>
+                      </div>
+                      <p className="text-[11px] text-text-muted font-mono mb-2 truncate">{r.fromAddress}</p>
+                      <p className="text-[13px] text-text-primary leading-relaxed whitespace-pre-wrap">{r.body || ""}</p>
+                    </div>
                   </div>
-                  <span className="nd-label">{r.receivedAt}</span>
-                </div>
-                <p className="text-[11px] text-text-muted font-mono mb-2">{r.fromAddress}</p>
-                <p className="text-[13px] text-text-primary leading-relaxed whitespace-pre-wrap">{r.body || ""}</p>
-              </Card>
-            ))}
+                </Card>
+              );
+            })}
           </div>
         )
       )}

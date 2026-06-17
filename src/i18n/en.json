@@ -281,7 +281,20 @@
     "quality": "Quality",
     "opportunity": "Opportunity",
     "analysis": "Analysis",
-    "message": "Message"
+    "message": "Message",
+    "messagesTab": "Messages",
+    "allChannels": "All",
+    "searchPlaceholder": "Search lead, subject or message...",
+    "selectMessageTitle": "Select a message",
+    "selectMessageDesc": "Pick a message from the inbox to see the full detail and act on it.",
+    "noMessagesTitle": "Inbox empty",
+    "noMessagesDesc": "Email and WhatsApp drafts will show up here as soon as they are generated.",
+    "send": "Send",
+    "approveSend": "Approve and send",
+    "messagesCount": "messages",
+    "noMatch": "No message matches your search",
+    "recipient": "Recipient",
+    "draftLabel": "Draft"
   },
   "campaigns": {
     "title": "Campaigns",
