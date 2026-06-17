@@ -1,8 +1,11 @@
 import { NextResponse } from "next/server";
 import { GoogleGenerativeAI } from "@google/generative-ai";
+import Anthropic from "@anthropic-ai/sdk";
 import { testConnection as testResend } from "@/lib/resend-client";
+import { testSmtp } from "@/lib/smtp-client";
+import { testImap } from "@/lib/cron/email-replies";
 import { getWhatsAppStatus } from "@/lib/whatsapp-client";
-import { getApiKey } from "@/db";
+import { getApiKey, getSetting } from "@/db";
 
 export async function GET() {
   const results: Record<string, { ok: boolean; error?: string }> = {};
@@ -17,9 +20,37 @@ export async function GET() {
     results.gemini = { ok: false, error: err instanceof Error ? err.message : "Connection failed" };
   }
 
-  // Test Resend
-  const resendResult = await testResend();
-  results.resend = { ok: resendResult.success, error: resendResult.error };
+  // Test Anthropic (only when a key is configured)
+  const anthropicKey = getApiKey("anthropic_api_key", "ANTHROPIC_API_KEY");
+  if (anthropicKey) {
+    try {
+      const client = new Anthropic({ apiKey: anthropicKey });
+      await client.messages.create({
+        model: process.env.ANTHROPIC_MODEL || "claude-sonnet-4-6",
+        max_tokens: 8,
+        messages: [{ role: "user", content: "Responde solo: OK" }],
+      });
+      results.anthropic = { ok: true };
+    } catch (err) {
+      results.anthropic = { ok: false, error: err instanceof Error ? err.message : "Connection failed" };
+    }
+  }
+
+  // Test the active email sender
+  if (getSetting("email_provider") === "smtp" || getSetting("smtp_host")) {
+    const smtpResult = await testSmtp();
+    results.smtp = { ok: smtpResult.success, error: smtpResult.error };
+  }
+  if (getSetting("email_provider") !== "smtp") {
+    const resendResult = await testResend();
+    results.resend = { ok: resendResult.success, error: resendResult.error };
+  }
+
+  // Test IMAP (reply capture) when enabled/configured
+  if (getSetting("imap_enabled") === "true" || getSetting("imap_host")) {
+    const imapResult = await testImap();
+    results.imap = { ok: imapResult.success, error: imapResult.error };
+  }
 
   // Test WhatsApp
   const waStatus = getWhatsAppStatus();

@@ -1,5 +1,5 @@
 import { getAgencyContext, getLocaleLabel, getLocaleWritingRules, SERVICE_DEFINITIONS, formatAgencyContextBlock } from "./config";
-import { runClaudeCli } from "./claude-cli";
+import { generateStructured } from "./provider";
 import { withRetry } from "@/lib/ai/retry";
 import { GEMINI_MAX_RETRIES, GEMINI_BASE_DELAY_MS } from "@/lib/constants";
 import {
@@ -106,7 +106,7 @@ ${examplesBlock}
 ${SELF_CHECK_WHATSAPP}`;
 
   return withRetry(
-    () => runClaudeCli({ prompt, jsonSchema: WHATSAPP_SCHEMA, label: "generate-whatsapp" }) as Promise<WhatsAppGeneration>,
+    () => generateStructured<WhatsAppGeneration>({ prompt, jsonSchema: WHATSAPP_SCHEMA, label: "generate-whatsapp" }),
     { maxRetries: GEMINI_MAX_RETRIES, baseDelayMs: GEMINI_BASE_DELAY_MS, label: "generate-whatsapp" },
   );
 }
@@ -172,7 +172,7 @@ ${examplesBlock}
 ${SELF_CHECK_WHATSAPP}`;
 
   return withRetry(
-    () => runClaudeCli({ prompt, jsonSchema: WHATSAPP_SCHEMA, label: "regenerate-whatsapp" }) as Promise<WhatsAppGeneration>,
+    () => generateStructured<WhatsAppGeneration>({ prompt, jsonSchema: WHATSAPP_SCHEMA, label: "regenerate-whatsapp" }),
     { maxRetries: GEMINI_MAX_RETRIES, baseDelayMs: GEMINI_BASE_DELAY_MS, label: "regenerate-whatsapp" },
   );
 }

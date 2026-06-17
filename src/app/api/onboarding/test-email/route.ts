@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { validateBody } from "@/lib/validations";
-import { sendEmail } from "@/lib/resend-client";
+import { sendEmail } from "@/lib/email-sender";
 import { handleServiceError } from "@/services/api-handler";
 
 const testEmailSchema = z.object({

@@ -11,14 +11,32 @@ interface WAState {
   phone: string | null;
 }
 
-let client: Client | null = null;
-let state: WAState = {
-  status: "disconnected",
-  qrDataUrl: null,
-  error: null,
-  phone: null,
-};
-let initPromise: Promise<void> | null = null;
+interface WAGlobal {
+  client: Client | null;
+  state: WAState;
+  initPromise: Promise<void> | null;
+}
+
+/**
+ * Persist the client / state across Next.js dev hot-reloads.
+ *
+ * Without this, every module re-evaluation drops the JS references while the
+ * underlying Chromium browser spawned by whatsapp-web.js keeps running. The next
+ * `initialize()` then launches a SECOND browser against the same LocalAuth
+ * session, which collides on the page binding ("onQRChangedEvent already exists")
+ * and wedges the QR. Stashing the singleton on globalThis keeps exactly one
+ * client/browser per process, so the destroy-before-create below actually tears
+ * down the previous browser instead of leaking it.
+ */
+const globalForWA = globalThis as unknown as { __prospectaiWhatsApp?: WAGlobal };
+
+const wa: WAGlobal =
+  globalForWA.__prospectaiWhatsApp ??
+  (globalForWA.__prospectaiWhatsApp = {
+    client: null,
+    state: { status: "disconnected", qrDataUrl: null, error: null, phone: null },
+    initPromise: null,
+  });
 
 function createClient(): Client {
   return new Client({
@@ -36,35 +54,39 @@ function createClient(): Client {
 }
 
 export async function initializeWhatsApp(): Promise<void> {
-  if (state.status === "ready") return;
+  if (wa.state.status === "ready" && wa.client) return;
   // Coalesce concurrent calls — only one initialization runs at a time
-  if (initPromise) return initPromise;
-  initPromise = doInitialize().finally(() => { initPromise = null; });
-  return initPromise;
+  if (wa.initPromise) return wa.initPromise;
+  wa.initPromise = doInitialize().finally(() => { wa.initPromise = null; });
+  return wa.initPromise;
 }
 
 async function doInitialize(): Promise<void> {
-  state = { status: "authenticating", qrDataUrl: null, error: null, phone: null };
+  wa.state = { status: "authenticating", qrDataUrl: null, error: null, phone: null };
 
   try {
-    if (client) {
-      try { await client.destroy(); } catch { /* ignore */ }
+    // Tear down any previous browser (incl. one leaked by a prior hot-reload)
+    // before spawning a new one, so we never run two clients on one session.
+    if (wa.client) {
+      try { await wa.client.destroy(); } catch { /* ignore */ }
+      wa.client = null;
     }
 
-    client = createClient();
+    const client = createClient();
+    wa.client = client;
 
     client.on("qr", async (qr: string) => {
       const dataUrl = await QRCode.toDataURL(qr, { width: 256, margin: 2 });
-      state = { ...state, status: "qr_pending", qrDataUrl: dataUrl };
+      wa.state = { ...wa.state, status: "qr_pending", qrDataUrl: dataUrl };
     });
 
     client.on("authenticated", () => {
-      state = { ...state, status: "authenticating", qrDataUrl: null };
+      wa.state = { ...wa.state, status: "authenticating", qrDataUrl: null };
     });
 
     client.on("ready", async () => {
-      const info = client?.info;
-      state = {
+      const info = client.info;
+      wa.state = {
         status: "ready",
         qrDataUrl: null,
         error: null,
@@ -73,17 +95,17 @@ async function doInitialize(): Promise<void> {
     });
 
     client.on("auth_failure", (msg: string) => {
-      state = { status: "error", qrDataUrl: null, error: `Auth failed: ${msg}`, phone: null };
+      wa.state = { status: "error", qrDataUrl: null, error: `Auth failed: ${msg}`, phone: null };
     });
 
     client.on("disconnected", (reason: string) => {
-      state = { status: "disconnected", qrDataUrl: null, error: reason, phone: null };
-      client = null;
+      wa.state = { status: "disconnected", qrDataUrl: null, error: reason, phone: null };
+      wa.client = null;
     });
 
     await client.initialize();
   } catch (err) {
-    state = {
+    wa.state = {
       status: "error",
       qrDataUrl: null,
       error: err instanceof Error ? err.message : "Failed to initialize",
@@ -93,23 +115,23 @@ async function doInitialize(): Promise<void> {
 }
 
 export function getWhatsAppStatus(): WAState {
-  return { ...state };
+  return { ...wa.state };
 }
 
 export function isWhatsAppReady(): boolean {
-  return state.status === "ready" && client !== null;
+  return wa.state.status === "ready" && wa.client !== null;
 }
 
 export function getClient(): Client | null {
-  return client;
+  return wa.client;
 }
 
 export async function disconnectWhatsApp(): Promise<void> {
-  if (client) {
-    try { await client.destroy(); } catch { /* ignore */ }
-    client = null;
+  if (wa.client) {
+    try { await wa.client.destroy(); } catch { /* ignore */ }
+    wa.client = null;
   }
-  state = { status: "disconnected", qrDataUrl: null, error: null, phone: null };
+  wa.state = { status: "disconnected", qrDataUrl: null, error: null, phone: null };
 }
 
 // Format phone number for WhatsApp based on configured country
@@ -145,21 +167,24 @@ export interface SendWAResult {
 }
 
 export async function sendWhatsAppMessage(phone: string, message: string): Promise<SendWAResult> {
-  if (!client || state.status !== "ready") {
+  const client = wa.client;
+  if (!client || wa.state.status !== "ready") {
     return { success: false, error: "WhatsApp not connected" };
   }
 
   try {
     const formattedPhone = formatPhoneForWA(phone);
-    const chatId = `${formattedPhone}@c.us`;
 
-    // Check if the number is registered on WhatsApp
-    const isRegistered = await client.isRegisteredUser(chatId);
-    if (!isRegistered) {
+    // Resolve the canonical WhatsApp chat id from the number. getNumberId queries
+    // WhatsApp and returns the real id (handling country quirks like Mexico's
+    // mobile "1" prefix: 52 -> 521), or null if the number isn't on WhatsApp.
+    // This is more reliable than building `${number}@c.us` by hand.
+    const numberId = await client.getNumberId(formattedPhone);
+    if (!numberId) {
       return { success: false, error: `El número ${phone} no está registrado en WhatsApp` };
     }
 
-    const sentMsg = await client.sendMessage(chatId, message);
+    const sentMsg = await client.sendMessage(numberId._serialized, message);
     return { success: true, messageId: sentMsg.id._serialized };
   } catch (err) {
     return { success: false, error: err instanceof Error ? err.message : "Error sending message" };

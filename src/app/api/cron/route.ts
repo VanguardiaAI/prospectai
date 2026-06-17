@@ -8,6 +8,7 @@ import { processEmailSending, processAutopilotSendQueue } from "@/lib/cron/email
 import { processWhatsAppSending } from "@/lib/cron/wa-sending";
 import { processSequences } from "@/lib/cron/sequences";
 import { setupWhatsAppReplyListener } from "@/lib/cron/wa-replies";
+import { processEmailReplies } from "@/lib/cron/email-replies";
 
 export async function POST(req: NextRequest) {
   // Bearer auth — cron endpoint uses its own secret, not JWT session
@@ -49,6 +50,10 @@ export async function POST(req: NextRequest) {
 
   if (action === "all" || action === "sequences") {
     results.sequencesProcessed = await processSequences();
+  }
+
+  if (action === "all" || action === "replies") {
+    results.emailReplies = await processEmailReplies();
   }
 
   return NextResponse.json({ success: true, ...results });

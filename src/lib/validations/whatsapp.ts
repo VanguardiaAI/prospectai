@@ -35,4 +35,7 @@ export const sendWASchema = z.object({
   action: z.literal("send"),
 });
 
-export const waPostSchema = z.union([regenerateWASchema, generateWASchema, manualWASchema, sendWASchema]);
+// Order matters: regenerateWASchema (no `action`) must come LAST, otherwise Zod's
+// non-strict parsing strips the `action` key and matches it for send/generate/manual
+// payloads — silently turning a "send" into a "regenerate".
+export const waPostSchema = z.union([generateWASchema, manualWASchema, sendWASchema, regenerateWASchema]);

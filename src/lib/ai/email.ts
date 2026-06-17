@@ -1,5 +1,5 @@
 import { getAgencyContext, getLocaleLabel, getLocaleWritingRules, formatAgencyContextBlock } from "./config";
-import { runClaudeCli } from "./claude-cli";
+import { generateStructured } from "./provider";
 import { withRetry } from "@/lib/ai/retry";
 import { GEMINI_MAX_RETRIES, GEMINI_BASE_DELAY_MS } from "@/lib/constants";
 import {
@@ -132,7 +132,7 @@ Responde SOLO con JSON válido (sin markdown, sin backticks):
 }`;
 
   return withRetry(
-    () => runClaudeCli({ prompt, jsonSchema: EMAIL_SCHEMA, label: "generate-email" }) as Promise<EmailGeneration>,
+    () => generateStructured<EmailGeneration>({ prompt, jsonSchema: EMAIL_SCHEMA, label: "generate-email" }),
     { maxRetries: GEMINI_MAX_RETRIES, baseDelayMs: GEMINI_BASE_DELAY_MS, label: "generate-email" },
   );
 }
@@ -206,7 +206,7 @@ Genera una versión diferente del email. Responde SOLO con JSON válido (sin mar
 }`;
 
   return withRetry(
-    () => runClaudeCli({ prompt, jsonSchema: EMAIL_SCHEMA, label: "regenerate-email" }) as Promise<EmailGeneration>,
+    () => generateStructured<EmailGeneration>({ prompt, jsonSchema: EMAIL_SCHEMA, label: "regenerate-email" }),
     { maxRetries: GEMINI_MAX_RETRIES, baseDelayMs: GEMINI_BASE_DELAY_MS, label: "regenerate-email" },
   );
 }

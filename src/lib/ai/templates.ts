@@ -1,5 +1,5 @@
 import { getAgencyContext, getLocaleLabel, getLocaleWritingRules } from "./config";
-import { runClaudeCli } from "./claude-cli";
+import { generateStructured } from "./provider";
 import { withRetry } from "@/lib/ai/retry";
 import { GEMINI_MAX_RETRIES, GEMINI_BASE_DELAY_MS } from "@/lib/constants";
 import {
@@ -124,7 +124,7 @@ Responde SOLO con JSON válido (sin markdown, sin backticks):
 }`;
 
   return withRetry(
-    () => runClaudeCli({ prompt, jsonSchema: EMAIL_TEMPLATE_SCHEMA, label: "generate-email-template" }) as Promise<TemplateGeneration>,
+    () => generateStructured<TemplateGeneration>({ prompt, jsonSchema: EMAIL_TEMPLATE_SCHEMA, label: "generate-email-template" }),
     { maxRetries: GEMINI_MAX_RETRIES, baseDelayMs: GEMINI_BASE_DELAY_MS, label: "generate-email-template" },
   );
 }
@@ -202,7 +202,7 @@ Responde SOLO con JSON válido (sin markdown, sin backticks):
 }`;
 
   return withRetry(
-    () => runClaudeCli({ prompt, jsonSchema: WHATSAPP_TEMPLATE_SCHEMA, label: "generate-whatsapp-template" }) as Promise<WhatsAppTemplateGeneration>,
+    () => generateStructured<WhatsAppTemplateGeneration>({ prompt, jsonSchema: WHATSAPP_TEMPLATE_SCHEMA, label: "generate-whatsapp-template" }),
     { maxRetries: GEMINI_MAX_RETRIES, baseDelayMs: GEMINI_BASE_DELAY_MS, label: "generate-whatsapp-template" },
   );
 }

@@ -4,7 +4,7 @@ import { useEffect, useState, useCallback, useRef } from "react";
 import Link from "next/link";
 import { Card, Button, Input, Select, Toggle, Spinner, Badge, ProgressBar, Segment } from "@/components/ui";
 import { useToast } from "@/components/Toast";
-import { Zap, TestTube, CheckCircle, XCircle, RefreshCw, MessageCircle, Wifi, WifiOff, Globe, Building, Shield, Clock, Link2, Webhook, Settings2, Play, Square, Wand2, KeyRound } from "lucide-react";
+import { Zap, TestTube, CheckCircle, XCircle, RefreshCw, MessageCircle, Wifi, WifiOff, Globe, Building, Shield, Clock, Link2, Webhook, Settings2, Play, Square, Wand2, KeyRound, Cpu, Mail } from "lucide-react";
 import { AnthropicIcon, GeminiIcon, WhatsAppIcon, GoogleIcon, ResendIcon } from "@/components/icons/Brands";
 import { useT } from "@/i18n/LocaleProvider";
 import { getLang } from "@/i18n/index";
@@ -375,30 +375,52 @@ export default function SettingsPage() {
 
       {activeTab === "connections" && (
         <>
+      {/* ─── AI engine ─── */}
+      <div className="grid grid-cols-12 gap-4 nd-section">
+        <Card className="col-span-12 md:col-span-7">
+          <h3 className="nd-heading mb-2">
+            <Cpu className="h-4 w-4 inline mr-2" strokeWidth={1.5} />
+            {t("settings.aiEngine.section")}
+          </h3>
+          <p className="nd-label text-text-muted mb-5">{t("settings.aiEngine.desc")}</p>
+          <div className="space-y-3">
+            <div>
+              <label className="nd-label block mb-2">{t("settings.aiEngine.provider")}</label>
+              <Select
+                value={settings.ai_provider || "claude_cli"}
+                onChange={(e) => setSettings({ ...settings, ai_provider: e.target.value })}
+              >
+                <option value="claude_cli">{t("settings.aiEngine.claudeCli")}</option>
+                <option value="gemini">{t("settings.aiEngine.gemini")}</option>
+                <option value="anthropic">{t("settings.aiEngine.anthropic")}</option>
+              </Select>
+            </div>
+            <p className="text-[11px] text-text-muted leading-relaxed">
+              {settings.ai_provider === "gemini"
+                ? t("settings.aiEngine.geminiHelp")
+                : settings.ai_provider === "anthropic"
+                ? t("settings.aiEngine.anthropicHelp")
+                : t("settings.aiEngine.claudeCliHelp")}
+            </p>
+          </div>
+        </Card>
+      </div>
+
       {/* ─── API keys ─── */}
       <div className="grid grid-cols-12 gap-4 nd-section">
         <Card className="col-span-12 md:col-span-7" title={t("settings.apiKeys.section")}>
-          {/* AI engines available */}
-          <div className="flex flex-wrap items-center gap-2 mb-5">
-            <span className="nd-label text-text-muted mr-1">{t("settings.aiEngine")}</span>
-            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full border border-border-light bg-[var(--glass-bg)] backdrop-blur-md text-[10px] font-mono uppercase tracking-[0.06em] text-text-primary">
-              <AnthropicIcon size={12} className="text-text-display" /> Claude
-            </span>
-            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full border border-border-light bg-[var(--glass-bg)] backdrop-blur-md text-[10px] font-mono uppercase tracking-[0.06em] text-text-primary">
-              <GeminiIcon size={12} /> Gemini
-            </span>
-          </div>
           <p className="nd-label text-text-muted mb-4">{t("settings.apiKeys.desc")}</p>
           <div className="space-y-3">
             {([
               { key: "gemini_api_key", label: t("settings.apiKeys.gemini"), hint: t("settings.apiKeys.geminiHint"), Icon: GeminiIcon },
+              { key: "anthropic_api_key", label: t("settings.apiKeys.anthropic"), hint: t("settings.apiKeys.anthropicHint"), Icon: AnthropicIcon },
               { key: "resend_api_key", label: t("settings.apiKeys.resend"), hint: t("settings.apiKeys.resendHint"), Icon: ResendIcon },
               { key: "gmaps_scraper_api_key", label: t("settings.gmapsScraper"), hint: t("settings.apiKeys.gmapsHint"), Icon: GoogleIcon },
             ] as const).map((f) => (
               <div key={f.key} className="rounded-xl border border-border bg-[var(--glass-bg)] backdrop-blur-md p-4">
                 <div className="flex items-center gap-3 mb-3">
                   <span className="w-9 h-9 rounded-lg border border-border-light bg-bg-primary/30 flex items-center justify-center flex-shrink-0">
-                    <f.Icon size={18} className={f.key === "resend_api_key" ? "text-text-display" : undefined} />
+                    <f.Icon size={18} className={(f.key === "resend_api_key" || f.key === "anthropic_api_key") ? "text-text-display" : undefined} />
                   </span>
                   <div className="min-w-0 flex-1">
                     <div className="text-sm text-text-display font-medium leading-tight">{f.label}</div>
@@ -442,6 +464,99 @@ export default function SettingsPage() {
                 </div>
               )}
             </div>
+          </div>
+        </Card>
+      </div>
+
+      {/* ─── Email sending provider ─── */}
+      <div className="grid grid-cols-12 gap-4 nd-section">
+        <Card className="col-span-12 md:col-span-7">
+          <h3 className="nd-heading mb-2">
+            <Mail className="h-4 w-4 inline mr-2" strokeWidth={1.5} />
+            {t("settings.emailProvider.section")}
+          </h3>
+          <p className="nd-label text-text-muted mb-5">{t("settings.emailProvider.desc")}</p>
+          <div className="space-y-5">
+            <div>
+              <label className="nd-label block mb-2">{t("settings.emailProvider.provider")}</label>
+              <Select
+                value={settings.email_provider || "resend"}
+                onChange={(e) => setSettings({ ...settings, email_provider: e.target.value })}
+              >
+                <option value="resend">{t("settings.emailProvider.resend")}</option>
+                <option value="smtp">{t("settings.emailProvider.smtp")}</option>
+              </Select>
+            </div>
+            {settings.email_provider === "smtp" && (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-5 pl-4 border-l-2 border-border">
+                <div>
+                  <label className="nd-label block mb-2">{t("settings.imap.host")}</label>
+                  <Input value={settings.smtp_host || ""} onChange={(e) => setSettings({ ...settings, smtp_host: e.target.value })} placeholder="smtp.gmail.com" />
+                </div>
+                <div>
+                  <label className="nd-label block mb-2">{t("settings.imap.port")}</label>
+                  <Input type="number" value={settings.smtp_port || "587"} onChange={(e) => setSettings({ ...settings, smtp_port: e.target.value })} placeholder="587" />
+                </div>
+                <div>
+                  <label className="nd-label block mb-2">{t("settings.imap.user")}</label>
+                  <Input value={settings.smtp_user || ""} onChange={(e) => setSettings({ ...settings, smtp_user: e.target.value })} placeholder="contact@vanguardia.dev" />
+                </div>
+                <div>
+                  <div className="flex items-center justify-between mb-2">
+                    <label className="nd-label">{t("settings.imap.password")}</label>
+                    {settings.smtp_password_configured === "true" && (
+                      <Badge color="success"><CheckCircle className="h-3 w-3 mr-1" strokeWidth={1.5} /> {t("settings.apiKeys.configured")}</Badge>
+                    )}
+                  </div>
+                  <Input type="password" value={settings.smtp_password || ""} onChange={(e) => setSettings({ ...settings, smtp_password: e.target.value })} placeholder={settings.smtp_password_configured === "true" ? "••••••••" : ""} />
+                </div>
+                <p className="md:col-span-2 text-[11px] text-text-muted leading-relaxed">{t("settings.emailProvider.smtpHint")}</p>
+              </div>
+            )}
+          </div>
+        </Card>
+      </div>
+
+      {/* ─── Email replies (IMAP) ─── */}
+      <div className="grid grid-cols-12 gap-4 nd-section">
+        <Card className="col-span-12 md:col-span-7">
+          <h3 className="nd-heading mb-2">
+            <Mail className="h-4 w-4 inline mr-2" strokeWidth={1.5} />
+            {t("settings.imap.section")}
+          </h3>
+          <p className="nd-label text-text-muted mb-5">{t("settings.imap.desc")}</p>
+          <div className="space-y-5">
+            <Toggle
+              checked={settings.imap_enabled === "true"}
+              onChange={(v) => setSettings({ ...settings, imap_enabled: String(v) })}
+              label={t("settings.imap.enable")}
+            />
+            {settings.imap_enabled === "true" && (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-5 pl-4 border-l-2 border-border">
+                <div>
+                  <label className="nd-label block mb-2">{t("settings.imap.host")}</label>
+                  <Input value={settings.imap_host || ""} onChange={(e) => setSettings({ ...settings, imap_host: e.target.value })} placeholder="imap.gmail.com" />
+                </div>
+                <div>
+                  <label className="nd-label block mb-2">{t("settings.imap.port")}</label>
+                  <Input type="number" value={settings.imap_port || "993"} onChange={(e) => setSettings({ ...settings, imap_port: e.target.value })} placeholder="993" />
+                </div>
+                <div>
+                  <label className="nd-label block mb-2">{t("settings.imap.user")}</label>
+                  <Input value={settings.imap_user || ""} onChange={(e) => setSettings({ ...settings, imap_user: e.target.value })} placeholder="pablo@vanguardia.dev" />
+                </div>
+                <div>
+                  <div className="flex items-center justify-between mb-2">
+                    <label className="nd-label">{t("settings.imap.password")}</label>
+                    {settings.imap_password_configured === "true" && (
+                      <Badge color="success"><CheckCircle className="h-3 w-3 mr-1" strokeWidth={1.5} /> {t("settings.apiKeys.configured")}</Badge>
+                    )}
+                  </div>
+                  <Input type="password" value={settings.imap_password || ""} onChange={(e) => setSettings({ ...settings, imap_password: e.target.value })} placeholder={settings.imap_password_configured === "true" ? "••••••••" : ""} />
+                </div>
+                <p className="md:col-span-2 text-[11px] text-text-muted leading-relaxed">{t("settings.imap.hint")}</p>
+              </div>
+            )}
           </div>
         </Card>
       </div>

@@ -659,13 +659,44 @@
       "section": "API keys",
       "desc": "Stored in the database and take priority over the .env file. Leave blank to keep the current value.",
       "gemini": "Gemini API key",
+      "anthropic": "Anthropic API key",
       "resend": "Resend API key",
       "configured": "Configured",
       "notSet": "Not set",
       "keepHint": "Leave blank to keep the current key",
       "geminiHint": "Copy generation & analysis",
       "resendHint": "Email delivery",
-      "gmapsHint": "Lead scraper (Google Maps)"
+      "gmapsHint": "Lead scraper (Google Maps)",
+      "anthropicHint": "Claude via API (copy & analysis)"
+    },
+    "aiEngine": {
+      "section": "AI engine",
+      "desc": "Choose which provider generates messages, analyzes websites and answers in the chat.",
+      "provider": "Provider",
+      "claudeCli": "Claude CLI (claude -p)",
+      "gemini": "Gemini API",
+      "anthropic": "Anthropic API",
+      "claudeCliHelp": "Uses the logged-in claude CLI (Max plan), no API cost. Requires running \"claude auth login\". The chatbot needs a Gemini or Anthropic key.",
+      "geminiHelp": "Uses the Gemini API key configured below.",
+      "anthropicHelp": "Uses the Anthropic API key configured below. Default model: claude-sonnet-4-6."
+    },
+    "emailProvider": {
+      "section": "Email sending",
+      "desc": "How emails are sent. SMTP (your Workspace mailbox) needs no Resend, VPS or public URL, and usually lands better for cold outreach.",
+      "provider": "Sending provider",
+      "resend": "Resend (API)",
+      "smtp": "SMTP (real mailbox, e.g. Workspace)",
+      "smtpHint": "Gmail/Workspace: smtp.gmail.com port 587, username = your address, password = a Google app password. The From must be that mailbox or an allowed alias. After saving, set the selector to SMTP."
+    },
+    "imap": {
+      "section": "Email replies (IMAP)",
+      "desc": "Reads a real mailbox (your Reply-To inbox) to capture replies into the inbox. Works locally, no public URL needed.",
+      "enable": "Capture replies via IMAP",
+      "host": "IMAP server",
+      "port": "Port",
+      "user": "Username",
+      "password": "Password",
+      "hint": "Use an app password (not your normal one). Gmail/Workspace: imap.gmail.com:993. Zoho: imap.zoho.com:993. The username is usually your Reply-To address."
     },
     "assistant": {
       "title": "Agency profile",
@@ -765,8 +796,7 @@
     "emailSection": "Email",
     "whatsappSection": "WhatsApp",
     "warmupLabel": "Day {{day}}: {{limit}} emails/day",
-    "hours": "hrs",
-    "aiEngine": "AI engine"
+    "hours": "hrs"
   },
   "activityLog": {
     "campaignCreated": "Campaign \"{{name}}\" created",

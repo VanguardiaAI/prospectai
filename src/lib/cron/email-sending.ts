@@ -1,9 +1,9 @@
 import { db, getSetting } from "@/db";
 import { emails, leads, campaigns, jobQueue, sendingDomains } from "@/db/schema";
 import { eq, and, sql, ne } from "drizzle-orm";
-import { sendEmail } from "@/lib/resend-client";
+import { sendEmail } from "@/lib/email-sender";
 import { logActivity } from "@/lib/activity";
-import { isUnsubscribed, generateUnsubscribeUrl, injectUnsubscribeLink, appendUnsubscribeText } from "@/lib/unsubscribe";
+import { isUnsubscribed, generateUnsubscribeUrl, injectUnsubscribeLink, appendUnsubscribeText, injectUnsubscribeMailto, appendUnsubscribeMailtoText } from "@/lib/unsubscribe";
 import { injectTrackingPixel, wrapLinksWithTracking } from "@/lib/tracking";
 import { getEffectiveDailyLimit, isWithinSendWindow, incrementWarmupDay } from "./warmup";
 import { logger } from "@/lib/logger";
@@ -141,16 +141,33 @@ export async function processEmailSending() {
       }
     }
 
-    // Generate unsubscribe URL and inject into email
-    const unsubUrl = generateUnsubscribeUrl(row.email.toEmail, row.email.leadId);
-
-    // Inject unsubscribe link, then tracking pixel, then wrap links
-    let finalHtml = injectUnsubscribeLink(row.email.bodyHtml, unsubUrl);
-    finalHtml = injectTrackingPixel(finalHtml, row.email.id);
-    finalHtml = wrapLinksWithTracking(finalHtml, row.email.id);
-    const finalText = appendUnsubscribeText(row.email.bodyText, unsubUrl);
-
     const replyToEmail = getSetting("reply_to_email") || undefined;
+    const baseUrl = getSetting("tracking_base_url") || getSetting("unsubscribe_url");
+
+    let finalHtml: string;
+    let finalText: string;
+    let unsubHeaders: Record<string, string>;
+
+    if (baseUrl) {
+      // Public URL available: HTTPS one-click unsubscribe + open/click tracking.
+      const unsubUrl = generateUnsubscribeUrl(row.email.toEmail, row.email.leadId);
+      finalHtml = injectUnsubscribeLink(row.email.bodyHtml, unsubUrl);
+      finalHtml = injectTrackingPixel(finalHtml, row.email.id);
+      finalHtml = wrapLinksWithTracking(finalHtml, row.email.id);
+      finalText = appendUnsubscribeText(row.email.bodyText, unsubUrl);
+      unsubHeaders = {
+        "List-Unsubscribe": `<${unsubUrl}>`,
+        "List-Unsubscribe-Post": "List-Unsubscribe=One-Click",
+      };
+    } else {
+      // No public URL: mailto opt-out (works without an externally reachable
+      // server). Skip the tracking pixel and link-wrapping — they'd point to an
+      // unreachable host and would break the email's real links.
+      const unsubMailto = replyToEmail || fromEmail;
+      finalHtml = injectUnsubscribeMailto(row.email.bodyHtml);
+      finalText = appendUnsubscribeMailtoText(row.email.bodyText);
+      unsubHeaders = { "List-Unsubscribe": `<mailto:${unsubMailto}?subject=unsubscribe>` };
+    }
 
     const result = await sendEmail({
       to: row.email.toEmail,
@@ -159,10 +176,7 @@ export async function processEmailSending() {
       html: finalHtml,
       text: finalText,
       replyTo: replyToEmail,
-      headers: {
-        "List-Unsubscribe": `<${unsubUrl}>`,
-        "List-Unsubscribe-Post": "List-Unsubscribe=One-Click",
-      },
+      headers: unsubHeaders,
     });
 
     if (result.success) {
