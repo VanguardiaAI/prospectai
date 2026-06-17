@@ -278,7 +278,7 @@ export default function SearchPage() {
 
       {/* Search Form */}
       <div className="nd-section">
-        <Card>
+        <Card dots>
           <div className="flex flex-wrap items-end gap-4">
             <div className="flex-1 min-w-[280px]">
               <label className="nd-label block mb-2">{t("search.searchLabel")}</label>

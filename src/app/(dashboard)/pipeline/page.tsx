@@ -30,9 +30,9 @@ const PIPELINE_STATUSES = [
 ] as const;
 
 function scoreColor(score: number): string {
-  if (score >= 70) return "bg-green-500/20 text-green-400 border-green-500/30";
-  if (score >= 40) return "bg-yellow-500/20 text-yellow-400 border-yellow-500/30";
-  return "bg-red-500/20 text-red-400 border-red-500/30";
+  if (score >= 70) return "bg-success-subtle text-success border-success/30";
+  if (score >= 40) return "bg-warning-subtle text-warning border-warning/30";
+  return "bg-accent-subtle text-accent border-accent/30";
 }
 
 export default function PipelinePage() {
@@ -111,14 +111,14 @@ export default function PipelinePage() {
                 key={key}
                 className={clsx(
                   "min-w-[220px] w-[220px] flex flex-col bg-bg-secondary border rounded-[12px] overflow-hidden",
-                  track === "whatsapp" ? "border-green-500/20" : "border-border"
+                  track === "whatsapp" ? "border-success/20" : "border-border"
                 )}
               >
                 {/* Column header */}
                 <div className="px-3 py-2.5 border-b border-border flex items-center justify-between">
                   <div className="flex items-center gap-1.5">
                     {track === "email" && <Mail className="h-3 w-3 text-accent/60" strokeWidth={1.5} />}
-                    {track === "whatsapp" && <MessageCircle className="h-3 w-3 text-green-500/60" strokeWidth={1.5} />}
+                    {track === "whatsapp" && <MessageCircle className="h-3 w-3 text-success/60" strokeWidth={1.5} />}
                     <span className="text-[10px] font-mono uppercase tracking-[0.06em] text-text-muted">
                       {t(labelKey)}
                     </span>

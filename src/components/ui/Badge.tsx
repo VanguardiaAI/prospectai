@@ -8,26 +8,37 @@ export type BadgeColor = "default" | "accent" | "success" | "warning" | "danger"
 export function Badge({
   children,
   color = "default",
+  dot = false,
 }: {
   children: ReactNode;
   color?: BadgeColor;
+  dot?: boolean;
 }) {
   const colors: Record<string, string> = {
     default: "border-border-light text-text-secondary",
-    accent: "border-accent/50 text-accent",
-    success: "border-success/50 text-success",
-    warning: "border-warning/50 text-warning",
-    danger: "border-accent/50 text-accent",
+    accent: "border-accent/50 text-accent bg-accent-subtle",
+    success: "border-success/50 text-success bg-success-subtle",
+    warning: "border-warning/50 text-warning bg-warning-subtle",
+    danger: "border-accent/50 text-accent bg-accent-subtle",
     info: "border-border-light text-text-secondary",
+  };
+  const dotColors: Record<string, string> = {
+    default: "bg-text-muted",
+    accent: "bg-accent",
+    success: "bg-success",
+    warning: "bg-warning",
+    danger: "bg-accent",
+    info: "bg-text-muted",
   };
   return (
     <span
       className={clsx(
-        "inline-flex items-center px-2.5 py-0.5 rounded-full border",
+        "inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full border",
         "text-[10px] font-mono uppercase tracking-[0.06em] leading-none whitespace-nowrap",
         colors[color]
       )}
     >
+      {dot && <span className={clsx("inline-block w-1.5 h-1.5 rounded-full flex-shrink-0", dotColors[color])} />}
       {children}
     </span>
   );
@@ -62,5 +73,5 @@ export function StatusBadge({ status }: { status: string }) {
   };
 
   const info = map[status] || { label: status.toUpperCase(), color: "default" as const };
-  return <Badge color={info.color}>{info.label}</Badge>;
+  return <Badge color={info.color} dot>{info.label}</Badge>;
 }

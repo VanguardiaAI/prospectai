@@ -15,3 +15,7 @@ export { MetricRing } from "./MetricRing";
 export { ListRow } from "./ListRow";
 export { Spinner } from "./Spinner";
 export { ConfirmDialog } from "./ConfirmDialog";
+export { Segment } from "./Segment";
+export type { SegmentOption } from "./Segment";
+export { DeltaBadge } from "./DeltaBadge";
+export { ValueChip } from "./ValueChip";

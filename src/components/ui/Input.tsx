@@ -7,11 +7,11 @@ export function Input({ className, ...props }: InputHTMLAttributes<HTMLInputElem
   return (
     <input
       className={clsx(
-        "w-full bg-transparent border-b border-border-light",
+        "w-full bg-transparent border-b border-border-light caret-accent",
         "px-0 py-2.5 text-sm text-text-primary font-mono",
         "placeholder:text-text-muted/60",
-        "focus:outline-none focus:border-text-primary",
-        "transition-colors duration-150",
+        "focus:outline-none focus:border-accent",
+        "transition-colors duration-200",
         className
       )}
       {...props}

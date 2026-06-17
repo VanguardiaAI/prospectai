@@ -112,7 +112,7 @@ export default function CalendarPage() {
       ) : (
         <>
           {/* Calendar grid */}
-          <Card flush>
+          <Card flush dots>
             <div className="p-4">
               {/* Day-of-week headers */}
               <div className="grid grid-cols-7 gap-1 mb-1">
@@ -171,7 +171,7 @@ export default function CalendarPage() {
                         </span>
                       )}
                       {day.waSent > 0 && (
-                        <span className="text-[9px] font-mono text-green-500 tabular-nums leading-none flex items-center gap-0.5">
+                        <span className="text-[9px] font-mono text-success tabular-nums leading-none flex items-center gap-0.5">
                           <MessageCircle className="h-2.5 w-2.5" strokeWidth={1.5} /> {day.waSent}
                         </span>
                       )}
@@ -182,7 +182,7 @@ export default function CalendarPage() {
                         </span>
                       )}
                       {day.waApproved > 0 && (
-                        <span className="text-[9px] font-mono text-green-500/70 tabular-nums leading-none flex items-center gap-0.5">
+                        <span className="text-[9px] font-mono text-success/70 tabular-nums leading-none flex items-center gap-0.5">
                           <MessageCircle className="h-2.5 w-2.5" strokeWidth={1.5} /> {day.waApproved} {t("calendar.approved")}
                         </span>
                       )}
@@ -211,7 +211,7 @@ export default function CalendarPage() {
                 </div>
                 <div className="w-px h-8 bg-border" />
                 <div className="text-center">
-                  <p className="text-[18px] font-mono font-light text-green-500 tabular-nums leading-none">
+                  <p className="text-[18px] font-mono font-light text-success tabular-nums leading-none">
                     {totalWaSent}
                   </p>
                   <p className="nd-label text-[9px] mt-1">{t("calendar.waSent")}</p>

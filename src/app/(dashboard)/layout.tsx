@@ -48,11 +48,13 @@ export default function DashboardLayout({
 }) {
   return (
     <ChatbotProvider>
+      {/* Ambient gradient backdrop — what the glass surfaces refract */}
+      <div className="nd-ambient" aria-hidden />
       <OnboardingGate />
       <Sidebar />
       <CommandPalette />
       <Chatbot />
-      <main className="lg:ml-60 min-h-screen">
+      <main className="relative lg:ml-60 min-h-screen">
         <div className="px-4 pt-16 pb-8 lg:px-10 lg:py-8 max-w-[1440px]">
           <TranslatedErrorBoundary>{children}</TranslatedErrorBoundary>
         </div>

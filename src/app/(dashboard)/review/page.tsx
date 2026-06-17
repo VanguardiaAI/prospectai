@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
-import { Card, Button, Select, Badge, StatusBadge, QualityBar, EmptyState, Spinner, Textarea, Input } from "@/components/ui";
+import { Card, Button, Select, Badge, StatusBadge, QualityBar, EmptyState, Spinner, Textarea, Input, Segment } from "@/components/ui";
 import { useToast } from "@/components/Toast";
 import { Mail, Check, X, RefreshCw, ChevronLeft, ChevronRight, CheckCheck, Globe, MapPin, MessageCircle, Send, FileText, Inbox } from "lucide-react";
 import { useT } from "@/i18n/LocaleProvider";
@@ -310,26 +310,15 @@ export default function ReviewPage() {
         </div>
         <div className="flex items-center gap-3">
           {/* Tab toggle */}
-          <div className="flex border border-border rounded-full overflow-hidden">
-            <button
-              className={`px-3 py-1.5 text-[11px] font-mono uppercase tracking-[0.06em] transition-colors cursor-pointer ${tab === "emails" ? "bg-text-display text-bg-primary" : "text-text-muted hover:text-text-secondary"}`}
-              onClick={() => { setTab("emails"); setBulkMode(false); setWaBulkMode(false); }}
-            >
-              <Mail className="h-3 w-3 inline mr-1.5" strokeWidth={1.5} />Emails
-            </button>
-            <button
-              className={`px-3 py-1.5 text-[11px] font-mono uppercase tracking-[0.06em] transition-colors cursor-pointer ${tab === "whatsapp" ? "bg-text-display text-bg-primary" : "text-text-muted hover:text-text-secondary"}`}
-              onClick={() => { setTab("whatsapp"); setBulkMode(false); setWaBulkMode(false); }}
-            >
-              <MessageCircle className="h-3 w-3 inline mr-1.5" strokeWidth={1.5} />WhatsApp
-            </button>
-            <button
-              className={`px-3 py-1.5 text-[11px] font-mono uppercase tracking-[0.06em] transition-colors cursor-pointer ${tab === "replies" ? "bg-text-display text-bg-primary" : "text-text-muted hover:text-text-secondary"}`}
-              onClick={() => { setTab("replies"); setBulkMode(false); setWaBulkMode(false); }}
-            >
-              <Inbox className="h-3 w-3 inline mr-1.5" strokeWidth={1.5} />{t("review.repliesTab")}
-            </button>
-          </div>
+          <Segment
+            value={tab}
+            onChange={(v) => { setTab(v); setBulkMode(false); setWaBulkMode(false); }}
+            options={[
+              { value: "emails", label: <><Mail className="h-3 w-3" strokeWidth={1.5} />Emails</> },
+              { value: "whatsapp", label: <><MessageCircle className="h-3 w-3" strokeWidth={1.5} />WhatsApp</> },
+              { value: "replies", label: <><Inbox className="h-3 w-3" strokeWidth={1.5} />{t("review.repliesTab")}</> },
+            ]}
+          />
 
           {tab === "emails" && (
             <>
@@ -497,8 +486,7 @@ export default function ReviewPage() {
               </div>
 
               <div>
-                <Card>
-                  <h3 className="nd-label mb-5">{t("review.businessInfo")}</h3>
+                <Card dots title={t("review.businessInfo")}>
                   <div className="space-y-4">
                     <div>
                       <h4 className="text-[15px] text-text-display font-medium">{current.leadName}</h4>
@@ -683,8 +671,7 @@ export default function ReviewPage() {
 
               {/* Lead info sidebar */}
               <div>
-                <Card>
-                  <h3 className="nd-label mb-5">{t("review.businessInfo")}</h3>
+                <Card dots title={t("review.businessInfo")}>
                   <div className="space-y-4">
                     <div>
                       <h4 className="text-[15px] text-text-display font-medium">{currentWA.leadName}</h4>

@@ -2,9 +2,10 @@
 
 import { useEffect, useState, useCallback, useRef } from "react";
 import Link from "next/link";
-import { Card, Button, Input, Select, Toggle, Spinner, Badge, ProgressBar } from "@/components/ui";
+import { Card, Button, Input, Select, Toggle, Spinner, Badge, ProgressBar, Segment } from "@/components/ui";
 import { useToast } from "@/components/Toast";
 import { Zap, TestTube, CheckCircle, XCircle, RefreshCw, MessageCircle, Wifi, WifiOff, Globe, Building, Shield, Clock, Link2, Webhook, Settings2, Play, Square, Wand2, KeyRound } from "lucide-react";
+import { AnthropicIcon, GeminiIcon, WhatsAppIcon, GoogleIcon, ResendIcon } from "@/components/icons/Brands";
 import { useT } from "@/i18n/LocaleProvider";
 import { getLang } from "@/i18n/index";
 
@@ -123,7 +124,7 @@ export default function SettingsPage() {
     const error = getError(key);
     return {
       onBlur: () => markTouched(key),
-      className: error ? "border-red-500 focus:ring-red-500" : "",
+      className: error ? "border-accent focus:border-accent" : "",
     };
   };
 
@@ -286,25 +287,17 @@ export default function SettingsPage() {
       </div>
 
       {/* ─── Tabs ─── */}
-      <div className="nd-section flex items-center gap-1 border-b border-border">
-        {([
-          { key: "profile", label: t("settings.tabs.profile") },
-          { key: "connections", label: t("settings.tabs.connections") },
-          { key: "sending", label: t("settings.tabs.sending") },
-          { key: "advanced", label: t("settings.tabs.advanced") },
-        ] as const).map((tab) => (
-          <button
-            key={tab.key}
-            onClick={() => setActiveTab(tab.key)}
-            className={`px-4 py-2 text-[11px] font-mono uppercase tracking-[0.04em] cursor-pointer border-b-2 -mb-px transition-colors ${
-              activeTab === tab.key
-                ? "border-accent text-text-primary"
-                : "border-transparent text-text-muted hover:text-text-secondary"
-            }`}
-          >
-            {tab.label}
-          </button>
-        ))}
+      <div className="nd-section">
+        <Segment
+          value={activeTab}
+          onChange={(v) => setActiveTab(v)}
+          options={[
+            { value: "profile", label: t("settings.tabs.profile") },
+            { value: "connections", label: t("settings.tabs.connections") },
+            { value: "sending", label: t("settings.tabs.sending") },
+            { value: "advanced", label: t("settings.tabs.advanced") },
+          ]}
+        />
       </div>
 
       {activeTab === "profile" && (
@@ -348,7 +341,7 @@ export default function SettingsPage() {
             <div>
               <label className="nd-label block mb-2">{t("settings.agencyUrl")}</label>
               <Input value={settings.agency_url || ""} onChange={(e) => setSettings({ ...settings, agency_url: e.target.value })} placeholder={t("settings.agencyUrlPlaceholder")} {...fieldProps("agency_url")} />
-              {getError("agency_url") && <p className="text-[11px] text-red-500 mt-1">{getError("agency_url")}</p>}
+              {getError("agency_url") && <p className="text-[11px] text-accent mt-1">{getError("agency_url")}</p>}
             </div>
             <div className="md:col-span-2">
               <label className="nd-label block mb-2">{t("common.description")}</label>
@@ -384,25 +377,37 @@ export default function SettingsPage() {
         <>
       {/* ─── API keys ─── */}
       <div className="grid grid-cols-12 gap-4 nd-section">
-        <Card className="col-span-12 md:col-span-7">
-          <h3 className="nd-heading mb-2">
-            <KeyRound className="h-4 w-4 inline mr-2" strokeWidth={1.5} />
-            {t("settings.apiKeys.section")}
-          </h3>
-          <p className="nd-label text-text-muted mb-5">{t("settings.apiKeys.desc")}</p>
-          <div className="space-y-5">
+        <Card className="col-span-12 md:col-span-7" title={t("settings.apiKeys.section")}>
+          {/* AI engines available */}
+          <div className="flex flex-wrap items-center gap-2 mb-5">
+            <span className="nd-label text-text-muted mr-1">{t("settings.aiEngine")}</span>
+            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full border border-border-light bg-[var(--glass-bg)] backdrop-blur-md text-[10px] font-mono uppercase tracking-[0.06em] text-text-primary">
+              <AnthropicIcon size={12} className="text-text-display" /> Claude
+            </span>
+            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full border border-border-light bg-[var(--glass-bg)] backdrop-blur-md text-[10px] font-mono uppercase tracking-[0.06em] text-text-primary">
+              <GeminiIcon size={12} /> Gemini
+            </span>
+          </div>
+          <p className="nd-label text-text-muted mb-4">{t("settings.apiKeys.desc")}</p>
+          <div className="space-y-3">
             {([
-              { key: "gemini_api_key", label: t("settings.apiKeys.gemini") },
-              { key: "resend_api_key", label: t("settings.apiKeys.resend") },
-              { key: "gmaps_scraper_api_key", label: t("settings.gmapsScraper") },
+              { key: "gemini_api_key", label: t("settings.apiKeys.gemini"), hint: t("settings.apiKeys.geminiHint"), Icon: GeminiIcon },
+              { key: "resend_api_key", label: t("settings.apiKeys.resend"), hint: t("settings.apiKeys.resendHint"), Icon: ResendIcon },
+              { key: "gmaps_scraper_api_key", label: t("settings.gmapsScraper"), hint: t("settings.apiKeys.gmapsHint"), Icon: GoogleIcon },
             ] as const).map((f) => (
-              <div key={f.key}>
-                <div className="flex items-center justify-between mb-2">
-                  <label className="nd-label">{f.label}</label>
+              <div key={f.key} className="rounded-xl border border-border bg-[var(--glass-bg)] backdrop-blur-md p-4">
+                <div className="flex items-center gap-3 mb-3">
+                  <span className="w-9 h-9 rounded-lg border border-border-light bg-bg-primary/30 flex items-center justify-center flex-shrink-0">
+                    <f.Icon size={18} className={f.key === "resend_api_key" ? "text-text-display" : undefined} />
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <div className="text-sm text-text-display font-medium leading-tight">{f.label}</div>
+                    <div className="nd-label text-text-muted mt-0.5 normal-case tracking-normal">{f.hint}</div>
+                  </div>
                   {settings[`${f.key}_configured`] === "true" ? (
-                    <Badge color="success"><CheckCircle className="h-3 w-3 mr-1" strokeWidth={1.5} /> {t("settings.apiKeys.configured")}</Badge>
+                    <Badge color="success" dot>{t("settings.apiKeys.configured")}</Badge>
                   ) : (
-                    <Badge>{t("settings.apiKeys.notSet")}</Badge>
+                    <Badge dot>{t("settings.apiKeys.notSet")}</Badge>
                   )}
                 </div>
                 <Input
@@ -444,8 +449,8 @@ export default function SettingsPage() {
       {/* ─── WhatsApp ─── */}
       <div className="grid grid-cols-12 gap-4 nd-section">
         <Card className="col-span-12 md:col-span-7">
-          <h3 className="nd-heading mb-6">
-            <MessageCircle className="h-4 w-4 inline mr-2" strokeWidth={1.5} />
+          <h3 className="nd-heading mb-6 flex items-center gap-2">
+            <WhatsAppIcon size={16} />
             {t("settings.whatsappSection")}
           </h3>
           <div className="space-y-5">
@@ -528,7 +533,7 @@ export default function SettingsPage() {
             <div>
               <label className="nd-label block mb-2">{t("settings.senderEmail")}</label>
               <Input value={settings.from_email || ""} onChange={(e) => setSettings({ ...settings, from_email: e.target.value })} {...fieldProps("from_email")} />
-              {getError("from_email") && <p className="text-[11px] text-red-500 mt-1">{getError("from_email")}</p>}
+              {getError("from_email") && <p className="text-[11px] text-accent mt-1">{getError("from_email")}</p>}
             </div>
             <div>
               <label className="nd-label block mb-2">{t("settings.senderName")}</label>
@@ -547,7 +552,7 @@ export default function SettingsPage() {
             <div>
               <label className="nd-label block mb-2">{t("settings.dailyLimit")}</label>
               <Input type="number" value={settings.global_daily_limit || ""} onChange={(e) => setSettings({ ...settings, global_daily_limit: e.target.value })} {...fieldProps("global_daily_limit")} />
-              {getError("global_daily_limit") && <p className="text-[11px] text-red-500 mt-1">{getError("global_daily_limit")}</p>}
+              {getError("global_daily_limit") && <p className="text-[11px] text-accent mt-1">{getError("global_daily_limit")}</p>}
             </div>
             <div>
               <label className="nd-label block mb-2">{t("settings.defaultTone")}</label>
@@ -596,7 +601,7 @@ export default function SettingsPage() {
                   </div>
                 </div>
                 {(getError("warmup_day") || getError("warmup_start_limit") || getError("warmup_increment") || getError("warmup_max_limit")) && (
-                  <p className="text-[11px] text-red-500">{t("settings.warmupValidation")}</p>
+                  <p className="text-[11px] text-accent">{t("settings.warmupValidation")}</p>
                 )}
                 <ProgressBar
                   value={warmupPct}
@@ -620,7 +625,7 @@ export default function SettingsPage() {
               <span className="text-[11px] text-text-muted mt-5">{t("settings.hours")}</span>
             </div>
             {(getError("send_window_start") || getError("send_window_end")) && (
-              <p className="text-[11px] text-red-500">{t("settings.hoursValidation")}</p>
+              <p className="text-[11px] text-accent">{t("settings.hoursValidation")}</p>
             )}
           </div>
         </Card>
@@ -643,12 +648,12 @@ export default function SettingsPage() {
             <div>
               <label className="nd-label block mb-2">{t("settings.concurrency")}</label>
               <Input type="number" value={settings.scrape_concurrency || ""} onChange={(e) => setSettings({ ...settings, scrape_concurrency: e.target.value })} {...fieldProps("scrape_concurrency")} />
-              {getError("scrape_concurrency") && <p className="text-[11px] text-red-500 mt-1">{getError("scrape_concurrency")}</p>}
+              {getError("scrape_concurrency") && <p className="text-[11px] text-accent mt-1">{getError("scrape_concurrency")}</p>}
             </div>
             <div>
               <label className="nd-label block mb-2">{t("settings.delayMs")}</label>
               <Input type="number" value={settings.scrape_delay_ms || ""} onChange={(e) => setSettings({ ...settings, scrape_delay_ms: e.target.value })} {...fieldProps("scrape_delay_ms")} />
-              {getError("scrape_delay_ms") && <p className="text-[11px] text-red-500 mt-1">{getError("scrape_delay_ms")}</p>}
+              {getError("scrape_delay_ms") && <p className="text-[11px] text-accent mt-1">{getError("scrape_delay_ms")}</p>}
             </div>
             <div className="pt-2">
               <Toggle
@@ -683,7 +688,7 @@ export default function SettingsPage() {
                 placeholder={t("settings.unsubscribeUrlPlaceholder")}
                 {...fieldProps("unsubscribe_url")}
               />
-              {getError("unsubscribe_url") ? <p className="text-[11px] text-red-500 mt-1">{getError("unsubscribe_url")}</p> : <p className="text-[11px] text-text-muted mt-1">{t("settings.autoBlacklist")}</p>}
+              {getError("unsubscribe_url") ? <p className="text-[11px] text-accent mt-1">{getError("unsubscribe_url")}</p> : <p className="text-[11px] text-text-muted mt-1">{t("settings.autoBlacklist")}</p>}
             </div>
             <div>
               <label className="nd-label block mb-2">{t("settings.replyTo")}</label>
@@ -694,7 +699,7 @@ export default function SettingsPage() {
                 type="email"
                 {...fieldProps("reply_to_email")}
               />
-              {getError("reply_to_email") ? <p className="text-[11px] text-red-500 mt-1">{getError("reply_to_email")}</p> : <p className="text-[11px] text-text-muted mt-1">{t("settings.replyToDesc")}</p>}
+              {getError("reply_to_email") ? <p className="text-[11px] text-accent mt-1">{getError("reply_to_email")}</p> : <p className="text-[11px] text-text-muted mt-1">{t("settings.replyToDesc")}</p>}
             </div>
           </div>
         </Card>
@@ -715,7 +720,7 @@ export default function SettingsPage() {
               placeholder={t("settings.baseUrlPlaceholder")}
               {...fieldProps("tracking_base_url")}
             />
-            {getError("tracking_base_url") ? <p className="text-[11px] text-red-500 mt-1">{getError("tracking_base_url")}</p> : <p className="text-[11px] text-text-muted mt-1">{t("settings.trackingDesc")}</p>}
+            {getError("tracking_base_url") ? <p className="text-[11px] text-accent mt-1">{getError("tracking_base_url")}</p> : <p className="text-[11px] text-text-muted mt-1">{t("settings.trackingDesc")}</p>}
           </div>
         </Card>
 
@@ -733,7 +738,7 @@ export default function SettingsPage() {
                 placeholder="https://hooks.zapier.com/..."
                 {...fieldProps("crm_webhook_url")}
               />
-              {getError("crm_webhook_url") && <p className="text-[11px] text-red-500 mt-1">{getError("crm_webhook_url")}</p>}
+              {getError("crm_webhook_url") && <p className="text-[11px] text-accent mt-1">{getError("crm_webhook_url")}</p>}
             </div>
             <div>
               <label className="nd-label block mb-2">{t("settings.triggerWhen")}</label>
@@ -760,7 +765,7 @@ export default function SettingsPage() {
                 placeholder={t("settings.scraperUrlPlaceholder")}
                 {...fieldProps("gmaps_scraper_url")}
               />
-              {getError("gmaps_scraper_url") && <p className="text-[11px] text-red-500 mt-1">{getError("gmaps_scraper_url")}</p>}
+              {getError("gmaps_scraper_url") && <p className="text-[11px] text-accent mt-1">{getError("gmaps_scraper_url")}</p>}
             </div>
             <div>
               <label className="nd-label block mb-2">{t("settings.apiKey")}</label>

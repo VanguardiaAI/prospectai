@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
-import { Card, Button, Badge, Modal, Input, Textarea, Select, EmptyState, Spinner, ConfirmDialog } from "@/components/ui";
+import { Card, Button, Badge, Modal, Input, Textarea, Select, EmptyState, Spinner, ConfirmDialog, Segment } from "@/components/ui";
 import { useToast } from "@/components/Toast";
 import { useT } from "@/i18n/LocaleProvider";
 import { FileText, Plus, Edit, Trash2, Mail, Eye, Sparkles, MessageCircle, Copy } from "lucide-react";
@@ -292,30 +292,31 @@ export default function TemplatesPage() {
       </div>
 
       {/* Channel tabs */}
-      <div className="flex items-center gap-1 mb-6 border-b border-border">
-        <button
-          onClick={() => setActiveTab("email")}
-          className={`flex items-center gap-2 px-4 py-2.5 text-[11px] font-mono uppercase tracking-[0.06em] transition-colors cursor-pointer border-b-2 ${
-            activeTab === "email"
-              ? "border-accent text-accent"
-              : "border-transparent text-text-muted hover:text-text-secondary"
-          }`}
-        >
-          <Mail className="h-3.5 w-3.5" strokeWidth={1.5} />
-          Email ({templates.filter((t) => (t.channel || "email") === "email").length})
-        </button>
-        <button
-          onClick={() => setActiveTab("whatsapp")}
-          className={`flex items-center gap-2 px-4 py-2.5 text-[11px] font-mono uppercase tracking-[0.06em] transition-colors cursor-pointer border-b-2 ${
-            activeTab === "whatsapp"
-              ? "border-accent text-accent"
-              : "border-transparent text-text-muted hover:text-text-secondary"
-          }`}
-        >
-          <MessageCircle className="h-3.5 w-3.5" strokeWidth={1.5} />
-          WhatsApp ({templates.filter((t) => t.channel === "whatsapp").length})
-        </button>
-      </div>
+      <Segment
+        className="mb-6"
+        value={activeTab}
+        onChange={setActiveTab}
+        options={[
+          {
+            value: "email",
+            label: (
+              <>
+                <Mail className="h-3.5 w-3.5" strokeWidth={1.5} />
+                Email ({templates.filter((t) => (t.channel || "email") === "email").length})
+              </>
+            ),
+          },
+          {
+            value: "whatsapp",
+            label: (
+              <>
+                <MessageCircle className="h-3.5 w-3.5" strokeWidth={1.5} />
+                WhatsApp ({templates.filter((t) => t.channel === "whatsapp").length})
+              </>
+            ),
+          },
+        ]}
+      />
 
       {/* Templates grid */}
       {filteredTemplates.length === 0 ? (

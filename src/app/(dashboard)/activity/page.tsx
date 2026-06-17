@@ -75,7 +75,7 @@ export default function ActivityPage() {
         <EmptyState icon={<Activity className="h-10 w-10" strokeWidth={1.5} />} title={t("activity.noActivity")} description={t("activity.noActivityDesc")} />
       ) : (
         <>
-          <Card>
+          <Card dots>
             <div>
               {activity.map((entry, i) => (
                 <div

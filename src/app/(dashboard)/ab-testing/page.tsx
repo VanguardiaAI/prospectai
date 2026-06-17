@@ -263,9 +263,9 @@ export default function ABTestingPage() {
                   <div className="flex items-center gap-2">
                     <span className={clsx(
                       "text-[9px] font-mono uppercase px-1.5 py-0.5 rounded border",
-                      test.channel === "whatsapp" ? "text-green-500 border-green-500/30 bg-green-500/10" :
-                      test.channel === "both" ? "text-interactive border-interactive/30 bg-interactive/10" :
-                      "text-accent border-accent/30 bg-accent/10"
+                      test.channel === "whatsapp" ? "text-success border-success/30 bg-success-subtle" :
+                      test.channel === "both" ? "text-text-secondary border-border bg-surface-raised" :
+                      "text-accent border-accent/30 bg-accent-subtle"
                     )}>
                       {test.channel === "email" ? "EMAIL" : test.channel === "whatsapp" ? "WHATSAPP" : "EMAIL + WA"}
                     </span>
@@ -283,11 +283,11 @@ export default function ABTestingPage() {
 
                 {/* Variant configs */}
                 <div className="grid grid-cols-2 gap-4 mb-5">
-                  <div className={`border rounded-lg p-3 ${winning === "A" && test.status === "active" ? "border-green-500/40 bg-green-500/5" : "border-border"}`}>
+                  <div className={`border rounded-lg p-3 ${winning === "A" && test.status === "active" ? "border-success/30 bg-success-subtle" : "border-border"}`}>
                     <div className="flex items-center gap-2 mb-2">
                       <span className="nd-label">{t("abTesting.variantA")}</span>
                       {test.status === "completed" && winning === "A" && (
-                        <Crown className="h-3.5 w-3.5 text-amber-400" strokeWidth={1.5} />
+                        <Crown className="h-3.5 w-3.5 text-warning" strokeWidth={1.5} />
                       )}
                     </div>
                     <span className="text-[11px] text-text-primary font-mono uppercase">{test.variantAConfig.tone}</span>
@@ -295,11 +295,11 @@ export default function ABTestingPage() {
                       <p className="text-[10px] text-text-muted mt-1 leading-relaxed">{test.variantAConfig.instructions}</p>
                     )}
                   </div>
-                  <div className={`border rounded-lg p-3 ${winning === "B" && test.status === "active" ? "border-green-500/40 bg-green-500/5" : "border-border"}`}>
+                  <div className={`border rounded-lg p-3 ${winning === "B" && test.status === "active" ? "border-success/30 bg-success-subtle" : "border-border"}`}>
                     <div className="flex items-center gap-2 mb-2">
                       <span className="nd-label">{t("abTesting.variantB")}</span>
                       {test.status === "completed" && winning === "B" && (
-                        <Crown className="h-3.5 w-3.5 text-amber-400" strokeWidth={1.5} />
+                        <Crown className="h-3.5 w-3.5 text-warning" strokeWidth={1.5} />
                       )}
                     </div>
                     <span className="text-[11px] text-text-primary font-mono uppercase">{test.variantBConfig.tone}</span>
@@ -332,10 +332,10 @@ export default function ABTestingPage() {
                         return (
                           <div className="grid grid-cols-3 border-t border-border">
                             <div className="px-3 py-2 nd-label">{t("abTesting.openRate")}</div>
-                            <div className={`px-3 py-2 text-center text-sm font-mono ${openRateA > openRateB ? "text-green-400" : "text-text-display"}`}>
+                            <div className={`px-3 py-2 text-center text-sm font-mono ${openRateA > openRateB ? "text-success" : "text-text-display"}`}>
                               {rate(test.resultsA.opens, test.resultsA.total)}%
                             </div>
-                            <div className={`px-3 py-2 text-center text-sm font-mono ${openRateB > openRateA ? "text-green-400" : "text-text-display"}`}>
+                            <div className={`px-3 py-2 text-center text-sm font-mono ${openRateB > openRateA ? "text-success" : "text-text-display"}`}>
                               {rate(test.resultsB.opens, test.resultsB.total)}%
                             </div>
                           </div>
@@ -348,10 +348,10 @@ export default function ABTestingPage() {
                         return (
                           <div className="grid grid-cols-3 border-t border-border">
                             <div className="px-3 py-2 nd-label">{t("abTesting.clickRate")}</div>
-                            <div className={`px-3 py-2 text-center text-sm font-mono ${clickRateA > clickRateB ? "text-green-400" : "text-text-display"}`}>
+                            <div className={`px-3 py-2 text-center text-sm font-mono ${clickRateA > clickRateB ? "text-success" : "text-text-display"}`}>
                               {rate(test.resultsA.clicks, test.resultsA.total)}%
                             </div>
-                            <div className={`px-3 py-2 text-center text-sm font-mono ${clickRateB > clickRateA ? "text-green-400" : "text-text-display"}`}>
+                            <div className={`px-3 py-2 text-center text-sm font-mono ${clickRateB > clickRateA ? "text-success" : "text-text-display"}`}>
                               {rate(test.resultsB.clicks, test.resultsB.total)}%
                             </div>
                           </div>
@@ -364,10 +364,10 @@ export default function ABTestingPage() {
                         return (
                           <div className="grid grid-cols-3 border-t border-border">
                             <div className="px-3 py-2 nd-label">{t("abTesting.replyRate")}</div>
-                            <div className={`px-3 py-2 text-center text-sm font-mono font-medium ${replyRateA > replyRateB ? "text-green-400" : "text-text-display"}`}>
+                            <div className={`px-3 py-2 text-center text-sm font-mono font-medium ${replyRateA > replyRateB ? "text-success" : "text-text-display"}`}>
                               {rate(test.resultsA.replies, test.resultsA.total)}%
                             </div>
-                            <div className={`px-3 py-2 text-center text-sm font-mono font-medium ${replyRateB > replyRateA ? "text-green-400" : "text-text-display"}`}>
+                            <div className={`px-3 py-2 text-center text-sm font-mono font-medium ${replyRateB > replyRateA ? "text-success" : "text-text-display"}`}>
                               {rate(test.resultsB.replies, test.resultsB.total)}%
                             </div>
                           </div>

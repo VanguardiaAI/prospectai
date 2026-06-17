@@ -18,4 +18,8 @@ export {
   ListRow,
   Spinner,
   ConfirmDialog,
+  Segment,
+  DeltaBadge,
+  ValueChip,
 } from "./ui/index";
+export type { SegmentOption } from "./ui/index";

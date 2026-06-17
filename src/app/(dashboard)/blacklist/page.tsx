@@ -69,7 +69,7 @@ export default function BlacklistPage() {
       {entries.length === 0 ? (
         <EmptyState icon={<ShieldBan className="h-10 w-10" strokeWidth={1.5} />} title={t("blacklist.empty")} description={t("blacklist.emptyDesc")} />
       ) : (
-        <Card>
+        <Card dots>
           <div>
             {entries.map((entry, i) => (
               <div

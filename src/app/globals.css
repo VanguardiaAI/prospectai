@@ -1,23 +1,55 @@
 @import "tailwindcss";
 
 :root {
-  /* Nothing Design — Color Tokens (Light Mode) */
+  /* Nothing × soft-pastel — Color Tokens (Light Mode) */
   --black: #FFFFFF;
-  --surface: #F5F5F5;
-  --surface-raised: #EBEBEB;
-  --border: #E0E0E0;
-  --border-visible: #CCCCCC;
-  --text-disabled: #AAAAAA;
-  --text-secondary: #777777;
-  --text-primary: #333333;
-  --text-display: #111111;
-  --accent: #E8632B;
-  --accent-subtle: rgba(232, 99, 43, 0.08);
-  --success: #3D8B4F;
-  --success-subtle: rgba(61, 139, 79, 0.10);
+  --surface: #F7F7F8;
+  --surface-raised: #F0F0F2;
+  --border: #ECECEE;
+  --border-visible: #DADADD;
+  --text-disabled: #A0A0A6;
+  --text-secondary: #6E6E76;
+  --text-primary: #2B2B30;
+  --text-display: #121214;
+
+  /* Orange-led, grayscale-supported palette (original direction) */
+  --accent: #E8632B;            /* orange — hero */
+  --accent-2: #F2935E;          /* lighter orange (gradient play) */
+  --accent-subtle: rgba(232, 99, 43, 0.09);
+  --accent-rgb: 232, 99, 43;
+
+  --success: #3D8B4F;           /* green — status only */
+  --success-subtle: rgba(61, 139, 79, 0.12);
   --warning: #C49A3A;
-  --warning-subtle: rgba(196, 154, 58, 0.10);
-  --interactive: #4A87E0;
+  --warning-subtle: rgba(196, 154, 58, 0.12);
+  --interactive: #8A8A90;
+
+  /* Data-viz aliases collapsed onto the orange + grayscale scheme */
+  --butter: #F2935E;  --butter-rgb: 242, 147, 94;   /* light orange */
+  --mint: #3D8B4F;    --mint-rgb: 61, 139, 79;       /* green (status) */
+  --sky: #8A8A90;     --sky-rgb: 138, 138, 144;      /* gray */
+  --coral: #E8632B;   --coral-rgb: 232, 99, 43;      /* orange */
+  --violet: #A6A6AC;  --violet-rgb: 166, 166, 172;   /* gray */
+  --cyan: #8A8A90;    --cyan-rgb: 138, 138, 144;     /* gray */
+  --amber: #C49A3A;
+
+  /* Flat surfaces (kept for overlays only) */
+  --glass-bg: rgba(255, 255, 255, 0.7);
+  --glass-bg-strong: rgba(255, 255, 255, 0.9);
+  --glass-border: rgba(17, 17, 17, 0.07);
+  --glass-hi: rgba(255, 255, 255, 0.9);
+
+  /* Ambient — neutralized; the canvas stays clean */
+  --bloom-1: transparent;
+  --bloom-2: transparent;
+  --bloom-3: transparent;
+
+  /* Elevation — soft, low */
+  --shadow-sm: 0 1px 2px rgba(17, 17, 17, 0.03);
+  --shadow-md: 0 4px 18px -10px rgba(17, 17, 17, 0.10);
+  --shadow-lg: 0 16px 44px -16px rgba(17, 17, 17, 0.14);
+  --edge-highlight: none;
+  --radius-card: 20px;
 
   /* Nothing Design — Spacing (8px base) */
   --space-2xs: 2px;
@@ -46,10 +78,12 @@
   --font-body: "Space Grotesk", "DM Sans", system-ui, sans-serif;
   --font-data: "Space Mono", "JetBrains Mono", "SF Mono", monospace;
 
-  /* Motion — opacity preferred over movement, no spring/bounce */
+  /* Motion */
   --ease-out: cubic-bezier(0.25, 0.1, 0.25, 1);
+  --ease-in-out: cubic-bezier(0.4, 0, 0.2, 1);
   --duration-micro: 150ms;
   --duration-transition: 250ms;
+  --duration-slow: 450ms;
 }
 
 @theme inline {
@@ -81,6 +115,15 @@
   --color-info: var(--text-secondary);
   --color-interactive: var(--interactive);
 
+  /* Extended palette exposed to Tailwind utilities (text-cyan, bg-violet, …) */
+  --color-cyan: var(--cyan);
+  --color-violet: var(--violet);
+  --color-amber: var(--amber);
+  --color-butter: var(--butter);
+  --color-mint: var(--mint);
+  --color-sky: var(--sky);
+  --color-coral: var(--coral);
+
   /* Fonts */
   --font-sans: var(--font-body);
   --font-mono: var(--font-data);
@@ -90,22 +133,51 @@
 /* ─── Dark Mode ─── */
 
 [data-theme="dark"] {
-  --black: #0A0A0A;
-  --surface: #141414;
-  --surface-raised: #1E1E1E;
-  --border: #2A2A2A;
-  --border-visible: #3A3A3A;
-  --text-disabled: #555555;
-  --text-secondary: #888888;
-  --text-primary: #CCCCCC;
-  --text-display: #EEEEEE;
-  --accent: #E8632B;
-  --accent-subtle: rgba(232, 99, 43, 0.12);
-  --success: #4CAF65;
-  --success-subtle: rgba(76, 175, 101, 0.12);
+  /* Pure-black canvas, flat near-black panels (reference look) */
+  --black: #060607;
+  --surface: #0F0F11;
+  --surface-raised: #17171A;
+  --border: #1E1E22;
+  --border-visible: #2C2C32;
+  --text-disabled: #585860;
+  --text-secondary: #8C8C94;
+  --text-primary: #CFCFD5;
+  --text-display: #F5F5F7;
+
+  /* Orange-led, grayscale-supported palette (original direction) */
+  --accent: #ED6A35;            /* orange — hero (pops on black) */
+  --accent-2: #F59E6B;          /* lighter orange (gradient play) */
+  --accent-subtle: rgba(237, 106, 53, 0.16);
+  --accent-rgb: 237, 106, 53;
+
+  --success: #4CAF65;           /* green — status only */
+  --success-subtle: rgba(76, 175, 101, 0.16);
   --warning: #D4AA4A;
-  --warning-subtle: rgba(212, 170, 74, 0.12);
-  --interactive: #5A97F0;
+  --warning-subtle: rgba(212, 170, 74, 0.16);
+  --interactive: #8C8C94;
+
+  /* Data-viz aliases collapsed onto the orange + grayscale scheme */
+  --butter: #F59E6B;  --butter-rgb: 245, 158, 107;   /* light orange */
+  --mint: #4CAF65;    --mint-rgb: 76, 175, 101;       /* green (status) */
+  --sky: #8C8C94;     --sky-rgb: 140, 140, 148;       /* gray */
+  --coral: #ED6A35;   --coral-rgb: 237, 106, 53;      /* orange */
+  --violet: #6A6A72;  --violet-rgb: 106, 106, 114;    /* gray */
+  --cyan: #8C8C94;    --cyan-rgb: 140, 140, 148;      /* gray */
+  --amber: #D4AA4A;
+
+  --glass-bg: rgba(20, 20, 23, 0.6);
+  --glass-bg-strong: rgba(18, 18, 21, 0.85);
+  --glass-border: rgba(255, 255, 255, 0.07);
+  --glass-hi: rgba(255, 255, 255, 0.04);
+
+  --bloom-1: transparent;
+  --bloom-2: transparent;
+  --bloom-3: transparent;
+
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
+  --shadow-md: 0 8px 24px -12px rgba(0, 0, 0, 0.7);
+  --shadow-lg: 0 20px 50px -16px rgba(0, 0, 0, 0.8);
+  --edge-highlight: none;
 }
 
 /* ─── Base ─── */
@@ -116,12 +188,75 @@
 }
 
 body {
-  background: var(--black);
+  background-color: var(--black);
   color: var(--text-primary);
   font-family: var(--font-body);
+  font-size: var(--body);
+  line-height: 1.6;
+  letter-spacing: -0.003em;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+  font-feature-settings: "kern" 1, "liga" 1, "calt" 1;
 }
+
+.font-mono,
+.nd-data,
+.tabular-nums {
+  font-feature-settings: "kern" 1, "tnum" 1, "zero" 1;
+}
+
+/* ─── Ambient backdrop — gradient blooms behind the glass ─── */
+.nd-ambient {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(55% 45% at 12% -5%, var(--bloom-1), transparent 60%),
+    radial-gradient(50% 45% at 105% 15%, var(--bloom-2), transparent 55%),
+    radial-gradient(45% 40% at 85% 110%, var(--bloom-3), transparent 60%);
+}
+
+/* ─── Glassmorphism ─── */
+.nd-glass {
+  background: var(--glass-bg);
+  -webkit-backdrop-filter: blur(16px) saturate(1.5);
+          backdrop-filter: blur(16px) saturate(1.5);
+  border: 1px solid var(--glass-border);
+  box-shadow: var(--shadow-md), var(--edge-highlight);
+}
+
+.nd-glass-strong {
+  background: var(--glass-bg-strong);
+  -webkit-backdrop-filter: blur(22px) saturate(1.6);
+          backdrop-filter: blur(22px) saturate(1.6);
+  border: 1px solid var(--glass-border);
+  box-shadow: var(--shadow-lg), var(--edge-highlight);
+}
+
+/* Gradient hairline border overlay — futuristic edge light */
+.nd-edge {
+  position: relative;
+}
+.nd-edge::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  padding: 1px;
+  background: linear-gradient(135deg, rgba(var(--accent-rgb), 0.5), transparent 38%, rgba(var(--cyan-rgb), 0.35) 100%);
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+          mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+          mask-composite: exclude;
+  opacity: 0.6;
+  pointer-events: none;
+}
+
+/* Glows */
+.nd-glow-accent { box-shadow: 0 0 0 1px rgba(var(--accent-rgb), 0.15), 0 8px 28px -10px rgba(var(--accent-rgb), 0.45); }
+.nd-glow-cyan   { box-shadow: 0 0 0 1px rgba(var(--cyan-rgb), 0.15), 0 8px 28px -10px rgba(var(--cyan-rgb), 0.4); }
 
 /* ─── Nothing Design — Typography Classes ─── */
 
@@ -269,13 +404,24 @@ body {
 /* ─── Nothing Design — Page Header ─── */
 
 .nd-page-header {
+  position: relative;
   display: flex;
   align-items: flex-end;
   justify-content: space-between;
   gap: var(--space-xl);
-  margin-bottom: var(--space-md);
+  margin-bottom: var(--space-lg);
   padding-bottom: var(--space-md);
   border-bottom: 1px solid var(--border);
+  animation: nd-fade-up var(--duration-slow) var(--ease-out) both;
+}
+
+/* Accent segment overlapping the baseline rule */
+.nd-page-header::after {
+  content: "";
+  position: absolute;
+  left: 0; bottom: -1px;
+  width: 56px; height: 2px;
+  background: linear-gradient(to right, var(--accent), rgba(var(--accent-rgb), 0.2));
 }
 
 .nd-page-header > *:last-child {
@@ -320,23 +466,223 @@ body {
 /* ─── Nothing Design — Selection ─── */
 
 ::selection {
-  background: rgba(232, 99, 43, 0.15);
+  background: rgba(var(--accent-rgb), 0.18);
   color: var(--text-display);
 }
 
-/* ─── Toast Animation ─── */
+/* ─── Card System (flat, soft, near-borderless) ─── */
 
-@keyframes slide-in {
-  from {
-    opacity: 0;
-    transform: translateX(100%);
-  }
-  to {
-    opacity: 1;
-    transform: translateX(0);
-  }
+.nd-card {
+  position: relative;
+  border-radius: var(--radius-card);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow-sm);
+  transition:
+    border-color var(--duration-transition) var(--ease-out),
+    box-shadow var(--duration-transition) var(--ease-out),
+    transform var(--duration-transition) var(--ease-out);
 }
 
-.animate-slide-in {
-  animation: slide-in 0.25s ease-out;
+.nd-card-interactive { cursor: pointer; }
+.nd-card-interactive:hover {
+  border-color: var(--border-visible);
+  box-shadow: var(--shadow-md);
+  transform: translateY(-2px);
+}
+.nd-card-interactive:active { transform: translateY(0); }
+
+/* Left accent rail for featured cards */
+.nd-card-feature::before {
+  content: "";
+  position: absolute;
+  left: 0; top: 18px; bottom: 18px;
+  width: 2px; border-radius: 2px;
+  background: var(--accent);
+  opacity: 0.8;
+}
+
+/* Corner ticks (opt-in, used sparingly) */
+.nd-ticks::before, .nd-ticks::after {
+  content: ""; position: absolute; top: 10px; width: 7px; height: 7px;
+  pointer-events: none; opacity: 0.4;
+}
+.nd-ticks::before { left: 10px; border-top: 1px solid var(--border-visible); border-left: 1px solid var(--border-visible); }
+.nd-ticks::after  { right: 10px; border-top: 1px solid var(--border-visible); border-right: 1px solid var(--border-visible); }
+
+/* ─── Card Header: clean label row ─── */
+
+.nd-card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-md);
+  margin-bottom: var(--space-lg);
+}
+
+.nd-card-head-title {
+  display: inline-flex; align-items: center; gap: var(--space-sm);
+  font-family: var(--font-data);
+  font-size: var(--label);
+  line-height: 1.2; letter-spacing: 0.09em; text-transform: uppercase;
+  color: var(--text-secondary);
+}
+.nd-card-head-title::before {
+  content: ""; width: 5px; height: 5px; border-radius: 50%; flex-shrink: 0;
+  background: var(--accent);
+}
+
+/* ─── White pill toggle (active = solid white, like the reference) ─── */
+.nd-segment {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 3px;
+  border-radius: 9999px;
+  background: var(--surface-raised);
+  border: 1px solid var(--border);
+}
+.nd-segment-item {
+  padding: 5px 14px;
+  border-radius: 9999px;
+  font-family: var(--font-data);
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all var(--duration-micro) var(--ease-out);
+  white-space: nowrap;
+}
+.nd-segment-item:hover { color: var(--text-primary); }
+.nd-segment-item[data-active="true"] {
+  background: var(--text-display);
+  color: var(--black);
+}
+
+/* ─── Soft delta badge (mint/coral pill with arrow) ─── */
+.nd-delta {
+  display: inline-flex; align-items: center; gap: 3px;
+  padding: 2px 8px; border-radius: 9999px;
+  font-family: var(--font-data); font-size: 11px; line-height: 1.2;
+  font-feature-settings: "tnum" 1;
+}
+.nd-delta-up   { background: var(--success-subtle); color: var(--success); }
+.nd-delta-down { background: var(--accent-subtle);  color: var(--coral); }
+
+/* ─── Diagonal hatch (for empty bars / quiet fills) ─── */
+.nd-hatch {
+  background-image: repeating-linear-gradient(
+    45deg,
+    var(--border-visible) 0, var(--border-visible) 1px,
+    transparent 1px, transparent 7px
+  );
+}
+
+/* ─── Fine detail: in-card dot texture (the "puntos en contenedores") ─── */
+.nd-dots {
+  background-image: radial-gradient(circle, var(--border-visible) 1px, transparent 1.4px);
+  background-size: 15px 15px;
+}
+.nd-dots-fade {
+  -webkit-mask-image: radial-gradient(120% 100% at 50% 0%, #000 35%, transparent 85%);
+          mask-image: radial-gradient(120% 100% at 50% 0%, #000 35%, transparent 85%);
+}
+
+/* ─── Floating value chip (rounded pill that hovers over data) ─── */
+.nd-chip {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 4px 10px; border-radius: 9999px;
+  background: var(--surface-raised);
+  border: 1px solid var(--border-visible);
+  box-shadow: var(--shadow-md);
+  font-family: var(--font-data); font-size: 12px; line-height: 1;
+  color: var(--text-display);
+  white-space: nowrap;
+}
+.nd-chip-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+
+/* ─── List row as a soft pill (country-list style) ─── */
+.nd-row {
+  display: flex; align-items: center; gap: 10px;
+  padding: 9px 11px; border-radius: 12px;
+  background: var(--surface-raised);
+  border: 1px solid transparent;
+  transition: border-color var(--duration-micro) var(--ease-out), background var(--duration-micro) var(--ease-out);
+}
+.nd-row:hover { border-color: var(--border-visible); }
+
+/* ─── Vertical bar (rounded), active vs hatched-idle ─── */
+.nd-bar {
+  width: 100%;
+  border-radius: 8px 8px 4px 4px;
+  background: var(--surface-raised);
+  position: relative;
+  overflow: hidden;
+}
+.nd-bar-idle::after {
+  content: ""; position: absolute; inset: 0;
+  background-image: repeating-linear-gradient(
+    45deg,
+    var(--border-visible) 0, var(--border-visible) 1px,
+    transparent 1px, transparent 7px
+  );
+  opacity: 0.7;
+}
+
+/* ─── Motion ─── */
+
+@keyframes slide-in {
+  from { opacity: 0; transform: translateX(100%); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+.animate-slide-in { animation: slide-in 0.25s var(--ease-out); }
+
+@keyframes nd-fade-up {
+  from { opacity: 0; transform: translateY(10px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes nd-fade { from { opacity: 0; } to { opacity: 1; } }
+@keyframes nd-scale-in { from { opacity: 0; transform: scale(0.97); } to { opacity: 1; transform: scale(1); } }
+
+.nd-enter       { animation: nd-fade-up var(--duration-slow) var(--ease-out) both; }
+.nd-enter-fade  { animation: nd-fade var(--duration-transition) var(--ease-out) both; }
+.nd-enter-scale { animation: nd-scale-in var(--duration-transition) var(--ease-out) both; }
+
+.nd-stagger-1 { animation-delay: 40ms; }
+.nd-stagger-2 { animation-delay: 90ms; }
+.nd-stagger-3 { animation-delay: 140ms; }
+.nd-stagger-4 { animation-delay: 190ms; }
+.nd-stagger-5 { animation-delay: 240ms; }
+.nd-stagger-6 { animation-delay: 290ms; }
+
+@keyframes nd-pulse {
+  0%, 100% { opacity: 1; box-shadow: 0 0 0 0 rgba(var(--accent-rgb), 0.4); }
+  50%      { opacity: 0.65; box-shadow: 0 0 0 4px rgba(var(--accent-rgb), 0); }
+}
+.nd-pulse { animation: nd-pulse 2.4s var(--ease-in-out) infinite; }
+
+@keyframes nd-shimmer { from { background-position: -200% 0; } to { background-position: 200% 0; } }
+.nd-shimmer {
+  background-image: linear-gradient(90deg, transparent 0%, var(--surface-raised) 50%, transparent 100%);
+  background-size: 200% 100%;
+  animation: nd-shimmer 1.4s linear infinite;
+}
+
+/* Animated link underline */
+.nd-link { position: relative; color: var(--text-primary); transition: color var(--duration-micro) var(--ease-out); }
+.nd-link::after {
+  content: ""; position: absolute; left: 0; bottom: -2px; width: 100%; height: 1px;
+  background: var(--accent); transform: scaleX(0); transform-origin: left;
+  transition: transform var(--duration-transition) var(--ease-out);
+}
+.nd-link:hover { color: var(--text-display); }
+.nd-link:hover::after { transform: scaleX(1); }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
 }

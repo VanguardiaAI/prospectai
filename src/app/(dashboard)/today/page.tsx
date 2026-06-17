@@ -349,7 +349,7 @@ export default function TodayPage() {
 
       {/* ─── Quick Actions ──────────────────────────────────────────── */}
       <div className="nd-section">
-        <Card>
+        <Card dots>
           <div className="flex flex-wrap items-center gap-3">
             <span className="nd-label text-text-muted mr-2">{t("today.quickActions")}</span>
             <Button

@@ -143,12 +143,12 @@ export default function Dashboard() {
 
       {/* Bounce rate alerts */}
       {data.bounceRate7d >= 5 && (
-        <div className="mb-4 px-4 py-3 rounded-lg border border-red-500/40 bg-red-500/10 text-red-400 text-sm font-mono">
+        <div className="mb-4 px-4 py-3 rounded-lg border border-accent/40 bg-accent-subtle text-accent text-sm font-mono">
           {t("overview.sendsPaused")} {data.bounceRate7d}%
         </div>
       )}
       {data.bounceRate7d >= 2 && data.bounceRate7d < 5 && (
-        <div className="mb-4 px-4 py-3 rounded-lg border border-yellow-500/40 bg-yellow-500/10 text-yellow-400 text-sm font-mono">
+        <div className="mb-4 px-4 py-3 rounded-lg border border-warning/40 bg-warning-subtle text-warning text-sm font-mono">
           {t("overview.bounceWarning")} {data.bounceRate7d}%
         </div>
       )}
@@ -226,7 +226,7 @@ export default function Dashboard() {
                 <span className="text-[14px] font-mono text-text-muted">/ {data.waDailyLimit}</span>
               </div>
             </div>
-            <div className={data.waSentToday >= data.waDailyLimit ? "text-warning" : "text-green-500 opacity-50"}>
+            <div className={data.waSentToday >= data.waDailyLimit ? "text-warning" : "text-success opacity-50"}>
               <MessageCircle className="h-5 w-5" strokeWidth={1.5} />
             </div>
           </div>
@@ -243,7 +243,7 @@ export default function Dashboard() {
                   </div>
                   <div className="w-full h-[5px] bg-border rounded-full overflow-hidden">
                     <div
-                      className={`h-full rounded-full transition-all duration-500 ${waPct >= 100 ? "bg-warning" : "bg-green-500"}`}
+                      className={`h-full rounded-full transition-all duration-500 ${waPct >= 100 ? "bg-warning" : "bg-success"}`}
                       style={{ width: `${Math.min(waPct, 100)}%` }}
                     />
                   </div>
@@ -376,59 +376,59 @@ export default function Dashboard() {
                 <AreaChart data={chartData}>
                   <defs>
                     <linearGradient id="emailGradient" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="0%" stopColor="#E8632B" stopOpacity={0.15} />
-                      <stop offset="100%" stopColor="#E8632B" stopOpacity={0.01} />
+                      <stop offset="0%" stopColor="var(--accent)" stopOpacity={0.15} />
+                      <stop offset="100%" stopColor="var(--accent)" stopOpacity={0.01} />
                     </linearGradient>
                     <linearGradient id="waGradient" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="0%" stopColor="#22c55e" stopOpacity={0.15} />
-                      <stop offset="100%" stopColor="#22c55e" stopOpacity={0.01} />
+                      <stop offset="0%" stopColor="var(--success)" stopOpacity={0.15} />
+                      <stop offset="100%" stopColor="var(--success)" stopOpacity={0.01} />
                     </linearGradient>
                   </defs>
                   <XAxis
                     dataKey="date"
-                    tick={{ fill: "#999999", fontSize: 10, fontFamily: "Space Mono" }}
+                    tick={{ fill: "var(--text-secondary)", fontSize: 10, fontFamily: "var(--font-data)" }}
                     tickFormatter={(v) => v.slice(5)}
-                    axisLine={{ stroke: "#E0E0E0" }}
+                    axisLine={{ stroke: "var(--border)" }}
                     tickLine={false}
                   />
                   <YAxis
-                    tick={{ fill: "#999999", fontSize: 10, fontFamily: "Space Mono" }}
+                    tick={{ fill: "var(--text-secondary)", fontSize: 10, fontFamily: "var(--font-data)" }}
                     axisLine={false}
                     tickLine={false}
                     width={30}
                   />
                   <Tooltip
                     contentStyle={{
-                      background: "#FFFFFF",
-                      border: "1px solid #E0E0E0",
+                      background: "var(--surface)",
+                      border: "1px solid var(--border)",
                       borderRadius: 8,
                       fontSize: 11,
-                      fontFamily: "Space Mono",
-                      color: "#333333",
+                      fontFamily: "var(--font-data)",
+                      color: "var(--text-primary)",
                       padding: "8px 12px",
                       boxShadow: "none",
                     }}
-                    cursor={{ stroke: "#E8632B", strokeWidth: 1, strokeDasharray: "4 4" }}
+                    cursor={{ stroke: "var(--accent)", strokeWidth: 1, strokeDasharray: "4 4" }}
                   />
                   <Area
                     type="monotone"
                     dataKey="count"
-                    stroke="#E8632B"
+                    stroke="var(--accent)"
                     strokeWidth={2}
                     fill="url(#emailGradient)"
                     name={t("overview.chartEmails")}
-                    dot={{ fill: "#E8632B", r: 3, strokeWidth: 0 }}
-                    activeDot={{ fill: "#E8632B", r: 5, strokeWidth: 2, stroke: "#FFFFFF" }}
+                    dot={{ fill: "var(--accent)", r: 3, strokeWidth: 0 }}
+                    activeDot={{ fill: "var(--accent)", r: 5, strokeWidth: 2, stroke: "var(--surface)" }}
                   />
                   <Area
                     type="monotone"
                     dataKey="waCount"
-                    stroke="#22c55e"
+                    stroke="var(--success)"
                     strokeWidth={2}
                     fill="url(#waGradient)"
                     name={t("overview.chartWhatsApp")}
-                    dot={{ fill: "#22c55e", r: 3, strokeWidth: 0 }}
-                    activeDot={{ fill: "#22c55e", r: 5, strokeWidth: 2, stroke: "#FFFFFF" }}
+                    dot={{ fill: "var(--success)", r: 3, strokeWidth: 0 }}
+                    activeDot={{ fill: "var(--success)", r: 5, strokeWidth: 2, stroke: "var(--surface)" }}
                   />
                 </AreaChart>
               </ResponsiveContainer>
@@ -441,7 +441,7 @@ export default function Dashboard() {
         </Card>
 
         {/* Quality distribution — narrower bar chart */}
-        <Card className="col-span-12 lg:col-span-5">
+        <Card className="col-span-12 lg:col-span-5" dots>
           <div className="flex items-center gap-2 mb-6">
             <Zap className="h-4 w-4 text-accent" strokeWidth={1.5} />
             <h3 className="nd-label">{t("leads.webQuality")}</h3>
@@ -451,32 +451,32 @@ export default function Dashboard() {
               <BarChart data={data.qualityDist} layout="vertical" barCategoryGap="25%">
                 <XAxis
                   type="number"
-                  tick={{ fill: "#999999", fontSize: 10, fontFamily: "Space Mono" }}
+                  tick={{ fill: "var(--text-secondary)", fontSize: 10, fontFamily: "var(--font-data)" }}
                   axisLine={false}
                   tickLine={false}
                 />
                 <YAxis
                   type="category"
                   dataKey="range"
-                  tick={{ fill: "#777777", fontSize: 10, fontFamily: "Space Mono" }}
+                  tick={{ fill: "var(--text-secondary)", fontSize: 10, fontFamily: "var(--font-data)" }}
                   axisLine={false}
                   tickLine={false}
                   width={50}
                 />
                 <Tooltip
                   contentStyle={{
-                    background: "#FFFFFF",
-                    border: "1px solid #E0E0E0",
+                    background: "var(--surface)",
+                    border: "1px solid var(--border)",
                     borderRadius: 8,
                     fontSize: 11,
-                    fontFamily: "Space Mono",
-                    color: "#333333",
+                    fontFamily: "var(--font-data)",
+                    color: "var(--text-primary)",
                     padding: "8px 12px",
                     boxShadow: "none",
                   }}
-                  cursor={{ fill: "rgba(0,0,0,0.03)" }}
+                  cursor={{ fill: "var(--border)" }}
                 />
-                <Bar dataKey="count" fill="#111111" radius={[0, 3, 3, 0]} name={t("overview.chartLeads")} barSize={12} />
+                <Bar dataKey="count" fill="var(--text-primary)" radius={[0, 3, 3, 0]} name={t("overview.chartLeads")} barSize={12} />
               </BarChart>
             </ResponsiveContainer>
           ) : (

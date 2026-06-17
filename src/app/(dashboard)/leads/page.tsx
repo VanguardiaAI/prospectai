@@ -439,7 +439,7 @@ function LeadsPageInner() {
 
       {/* Filters */}
       <div className="nd-section">
-        <Card>
+        <Card dots>
           <div className="flex flex-wrap items-end gap-4">
             <div className="flex-1 min-w-[200px]">
               <label className="nd-label block mb-2">{t("leads.search")}</label>

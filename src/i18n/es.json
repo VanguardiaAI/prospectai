@@ -20,7 +20,8 @@
     "lightMode": "MODO CLARO",
     "logout": "CERRAR SESION",
     "github": "GITHUB",
-    "language": "IDIOMA"
+    "language": "IDIOMA",
+    "menu": "Menú"
   },
   "home": {
     "title": "Inicio",
@@ -34,7 +35,25 @@
     "settingsTitle": "Configuración",
     "settingsDesc": "Perfil de la agencia, claves API y conexión de WhatsApp.",
     "assistTitle": "¿Buscar leads o generar mensajes?",
-    "assistDesc": "Pídemelo por chat a Claude: buscar negocios, importar, analizar y redactar se hacen por prompt."
+    "assistDesc": "Pídemelo por chat a Claude: buscar negocios, importar, analizar y redactar se hacen por prompt.",
+    "live": "En vivo",
+    "activity": "Actividad",
+    "last7": "Últimos 7 días",
+    "engagement": "Interacción",
+    "openRate": "Apertura",
+    "clickRate": "Clics",
+    "replyRate": "Respuesta",
+    "totalSent": "Enviados",
+    "activeCampaigns": "Campañas",
+    "quality": "Calidad web",
+    "leads": "Leads",
+    "topCities": "Ciudades top",
+    "pipeline": "Embudo",
+    "analyzed": "analizados",
+    "noData": "Sin datos aún",
+    "weeklySends": "Envíos · semana",
+    "today": "hoy",
+    "thisWeek": "esta semana"
   },
   "login": {
     "title": "[AUTENTICACION REQUERIDA]",
@@ -504,8 +523,29 @@
     "less": "Menos",
     "more": "Mas",
     "approved": "apr",
-    "months": ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"],
-    "days": ["LUN", "MAR", "MIE", "JUE", "VIE", "SAB", "DOM"]
+    "months": [
+      "Enero",
+      "Febrero",
+      "Marzo",
+      "Abril",
+      "Mayo",
+      "Junio",
+      "Julio",
+      "Agosto",
+      "Septiembre",
+      "Octubre",
+      "Noviembre",
+      "Diciembre"
+    ],
+    "days": [
+      "LUN",
+      "MAR",
+      "MIE",
+      "JUE",
+      "VIE",
+      "SAB",
+      "DOM"
+    ]
   },
   "blacklist": {
     "title": "Blacklist",
@@ -622,7 +662,10 @@
       "resend": "Resend API Key",
       "configured": "Configurada",
       "notSet": "Sin configurar",
-      "keepHint": "Déjalo vacío para conservar la clave actual"
+      "keepHint": "Déjalo vacío para conservar la clave actual",
+      "geminiHint": "Generación de copy y análisis",
+      "resendHint": "Envío de emails",
+      "gmapsHint": "Scraper de leads (Google Maps)"
     },
     "assistant": {
       "title": "Perfil de agencia",
@@ -722,7 +765,8 @@
     "emailSection": "Email",
     "whatsappSection": "WhatsApp",
     "warmupLabel": "Dia {{day}}: {{limit}} emails/dia",
-    "hours": "hrs"
+    "hours": "hrs",
+    "aiEngine": "Motor IA"
   },
   "activityLog": {
     "campaignCreated": "Campana \"{{name}}\" creada",

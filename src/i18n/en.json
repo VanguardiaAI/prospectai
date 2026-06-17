@@ -20,7 +20,8 @@
     "lightMode": "LIGHT MODE",
     "logout": "LOG OUT",
     "github": "GITHUB",
-    "language": "LANGUAGE"
+    "language": "LANGUAGE",
+    "menu": "Menu"
   },
   "home": {
     "title": "Home",
@@ -34,7 +35,25 @@
     "settingsTitle": "Settings",
     "settingsDesc": "Agency profile, API keys and WhatsApp connection.",
     "assistTitle": "Need leads or messages?",
-    "assistDesc": "Just ask Claude in chat: searching, importing, analyzing and writing are all done by prompt."
+    "assistDesc": "Just ask Claude in chat: searching, importing, analyzing and writing are all done by prompt.",
+    "live": "Live",
+    "activity": "Activity",
+    "last7": "Last 7 days",
+    "engagement": "Engagement",
+    "openRate": "Open",
+    "clickRate": "Clicks",
+    "replyRate": "Reply",
+    "totalSent": "Sent",
+    "activeCampaigns": "Campaigns",
+    "quality": "Web quality",
+    "leads": "Leads",
+    "topCities": "Top cities",
+    "pipeline": "Pipeline",
+    "analyzed": "analyzed",
+    "noData": "No data yet",
+    "weeklySends": "Weekly sends",
+    "today": "today",
+    "thisWeek": "this week"
   },
   "login": {
     "title": "[AUTHENTICATION REQUIRED]",
@@ -504,8 +523,29 @@
     "less": "Less",
     "more": "More",
     "approved": "apr",
-    "months": ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"],
-    "days": ["MON", "TUE", "WED", "THU", "FRI", "SAT", "SUN"]
+    "months": [
+      "January",
+      "February",
+      "March",
+      "April",
+      "May",
+      "June",
+      "July",
+      "August",
+      "September",
+      "October",
+      "November",
+      "December"
+    ],
+    "days": [
+      "MON",
+      "TUE",
+      "WED",
+      "THU",
+      "FRI",
+      "SAT",
+      "SUN"
+    ]
   },
   "blacklist": {
     "title": "Blacklist",
@@ -622,7 +662,10 @@
       "resend": "Resend API key",
       "configured": "Configured",
       "notSet": "Not set",
-      "keepHint": "Leave blank to keep the current key"
+      "keepHint": "Leave blank to keep the current key",
+      "geminiHint": "Copy generation & analysis",
+      "resendHint": "Email delivery",
+      "gmapsHint": "Lead scraper (Google Maps)"
     },
     "assistant": {
       "title": "Agency profile",
@@ -722,7 +765,8 @@
     "emailSection": "Email",
     "whatsappSection": "WhatsApp",
     "warmupLabel": "Day {{day}}: {{limit}} emails/day",
-    "hours": "hrs"
+    "hours": "hrs",
+    "aiEngine": "AI engine"
   },
   "activityLog": {
     "campaignCreated": "Campaign \"{{name}}\" created",

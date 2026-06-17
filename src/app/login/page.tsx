@@ -61,26 +61,32 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center px-4">
-      {/* Dot grid background */}
-      <div className="fixed inset-0 dot-grid-subtle opacity-30 pointer-events-none" />
+    <div className="bg-bg-primary min-h-screen flex items-center justify-center px-4">
+      {/* Ambient backdrop + top accent line */}
+      <div className="nd-ambient" aria-hidden />
+      <div className="fixed inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-accent/40 to-transparent pointer-events-none" />
 
-      <div className="relative w-full max-w-[380px]">
+      <div className="relative w-full max-w-[380px] nd-enter">
         {/* Logo / Title */}
-        <div className="mb-12 text-center">
+        <div className="mb-10 text-center">
+          <div className="inline-flex items-center justify-center w-9 h-9 rounded-full border border-border-light mb-5">
+            <span className="w-2 h-2 rounded-full bg-accent nd-pulse" />
+          </div>
           <h1
             className="nd-display text-[42px] mb-3"
             style={{ fontFamily: "var(--font-display)" }}
           >
             PROSPECT<span className="text-accent">AI</span>
           </h1>
-          <p className="nd-label text-text-secondary">
+          <p className="nd-label text-text-secondary inline-flex items-center gap-2">
+            <span className="w-4 h-px bg-border-visible" />
             {t("login.title")}
+            <span className="w-4 h-px bg-border-visible" />
           </p>
         </div>
 
         {/* Login Card */}
-        <div className="bg-bg-secondary border border-border rounded-[12px] px-8 py-8">
+        <div className="nd-card rounded-[var(--radius-card)] px-8 py-8 nd-enter-scale shadow-[var(--shadow-lg)]">
           <form onSubmit={handleSubmit} className="space-y-6">
             {/* Username */}
             <div>
