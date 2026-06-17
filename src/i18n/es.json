@@ -619,10 +619,40 @@
       "section": "Claves API",
       "desc": "Se guardan en la base de datos y tienen prioridad sobre el archivo .env. Déjalas vacías para conservar la actual.",
       "gemini": "Gemini API Key",
+      "anthropic": "Anthropic API Key",
       "resend": "Resend API Key",
       "configured": "Configurada",
       "notSet": "Sin configurar",
       "keepHint": "Déjalo vacío para conservar la clave actual"
+    },
+    "aiEngine": {
+      "section": "Motor de IA",
+      "desc": "Elige qué proveedor genera los mensajes, analiza las webs y responde en el chat.",
+      "provider": "Proveedor",
+      "claudeCli": "Claude CLI (claude -p)",
+      "gemini": "Gemini API",
+      "anthropic": "Anthropic API",
+      "claudeCliHelp": "Usa el CLI claude ya iniciado (plan Max), sin coste por API. Requiere ejecutar \"claude auth login\". El chatbot necesita una clave de Gemini o Anthropic.",
+      "geminiHelp": "Usa la Gemini API Key configurada abajo.",
+      "anthropicHelp": "Usa la Anthropic API Key configurada abajo. Modelo por defecto: claude-sonnet-4-6."
+    },
+    "emailProvider": {
+      "section": "Envío de email",
+      "desc": "Cómo se envían los correos. SMTP (tu buzón de Workspace) no necesita Resend, VPS ni URL pública, y suele entrar mejor en frío.",
+      "provider": "Proveedor de envío",
+      "resend": "Resend (API)",
+      "smtp": "SMTP (buzón real, p. ej. Workspace)",
+      "smtpHint": "Gmail/Workspace: smtp.gmail.com puerto 587, usuario = tu dirección, contraseña = contraseña de aplicación de Google. El remitente (from) debe ser ese mismo buzón o un alias permitido. Tras guardar, pon el selector en SMTP."
+    },
+    "imap": {
+      "section": "Respuestas de email (IMAP)",
+      "desc": "Lee un buzón real (el mismo de tu Reply-To) para capturar las respuestas en la bandeja. Funciona en local, sin URL pública.",
+      "enable": "Capturar respuestas por IMAP",
+      "host": "Servidor IMAP",
+      "port": "Puerto",
+      "user": "Usuario",
+      "password": "Contraseña",
+      "hint": "Usa una contraseña de aplicación (no la normal). Gmail/Workspace: imap.gmail.com:993. Zoho: imap.zoho.com:993. El usuario suele ser tu dirección de Reply-To."
     },
     "assistant": {
       "title": "Perfil de agencia",

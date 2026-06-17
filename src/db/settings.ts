@@ -36,11 +36,28 @@ const defaultSettings: Record<string, string> = {
   autopilot_global: "false",
   gmaps_scraper_url: "http://localhost:8081",
   gmaps_scraper_api_key: "",
+  // AI engine: which provider powers copy, analysis and the chatbot.
+  // One of: claude_cli (local `claude -p`, default) | gemini | anthropic
+  ai_provider: "claude_cli",
   // Provider API keys — a non-empty DB value overrides the .env var
   gemini_api_key: "",
+  anthropic_api_key: "",
   resend_api_key: "",
   // Reply-To
   reply_to_email: "",
+  // Email sending provider: resend (default) | smtp (real mailbox, e.g. Workspace)
+  email_provider: "resend",
+  smtp_host: "",
+  smtp_port: "587",
+  smtp_user: "",
+  smtp_password: "",
+  // IMAP — capture email replies by reading a real mailbox (the reply_to inbox)
+  imap_enabled: "false",
+  imap_host: "",
+  imap_port: "993",
+  imap_user: "",
+  imap_password: "",
+  imap_last_uid: "",
   // Tracking
   tracking_base_url: "",
   // CRM

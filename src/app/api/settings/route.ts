@@ -8,8 +8,11 @@ import { getApiKey } from "@/db";
 // `<key>_configured` boolean so the UI can show "configured" without the value.
 const SECRET_KEYS: Array<[string, string]> = [
   ["gemini_api_key", "GEMINI_API_KEY"],
+  ["anthropic_api_key", "ANTHROPIC_API_KEY"],
   ["resend_api_key", "RESEND_API_KEY"],
   ["gmaps_scraper_api_key", ""],
+  ["imap_password", "IMAP_PASSWORD"],
+  ["smtp_password", "SMTP_PASSWORD"],
 ];
 
 export async function GET() {
@@ -20,6 +23,8 @@ export async function GET() {
       data[`${key}_configured`] = configured ? "true" : "false";
       data[key] = "";
     }
+    // Internal cursor — not a user-editable setting; never expose to the client.
+    delete data.imap_last_uid;
     return NextResponse.json(data);
   } catch (err) {
     return handleServiceError(err);

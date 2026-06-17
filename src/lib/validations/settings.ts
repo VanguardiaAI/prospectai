@@ -12,9 +12,11 @@ const ALLOWED_SETTINGS_KEYS = [
   "scrape_concurrency", "scrape_delay_ms",
   "autopilot_global",
   "gmaps_scraper_url", "gmaps_scraper_api_key",
-  "gemini_api_key", "resend_api_key",
+  "gemini_api_key", "anthropic_api_key", "resend_api_key",
   "wa_daily_limit",
-  "chatbot_provider",
+  "ai_provider", "chatbot_provider",
+  "email_provider", "smtp_host", "smtp_port", "smtp_user", "smtp_password",
+  "imap_enabled", "imap_host", "imap_port", "imap_user", "imap_password", "imap_last_uid",
   "tracking_base_url",
   "crm_webhook_url", "crm_webhook_on",
 ] as const;
