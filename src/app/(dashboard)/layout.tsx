@@ -55,7 +55,8 @@ export default function DashboardLayout({
       <CommandPalette />
       <Chatbot />
       <main className="relative lg:ml-60 min-h-screen">
-        <div className="px-4 pt-16 pb-8 lg:px-10 lg:py-8 max-w-[1440px]">
+        {/* pb-28 leaves room for the always-present chat bar docked at the bottom */}
+        <div className="px-4 pt-16 pb-28 lg:px-10 lg:pt-8 lg:pb-28 max-w-[1440px]">
           <TranslatedErrorBoundary>{children}</TranslatedErrorBoundary>
         </div>
       </main>

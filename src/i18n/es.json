@@ -676,7 +676,7 @@
       "claudeCli": "Claude CLI (claude -p)",
       "gemini": "Gemini API",
       "anthropic": "Anthropic API",
-      "claudeCliHelp": "Usa el CLI claude ya iniciado (plan Max), sin coste por API. Requiere ejecutar \"claude auth login\". El chatbot necesita una clave de Gemini o Anthropic.",
+      "claudeCliHelp": "Usa el CLI claude ya iniciado (plan Max), sin coste por API. Requiere ejecutar \"claude auth login\". El chat/agente también corre sobre tu sesión del CLI; no necesita clave de API.",
       "geminiHelp": "Usa la Gemini API Key configurada abajo.",
       "anthropicHelp": "Usa la Anthropic API Key configurada abajo. Modelo por defecto: claude-sonnet-4-6."
     },

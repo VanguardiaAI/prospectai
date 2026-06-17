@@ -10,20 +10,23 @@ import * as searchService from "@/services/search.service";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
-// Helper to create tool with zodSchema wrapper for Zod v4 compat
-function zTool<T extends z.ZodObject<any>>(opts: {
+// Single source of truth per tool: description + raw Zod object schema + execute.
+// Two shapes are derived from these defs (see exports at the bottom of the file):
+//   - `chatbotTools`    → AI SDK tools (zodSchema wrapper for Zod v4 compat), executed
+//                         in-process by streamText for the anthropic/gemini providers.
+//   - `chatbotCliTools` → raw-Zod tools for the claude_cli bridge. createAiSdkMcpServer
+//                         requires a Zod object schema and rejects zodSchema()/jsonSchema().
+interface ToolDef<T extends z.ZodObject<any>> {
   description: string;
   parameters: T;
   execute: (args: z.infer<T>) => Promise<unknown>;
-}) {
-  return tool({
-    description: opts.description,
-    inputSchema: zodSchema(opts.parameters) as any,
-    execute: opts.execute as any,
-  });
 }
 
-export const chatbotTools = {
+function zTool<T extends z.ZodObject<any>>(opts: ToolDef<T>): ToolDef<T> {
+  return opts;
+}
+
+const toolDefs = {
   // ─── Campaigns ─────────────────────────────────────────────────────
   list_campaigns: zTool({
     description:
@@ -371,3 +374,36 @@ export const chatbotTools = {
     },
   }),
 };
+
+// ─── Derived tool maps ───────────────────────────────────────────────
+
+// AI SDK tools for the anthropic / gemini providers (executed in-process by streamText).
+export const chatbotTools = Object.fromEntries(
+  Object.entries(toolDefs).map(([name, d]) => [
+    name,
+    tool({
+      description: d.description,
+      inputSchema: zodSchema(d.parameters as any) as any,
+      execute: d.execute as any,
+    }),
+  ])
+) as Record<string, ReturnType<typeof tool>>;
+
+// Raw-Zod tools for the claude_cli bridge — createAiSdkMcpServer requires a Zod
+// object schema (it rejects zodSchema()/jsonSchema()-wrapped inputs).
+export const chatbotCliTools = Object.fromEntries(
+  Object.entries(toolDefs).map(([name, d]) => [
+    name,
+    { description: d.description, inputSchema: d.parameters, execute: d.execute },
+  ])
+) as Record<
+  string,
+  { description: string; inputSchema: z.ZodObject<any>; execute: (args: any) => Promise<unknown> }
+>;
+
+// MCP server name and the fully-qualified tool names the CLI exposes:
+// mcp__<serverName>__<toolName>.
+export const CLI_MCP_SERVER_NAME = "prospectai";
+export const cliToolNames = Object.keys(toolDefs).map(
+  (n) => `mcp__${CLI_MCP_SERVER_NAME}__${n}`
+);

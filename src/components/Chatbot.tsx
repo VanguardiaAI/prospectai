@@ -1,11 +1,9 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useChat } from "@ai-sdk/react";
 import type { UIMessage } from "ai";
 import {
-  MessageSquare,
-  X,
   Send,
   Bot,
   User,
@@ -13,6 +11,9 @@ import {
   Wrench,
   Check,
   Sparkles,
+  ChevronDown,
+  Trash2,
+  AlertCircle,
 } from "lucide-react";
 import { clsx } from "clsx";
 import { useT } from "@/i18n/LocaleProvider";
@@ -81,7 +82,7 @@ function renderInline(text: string): React.ReactNode[] {
       parts.push(
         <code
           key={`c-${key++}`}
-          className="px-1 py-0.5 bg-muted/10 rounded text-[11px] font-mono"
+          className="px-1 py-0.5 bg-bg-tertiary rounded text-[11px] font-mono"
         >
           {match[4]}
         </code>
@@ -97,6 +98,12 @@ function renderInline(text: string): React.ReactNode[] {
   return parts;
 }
 
+// CLI tools surface as `mcp__<server>__<tool>` — strip the prefix so the label
+// reads the same across all providers.
+function prettyToolName(name: string): string {
+  return name.replace(/^mcp__[a-z0-9-]+__/i, "").replace(/_/g, " ");
+}
+
 // ─── Tool Call Indicator ────────────────────────────────────────────
 
 function ToolIndicator({
@@ -106,8 +113,7 @@ function ToolIndicator({
   toolName: string;
   state: string;
 }) {
-  const isRunning = state === "call" || state === "partial-call";
-  const displayName = toolName.replace(/_/g, " ");
+  const isRunning = state === "call" || state === "partial-call" || state === "input-streaming" || state === "input-available";
 
   return (
     <div
@@ -115,8 +121,8 @@ function ToolIndicator({
         "flex items-center gap-1.5 px-2 py-1 rounded-md text-[10px] font-mono",
         "border",
         isRunning
-          ? "border-accent/30 bg-accent/5 text-accent"
-          : "border-success/30 bg-success/5 text-success"
+          ? "border-accent/30 bg-accent-subtle text-accent"
+          : "border-success/30 bg-success-subtle text-success"
       )}
     >
       {isRunning ? (
@@ -125,7 +131,7 @@ function ToolIndicator({
         <Check className="w-3 h-3" />
       )}
       <Wrench className="w-3 h-3" />
-      <span className="truncate">{displayName}</span>
+      <span className="truncate">{prettyToolName(toolName)}</span>
     </div>
   );
 }
@@ -189,7 +195,7 @@ function MessageParts({ message }: { message: UIMessage }) {
           )}
         >
           {message.role === "assistant" && (
-            <div className="w-6 h-6 rounded-lg bg-accent/10 flex items-center justify-center shrink-0 mt-0.5">
+            <div className="w-6 h-6 rounded-lg bg-accent-subtle flex items-center justify-center shrink-0 mt-0.5">
               <Bot className="w-3.5 h-3.5 text-accent" />
             </div>
           )}
@@ -198,7 +204,7 @@ function MessageParts({ message }: { message: UIMessage }) {
               "max-w-[85%] rounded-2xl px-3.5 py-2.5 text-[13px] leading-relaxed",
               message.role === "user"
                 ? "bg-accent text-white rounded-br-md"
-                : "bg-muted/8 text-fg border border-muted/10 rounded-bl-md"
+                : "bg-bg-tertiary text-text-primary border border-border rounded-bl-md"
             )}
           >
             {message.role === "assistant"
@@ -206,8 +212,8 @@ function MessageParts({ message }: { message: UIMessage }) {
               : textParts.join("\n")}
           </div>
           {message.role === "user" && (
-            <div className="w-6 h-6 rounded-lg bg-muted/15 flex items-center justify-center shrink-0 mt-0.5">
-              <User className="w-3.5 h-3.5 text-muted" />
+            <div className="w-6 h-6 rounded-lg bg-bg-tertiary flex items-center justify-center shrink-0 mt-0.5">
+              <User className="w-3.5 h-3.5 text-text-secondary" />
             </div>
           )}
         </div>
@@ -216,13 +222,14 @@ function MessageParts({ message }: { message: UIMessage }) {
   );
 }
 
-// ─── Main Chatbot Component ─────────────────────────────────────────
+// ─── Main Chatbot — always-present bottom bar ───────────────────────
 
 export function Chatbot() {
   const { t, lang } = useT();
   const { isOpen, openChat, closeChat, registerSender } = useChatbot();
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
+  const [provider, setProvider] = useState<string | null>(null);
 
   const { messages, sendMessage, status, setMessages, error } = useChat({
     onError: (err) => {
@@ -232,43 +239,60 @@ export function Chatbot() {
 
   const isLoading = status === "streaming" || status === "submitted";
 
-  // Register the sender for external use (shortcuts widget)
+  // Active AI provider, for the status label.
+  useEffect(() => {
+    let cancelled = false;
+    fetch("/api/settings")
+      .then((r) => r.json())
+      .then((d) => {
+        if (!cancelled) setProvider(d?.ai_provider || "claude_cli");
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const providerLabel =
+    provider === "anthropic"
+      ? "Anthropic"
+      : provider === "gemini"
+      ? "Gemini"
+      : "Claude CLI";
+
+  // Register the sender for external use (command palette, shortcuts).
   useEffect(() => {
     registerSender((text: string) => {
       sendMessage({ text });
     });
   }, [registerSender, sendMessage]);
 
-  // Auto-scroll to bottom
+  // Auto-scroll to bottom while expanded.
   useEffect(() => {
-    if (scrollRef.current) {
+    if (isOpen && scrollRef.current) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }
-  }, [messages, status]);
+  }, [messages, status, isOpen]);
 
-  // Focus input when opened
-  useEffect(() => {
-    if (isOpen && inputRef.current) {
-      inputRef.current.focus();
-    }
-  }, [isOpen]);
+  const submitText = (text: string) => {
+    const trimmed = text.trim();
+    if (!trimmed || isLoading) return;
+    sendMessage({ text: trimmed });
+    openChat();
+  };
 
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const form = e.currentTarget;
     const input = form.elements.namedItem("chatInput") as HTMLTextAreaElement;
-    const text = input.value.trim();
-    if (!text || isLoading) return;
-    sendMessage({ text });
+    submitText(input.value);
     input.value = "";
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
-      const text = e.currentTarget.value.trim();
-      if (!text || isLoading) return;
-      sendMessage({ text });
+      submitText(e.currentTarget.value);
       e.currentTarget.value = "";
     }
   };
@@ -276,165 +300,203 @@ export function Chatbot() {
   const suggestedPrompts =
     lang === "es" ? SUGGESTED_PROMPTS_ES : SUGGESTED_PROMPTS_EN;
 
-  return (
-    <>
-      {/* Floating toggle button */}
-      <button
-        onClick={() => (isOpen ? closeChat() : openChat())}
-        className={clsx(
-          "fixed bottom-6 right-6 z-50",
-          "w-14 h-14 rounded-full",
-          "bg-accent text-white shadow-lg",
-          "flex items-center justify-center",
-          "hover:scale-105 active:scale-95 transition-all duration-200",
-          "cursor-pointer",
-          isOpen && "rotate-90 scale-90 opacity-0 pointer-events-none"
-        )}
-        aria-label="Open chatbot"
-      >
-        <MessageSquare className="w-6 h-6" />
-      </button>
+  const errorMessage = error
+    ? // The route streams a useful message via onError; surface it verbatim.
+      (() => {
+        try {
+          const parsed = JSON.parse(error.message);
+          return parsed?.error || error.message;
+        } catch {
+          return error.message;
+        }
+      })()
+    : null;
 
-      {/* Chat panel */}
-      <div
-        className={clsx(
-          "fixed bottom-6 right-6 z-50",
-          "w-[400px] h-[520px] max-h-[85vh]",
-          "bg-bg/95 backdrop-blur-xl border border-muted/20 rounded-2xl",
-          "shadow-2xl shadow-black/10",
-          "flex flex-col overflow-hidden",
-          "transition-all duration-300 ease-out origin-bottom-right",
-          isOpen
-            ? "scale-100 opacity-100 translate-y-0"
-            : "scale-95 opacity-0 translate-y-4 pointer-events-none"
-        )}
-      >
-        {/* Header */}
-        <div className="flex items-center justify-between px-4 py-3 border-b border-muted/15 bg-bg/60 backdrop-blur-sm">
-          <div className="flex items-center gap-2.5">
-            <div className="w-7 h-7 rounded-lg bg-accent/10 flex items-center justify-center">
-              <Sparkles className="w-4 h-4 text-accent" />
-            </div>
-            <div>
-              <span className="font-semibold text-sm text-fg leading-none">
+  return (
+    <div className="fixed bottom-0 left-0 right-0 lg:left-60 z-40 pointer-events-none">
+      <div className="mx-auto max-w-[1100px] px-4 lg:px-8 pb-4 pointer-events-auto">
+        {/* ─── Expanded conversation panel ─── */}
+        <div
+          className={clsx(
+            "mb-2 flex flex-col overflow-hidden rounded-2xl border border-border bg-bg-secondary shadow-2xl shadow-black/30",
+            "transition-all duration-300 ease-out origin-bottom",
+            isOpen
+              ? "opacity-100 translate-y-0 scale-100"
+              : "pointer-events-none h-0 opacity-0 translate-y-3 scale-[0.98] mb-0 border-transparent"
+          )}
+          style={{ maxHeight: isOpen ? "min(60vh, 560px)" : 0 }}
+        >
+          {/* Header */}
+          <div className="flex items-center justify-between px-4 py-2.5 border-b border-border">
+            <div className="flex items-center gap-2">
+              <div className="w-6 h-6 rounded-lg bg-accent-subtle flex items-center justify-center">
+                <Sparkles className="w-3.5 h-3.5 text-accent" />
+              </div>
+              <span className="text-sm font-semibold text-text-display leading-none">
                 ProspectAI
               </span>
-              <span className="block text-[10px] text-muted font-mono mt-0.5">
+              <span className="nd-label text-text-secondary">
                 {isLoading
-                  ? t("chatbot.thinking") || "Thinking..."
-                  : t("chatbot.status") || "AI Assistant"}
+                  ? t("chatbot.thinking") || "Pensando…"
+                  : providerLabel}
               </span>
             </div>
-          </div>
-          <button
-            onClick={closeChat}
-            className="p-1.5 rounded-lg hover:bg-muted/10 transition-colors cursor-pointer"
-          >
-            <X className="w-4 h-4 text-muted" />
-          </button>
-        </div>
-
-        {/* Messages */}
-        <div ref={scrollRef} className="flex-1 overflow-y-auto px-4 py-3 space-y-4">
-          {messages.length === 0 && (
-            <div className="text-center mt-10">
-              <div className="w-12 h-12 rounded-2xl bg-accent/10 flex items-center justify-center mx-auto mb-4">
-                <Bot className="w-6 h-6 text-accent opacity-60" />
-              </div>
-              <p className="text-sm text-fg font-medium mb-1">
-                {t("chatbot.welcome") ||
-                  "Ask me anything about your campaigns"}
-              </p>
-              <p className="text-[11px] text-muted mb-6">
-                {t("chatbot.examples") ||
-                  "I can manage campaigns, search leads, review emails, and more"}
-              </p>
-
-              {/* Suggested prompts */}
-              <div className="flex flex-wrap gap-2 justify-center">
-                {suggestedPrompts.map((prompt) => (
-                  <button
-                    key={prompt}
-                    onClick={() => sendMessage({ text: prompt })}
-                    className={clsx(
-                      "px-3 py-1.5 rounded-full text-[11px] font-mono",
-                      "border border-muted/20 text-muted",
-                      "hover:border-accent/40 hover:text-accent",
-                      "transition-colors cursor-pointer"
-                    )}
-                  >
-                    {prompt}
-                  </button>
-                ))}
-              </div>
+            <div className="flex items-center gap-1">
+              {messages.length > 0 && (
+                <button
+                  onClick={() => setMessages([])}
+                  className="p-1.5 rounded-lg hover:bg-bg-tertiary transition-colors cursor-pointer text-text-secondary"
+                  title={t("chatbot.clear") || "Limpiar conversación"}
+                  aria-label="Clear conversation"
+                >
+                  <Trash2 className="w-4 h-4" />
+                </button>
+              )}
+              <button
+                onClick={closeChat}
+                className="p-1.5 rounded-lg hover:bg-bg-tertiary transition-colors cursor-pointer text-text-secondary"
+                aria-label="Collapse chat"
+              >
+                <ChevronDown className="w-4 h-4" />
+              </button>
             </div>
-          )}
+          </div>
 
-          {messages.map((msg) => (
-            <MessageParts key={msg.id} message={msg} />
-          ))}
-
-          {/* Loading indicator */}
-          {isLoading && messages.length > 0 && (() => {
-            const lastMsg = messages[messages.length - 1];
-            const hasText = lastMsg?.parts.some(p => p.type === "text" && (p as { text: string }).text.length > 0);
-            if (lastMsg?.role === "assistant" && !hasText) {
-              return (
-                <div className="flex gap-2 items-start">
-                  <div className="w-6 h-6 rounded-lg bg-accent/10 flex items-center justify-center shrink-0">
-                    <Bot className="w-3.5 h-3.5 text-accent" />
-                  </div>
-                  <div className="bg-muted/8 border border-muted/10 rounded-2xl rounded-bl-md px-4 py-3">
-                    <div className="flex gap-1">
-                      <div className="w-1.5 h-1.5 rounded-full bg-muted/40 animate-bounce [animation-delay:0ms]" />
-                      <div className="w-1.5 h-1.5 rounded-full bg-muted/40 animate-bounce [animation-delay:150ms]" />
-                      <div className="w-1.5 h-1.5 rounded-full bg-muted/40 animate-bounce [animation-delay:300ms]" />
-                    </div>
-                  </div>
+          {/* Messages */}
+          <div ref={scrollRef} className="flex-1 overflow-y-auto px-4 py-3 space-y-4">
+            {messages.length === 0 && (
+              <div className="text-center mt-8 mb-2">
+                <div className="w-12 h-12 rounded-2xl bg-accent-subtle flex items-center justify-center mx-auto mb-4">
+                  <Bot className="w-6 h-6 text-accent opacity-70" />
                 </div>
-              );
-            }
-            return null;
-          })()}
+                <p className="text-sm text-text-display font-medium mb-1">
+                  {t("chatbot.welcome") ||
+                    "Pregúntame lo que sea sobre tus campañas"}
+                </p>
+                <p className="text-[11px] text-text-secondary mb-6">
+                  {t("chatbot.examples") ||
+                    "Puedo crear campañas, buscar leads, revisar emails y más"}
+                </p>
+
+                <div className="flex flex-wrap gap-2 justify-center">
+                  {suggestedPrompts.map((prompt) => (
+                    <button
+                      key={prompt}
+                      onClick={() => submitText(prompt)}
+                      className={clsx(
+                        "px-3 py-1.5 rounded-full text-[11px] font-mono",
+                        "border border-border text-text-secondary",
+                        "hover:border-accent/40 hover:text-accent",
+                        "transition-colors cursor-pointer"
+                      )}
+                    >
+                      {prompt}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {messages.map((msg) => (
+              <MessageParts key={msg.id} message={msg} />
+            ))}
+
+            {/* Loading indicator */}
+            {isLoading &&
+              messages.length > 0 &&
+              (() => {
+                const lastMsg = messages[messages.length - 1];
+                const hasText = lastMsg?.parts.some(
+                  (p) =>
+                    p.type === "text" &&
+                    (p as { text: string }).text.length > 0
+                );
+                if (lastMsg?.role === "assistant" && !hasText) {
+                  return (
+                    <div className="flex gap-2 items-start">
+                      <div className="w-6 h-6 rounded-lg bg-accent-subtle flex items-center justify-center shrink-0">
+                        <Bot className="w-3.5 h-3.5 text-accent" />
+                      </div>
+                      <div className="bg-bg-tertiary border border-border rounded-2xl rounded-bl-md px-4 py-3">
+                        <div className="flex gap-1">
+                          <div className="w-1.5 h-1.5 rounded-full bg-text-secondary/40 animate-bounce [animation-delay:0ms]" />
+                          <div className="w-1.5 h-1.5 rounded-full bg-text-secondary/40 animate-bounce [animation-delay:150ms]" />
+                          <div className="w-1.5 h-1.5 rounded-full bg-text-secondary/40 animate-bounce [animation-delay:300ms]" />
+                        </div>
+                      </div>
+                    </div>
+                  );
+                }
+                return null;
+              })()}
+
+            {/* Error row */}
+            {errorMessage && (
+              <div className="flex gap-2 items-start">
+                <div className="w-6 h-6 rounded-lg bg-accent-subtle flex items-center justify-center shrink-0 mt-0.5">
+                  <AlertCircle className="w-3.5 h-3.5 text-accent" />
+                </div>
+                <div className="max-w-[85%] rounded-2xl rounded-bl-md px-3.5 py-2.5 text-[13px] leading-relaxed bg-accent-subtle border border-accent/30 text-text-primary">
+                  {renderMarkdown(errorMessage)}
+                </div>
+              </div>
+            )}
+          </div>
         </div>
 
-        {/* Input */}
-        <div className="border-t border-muted/15 p-3 bg-bg/60 backdrop-blur-sm">
-          <form onSubmit={handleSubmit} className="flex gap-2 items-end">
-            <textarea
-              ref={inputRef}
-              name="chatInput"
-              onKeyDown={handleKeyDown}
-              placeholder={t("chatbot.placeholder") || "Type a message..."}
-              rows={1}
-              className={clsx(
-                "flex-1 px-3.5 py-2.5 rounded-xl text-sm resize-none",
-                "bg-muted/5 border border-muted/15",
-                "focus:outline-none focus:border-accent/40 focus:ring-1 focus:ring-accent/20",
-                "placeholder:text-muted/40",
-                "max-h-24 min-h-[40px]",
-                "transition-colors"
-              )}
-              disabled={isLoading}
-            />
-            <button
-              type="submit"
-              disabled={isLoading}
-              className={clsx(
-                "w-10 h-10 rounded-xl shrink-0",
-                "flex items-center justify-center",
-                "transition-all duration-200",
-                "cursor-pointer",
-                !isLoading
-                  ? "bg-accent text-white hover:bg-accent/90 shadow-sm"
-                  : "bg-muted/10 text-muted/30 cursor-not-allowed"
-              )}
-            >
+        {/* ─── Always-present input bar ─── */}
+        <form
+          onSubmit={handleSubmit}
+          className="flex items-end gap-2 rounded-2xl border border-border bg-bg-secondary px-2.5 py-2 shadow-lg shadow-black/20"
+        >
+          <button
+            type="button"
+            onClick={() => (isOpen ? closeChat() : openChat())}
+            className="w-9 h-9 shrink-0 self-center rounded-xl bg-accent-subtle flex items-center justify-center cursor-pointer hover:bg-accent/15 transition-colors"
+            aria-label={isOpen ? "Collapse chat" : "Expand chat"}
+            title={providerLabel}
+          >
+            <Sparkles className="w-4 h-4 text-accent" />
+          </button>
+
+          <textarea
+            ref={inputRef}
+            name="chatInput"
+            onKeyDown={handleKeyDown}
+            onFocus={openChat}
+            placeholder={
+              t("chatbot.placeholder") ||
+              "Pídele al agente que cree campañas, busque leads…"
+            }
+            rows={1}
+            className={clsx(
+              "flex-1 px-2 py-2 rounded-xl text-sm resize-none bg-transparent",
+              "focus:outline-none",
+              "placeholder:text-text-muted",
+              "max-h-32 min-h-[36px]"
+            )}
+          />
+          <button
+            type="submit"
+            disabled={isLoading}
+            className={clsx(
+              "w-9 h-9 rounded-xl shrink-0 self-center",
+              "flex items-center justify-center",
+              "transition-all duration-200 cursor-pointer",
+              !isLoading
+                ? "bg-accent text-white hover:bg-accent/90 shadow-sm"
+                : "bg-bg-tertiary text-text-muted cursor-not-allowed"
+            )}
+            aria-label="Send message"
+          >
+            {isLoading ? (
+              <Loader2 className="w-4 h-4 animate-spin" />
+            ) : (
               <Send className="w-4 h-4" />
-            </button>
-          </form>
-        </div>
+            )}
+          </button>
+        </form>
       </div>
-    </>
+    </div>
   );
 }
