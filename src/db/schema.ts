@@ -11,6 +11,9 @@ export const campaigns = sqliteTable("campaigns", {
   defaultTone: text("default_tone").notNull().default("professional"),
   // Campaign angle: "web_design" pitches the website, "seo_visibility" pitches Google visibility (recurring SEO)
   strategy: text("strategy", { enum: ["web_design", "seo_visibility"] }).notNull().default("web_design"),
+  // Outreach channels this campaign uses — comma-separated list of "email" / "whatsapp"
+  // (e.g. "email", "whatsapp", "email,whatsapp"). Drives the channel-gated service warnings.
+  channels: text("channels").notNull().default("email"),
   status: text("status", { enum: ["active", "paused", "archived"] }).notNull().default("active"),
   createdAt: text("created_at").notNull().default(sql`(datetime('now'))`),
   updatedAt: text("updated_at").notNull().default(sql`(datetime('now'))`),

@@ -12,6 +12,7 @@ export function runMigrations(): void {
     autopilot INTEGER NOT NULL DEFAULT 0,
     default_tone TEXT NOT NULL DEFAULT 'professional',
     strategy TEXT NOT NULL DEFAULT 'web_design',
+    channels TEXT NOT NULL DEFAULT 'email',
     status TEXT NOT NULL DEFAULT 'active',
     created_at TEXT NOT NULL DEFAULT (datetime('now')),
     updated_at TEXT NOT NULL DEFAULT (datetime('now'))
@@ -291,4 +292,5 @@ export function runMigrations(): void {
   safeAddColumn(`ALTER TABLE sending_domains ADD COLUMN warmup_start_limit INTEGER NOT NULL DEFAULT 5`);
   safeAddColumn(`ALTER TABLE sending_domains ADD COLUMN warmup_increment INTEGER NOT NULL DEFAULT 5`);
   safeAddColumn(`ALTER TABLE campaigns ADD COLUMN strategy TEXT NOT NULL DEFAULT 'web_design'`);
+  safeAddColumn(`ALTER TABLE campaigns ADD COLUMN channels TEXT NOT NULL DEFAULT 'email'`);
 }

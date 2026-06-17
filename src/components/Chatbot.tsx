@@ -18,6 +18,7 @@ import {
 import { clsx } from "clsx";
 import { useT } from "@/i18n/LocaleProvider";
 import { useChatbot } from "./ChatbotProvider";
+import { ChatbotShortcuts } from "./ChatbotShortcuts";
 
 // ─── Minimal Markdown Renderer ──────────────────────────────────────
 
@@ -136,22 +137,6 @@ function ToolIndicator({
   );
 }
 
-// ─── Suggested Prompts ──────────────────────────────────────────────
-
-const SUGGESTED_PROMPTS_EN = [
-  "List my campaigns",
-  "How many emails sent today?",
-  "Show dashboard metrics",
-  "Check configuration",
-];
-
-const SUGGESTED_PROMPTS_ES = [
-  "Lista mis campanas",
-  "Cuantos emails envie hoy?",
-  "Muestra metricas del dashboard",
-  "Revisa la configuracion",
-];
-
 // ─── Message Parts Renderer ─────────────────────────────────────────
 
 function MessageParts({ message }: { message: UIMessage }) {
@@ -225,7 +210,7 @@ function MessageParts({ message }: { message: UIMessage }) {
 // ─── Main Chatbot — always-present bottom bar ───────────────────────
 
 export function Chatbot() {
-  const { t, lang } = useT();
+  const { t } = useT();
   const { isOpen, openChat, closeChat, registerSender } = useChatbot();
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
@@ -296,9 +281,6 @@ export function Chatbot() {
       e.currentTarget.value = "";
     }
   };
-
-  const suggestedPrompts =
-    lang === "es" ? SUGGESTED_PROMPTS_ES : SUGGESTED_PROMPTS_EN;
 
   const errorMessage = error
     ? // The route streams a useful message via onError; surface it verbatim.
@@ -378,22 +360,7 @@ export function Chatbot() {
                     "Puedo crear campañas, buscar leads, revisar emails y más"}
                 </p>
 
-                <div className="flex flex-wrap gap-2 justify-center">
-                  {suggestedPrompts.map((prompt) => (
-                    <button
-                      key={prompt}
-                      onClick={() => submitText(prompt)}
-                      className={clsx(
-                        "px-3 py-1.5 rounded-full text-[11px] font-mono",
-                        "border border-border text-text-secondary",
-                        "hover:border-accent/40 hover:text-accent",
-                        "transition-colors cursor-pointer"
-                      )}
-                    >
-                      {prompt}
-                    </button>
-                  ))}
-                </div>
+                <ChatbotShortcuts onSelect={submitText} />
               </div>
             )}
 

@@ -7,6 +7,7 @@ import * as analyticsService from "@/services/analytics.service";
 import * as settingsService from "@/services/settings.service";
 import * as blacklistService from "@/services/blacklist.service";
 import * as searchService from "@/services/search.service";
+import * as agencyProfileService from "@/services/agency-profile.service";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
@@ -69,6 +70,12 @@ const toolDefs = {
         .describe(
           "Default tone for messages (e.g. professional, casual, friendly)"
         ),
+      channels: z
+        .array(z.enum(["email", "whatsapp"]))
+        .optional()
+        .describe(
+          "Outreach channels this campaign uses: ['email'], ['whatsapp'], or both. Defaults to ['email']. A service-config warning only fires for channels that at least one campaign uses."
+        ),
     }),
     execute: async (args) => {
       return campaignService.createCampaign(args);
@@ -96,6 +103,10 @@ const toolDefs = {
         .optional()
         .describe("Enable/disable autopilot"),
       defaultTone: z.string().optional().describe("New default tone"),
+      channels: z
+        .array(z.enum(["email", "whatsapp"]))
+        .optional()
+        .describe("Outreach channels: ['email'], ['whatsapp'], or both"),
       status: z
         .enum(["active", "paused", "archived"])
         .optional()
@@ -285,6 +296,67 @@ const toolDefs = {
         return blacklistService.removeFromBlacklist(args.id as number);
       }
       return { error: "Invalid action" };
+    },
+  }),
+
+  // ─── Agency Profile ────────────────────────────────────────────────
+  get_profile: zTool({
+    description:
+      "Get the agency/sender profile (identity, services, contact) and whether onboarding is complete. The profile must exist before creating campaigns.",
+    parameters: z.object({}),
+    execute: async () => {
+      return {
+        profile: agencyProfileService.getAgencyProfile(),
+        onboardingComplete: agencyProfileService.isOnboardingComplete(),
+      };
+    },
+  }),
+
+  update_profile: zTool({
+    description:
+      "Create or update the agency/sender profile used as the identity for all outreach. Set completeOnboarding=true once the essentials (at least name) are filled so campaigns can be created. Does NOT set secrets/API keys.",
+    parameters: z.object({
+      name: z.string().optional().describe("Agency/business name"),
+      url: z.string().optional().describe("Website URL"),
+      description: z.string().optional().describe("What the agency does"),
+      tagline: z.string().optional().describe("Short tagline"),
+      ownerName: z.string().optional().describe("Sender's name (used as from_name)"),
+      ownerRole: z.string().optional().describe("Sender's role/title"),
+      contactEmail: z
+        .string()
+        .optional()
+        .describe("Contact email (mirrors to from_email when unset)"),
+      contactPhone: z.string().optional().describe("Contact phone"),
+      services: z
+        .array(z.string())
+        .optional()
+        .describe("List of offered services"),
+      city: z.string().optional().describe("City"),
+      country: z.string().optional().describe("Country"),
+      valueProps: z
+        .array(z.string())
+        .optional()
+        .describe("Key value propositions / differentiators"),
+      completeOnboarding: z
+        .boolean()
+        .optional()
+        .describe("Mark onboarding complete (unlocks campaign creation)"),
+    }),
+    execute: async ({ completeOnboarding, ...data }) => {
+      const profile = agencyProfileService.upsertAgencyProfile({
+        ...data,
+        source: "manual",
+      });
+      if (completeOnboarding) {
+        return {
+          profile: agencyProfileService.markOnboardingComplete("manual"),
+          onboardingComplete: true,
+        };
+      }
+      return {
+        profile,
+        onboardingComplete: agencyProfileService.isOnboardingComplete(),
+      };
     },
   }),
 

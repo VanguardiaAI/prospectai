@@ -8,6 +8,7 @@ export const createCampaignSchema = z.object({
   autopilot: z.boolean().optional(),
   defaultTone: z.string().optional(),
   strategy: z.enum(["web_design", "seo_visibility"]).optional(),
+  channels: z.array(z.enum(["email", "whatsapp"])).min(1).optional(),
 });
 
 export const updateCampaignSchema = z.object({
@@ -19,5 +20,6 @@ export const updateCampaignSchema = z.object({
   autopilot: z.boolean().optional(),
   defaultTone: z.string().optional(),
   strategy: z.enum(["web_design", "seo_visibility"]).optional(),
+  channels: z.array(z.enum(["email", "whatsapp"])).min(1).optional(),
   status: z.enum(["active", "paused", "archived"]).optional(),
 });

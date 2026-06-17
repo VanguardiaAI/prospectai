@@ -323,6 +323,10 @@
     "namePlaceholder": "Campaign name",
     "descriptionPlaceholder": "Optional description",
     "defaultTone": "Default tone",
+    "channelsLabel": "Channels",
+    "channelEmail": "Email only",
+    "channelWhatsapp": "WhatsApp only",
+    "channelBoth": "Email & WhatsApp",
     "create": "Create",
     "sequenceTitle": "Sequence:",
     "sequenceDesc": "Define follow-up steps. Each step runs automatically after the configured delay. AI generates different content for each step.",
@@ -851,7 +855,36 @@
     "examples": "I can manage campaigns, search leads, review emails, and more",
     "placeholder": "Type a message...",
     "thinking": "Thinking...",
-    "status": "AI Assistant"
+    "status": "AI Assistant",
+    "shortcuts": {
+      "title": "What you can do",
+      "subtitle": "I'll guide you based on what's set up and what's missing",
+      "profile": "Set up profile",
+      "profileDone": "Profile configured",
+      "createCampaign": "Create campaign",
+      "searchLeads": "Search leads",
+      "reviewMessages": "Review messages",
+      "metrics": "View metrics",
+      "lockedProfile": "Set up your profile first",
+      "lockedCampaign": "Create a campaign first",
+      "lockedDrafts": "No messages to review yet",
+      "prompts": {
+        "profile": "I want to set up my agency profile. Walk me through it step by step.",
+        "createCampaign": "I want to create a new campaign. What do you need, and which channels can I pick (email, WhatsApp, or both)?",
+        "createCampaignLocked": "I want to create a campaign, but I think the profile isn't set up yet. Help me with whatever's missing first.",
+        "searchLeads": "I want to search for leads on Google Maps for one of my campaigns.",
+        "searchLeadsLocked": "I want to search for leads, but I don't have any campaigns yet. Help me create one first.",
+        "reviewMessages": "Show me the draft messages pending review.",
+        "metrics": "Show me the dashboard metrics."
+      }
+    },
+    "warnings": {
+      "title": "Pending setup",
+      "email": "Email isn't configured for sending",
+      "whatsapp": "WhatsApp isn't connected for sending",
+      "promptEmail": "One of my campaigns uses email, but it looks like it's not configured. What do I need and how do I do it?",
+      "promptWhatsapp": "One of my campaigns uses WhatsApp, but it's not connected. How do I connect it?"
+    }
   },
   "shortcuts": {
     "title": "Campaign Actions",

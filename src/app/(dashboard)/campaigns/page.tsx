@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
-import { Card, Button, Input, Select, Toggle, Modal, StatusBadge, Badge, EmptyState, Spinner, ConfirmDialog } from "@/components/ui";
+import { Card, Button, Input, Select, Segment, Toggle, Modal, StatusBadge, Badge, EmptyState, Spinner, ConfirmDialog } from "@/components/ui";
 import { useToast } from "@/components/Toast";
 import { useT } from "@/i18n/LocaleProvider";
 import { Megaphone, Plus, Edit, Trash2, ListOrdered, ArrowDown, Copy, AlertTriangle } from "lucide-react";
@@ -13,6 +13,23 @@ interface CampaignMetrics {
   replies: number;
 }
 
+type Channel = "email" | "whatsapp";
+type ChannelOption = "email" | "whatsapp" | "both";
+
+function channelsToOption(channels: Channel[]): ChannelOption {
+  const hasEmail = channels.includes("email");
+  const hasWa = channels.includes("whatsapp");
+  if (hasEmail && hasWa) return "both";
+  if (hasWa) return "whatsapp";
+  return "email";
+}
+
+function optionToChannels(opt: ChannelOption): Channel[] {
+  if (opt === "both") return ["email", "whatsapp"];
+  if (opt === "whatsapp") return ["whatsapp"];
+  return ["email"];
+}
+
 interface Campaign {
   id: number;
   name: string;
@@ -21,6 +38,7 @@ interface Campaign {
   qualityThreshold: number;
   autopilot: boolean;
   defaultTone: string;
+  channels: Channel[];
   status: string;
   createdAt: string;
   metrics?: CampaignMetrics;
@@ -47,13 +65,22 @@ export default function CampaignsPage() {
   const [showModal, setShowModal] = useState(false);
   const [editing, setEditing] = useState<Campaign | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<{ id: number; name: string } | null>(null);
-  const [form, setForm] = useState({
+  const [form, setForm] = useState<{
+    name: string;
+    description: string;
+    dailyLimit: number;
+    qualityThreshold: number;
+    autopilot: boolean;
+    defaultTone: string;
+    channels: Channel[];
+  }>({
     name: "",
     description: "",
     dailyLimit: 20,
     qualityThreshold: 40,
     autopilot: false,
     defaultTone: "professional",
+    channels: ["email"],
   });
 
   // Sequence state
@@ -87,7 +114,7 @@ export default function CampaignsPage() {
 
   const openCreate = () => {
     setEditing(null);
-    setForm({ name: "", description: "", dailyLimit: 20, qualityThreshold: 40, autopilot: false, defaultTone: "professional" });
+    setForm({ name: "", description: "", dailyLimit: 20, qualityThreshold: 40, autopilot: false, defaultTone: "professional", channels: ["email"] });
     setShowModal(true);
   };
 
@@ -100,6 +127,7 @@ export default function CampaignsPage() {
       qualityThreshold: c.qualityThreshold,
       autopilot: c.autopilot,
       defaultTone: c.defaultTone,
+      channels: c.channels?.length ? c.channels : ["email"],
     });
     setShowModal(true);
   };
@@ -169,6 +197,7 @@ export default function CampaignsPage() {
         qualityThreshold: c.qualityThreshold,
         autopilot: c.autopilot,
         defaultTone: c.defaultTone,
+        channels: c.channels?.length ? c.channels : ["email"],
       }),
     });
     toast(t("campaigns.campaignCloned"), "success");
@@ -282,6 +311,16 @@ export default function CampaignsPage() {
                     <span className="text-[11px] text-text-primary font-mono uppercase">{c.defaultTone}</span>
                   </div>
                   <div className="nd-list-item">
+                    <span className="nd-list-label">{t("campaigns.channelsLabel")}</span>
+                    <div className="flex items-center gap-1.5">
+                      {(c.channels?.length ? c.channels : ["email"]).map((ch) => (
+                        <Badge key={ch} color={ch === "email" ? "info" : "success"}>
+                          {ch === "email" ? t("common.email") : t("common.whatsapp")}
+                        </Badge>
+                      ))}
+                    </div>
+                  </div>
+                  <div className="nd-list-item">
                     <span className="nd-list-label">{t("campaigns.autopilot")}</span>
                     <div className="flex items-center gap-2">
                       {autopilotGlobal && (
@@ -371,6 +410,18 @@ export default function CampaignsPage() {
               <option value="consultative">{t("tones.consultative")}</option>
               <option value="casual">{t("tones.casual")}</option>
             </Select>
+          </div>
+          <div>
+            <label className="nd-label block mb-2">{t("campaigns.channelsLabel")}</label>
+            <Segment<ChannelOption>
+              value={channelsToOption(form.channels)}
+              onChange={(opt) => setForm({ ...form, channels: optionToChannels(opt) })}
+              options={[
+                { value: "email", label: t("campaigns.channelEmail") },
+                { value: "whatsapp", label: t("campaigns.channelWhatsapp") },
+                { value: "both", label: t("campaigns.channelBoth") },
+              ]}
+            />
           </div>
           <div>
             <Toggle checked={form.autopilot} onChange={(v) => setForm({ ...form, autopilot: v })} label={t("campaigns.autopilot")} />

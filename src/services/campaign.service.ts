@@ -6,6 +6,8 @@ import { NotFoundError } from "./errors";
 
 // ─── Types ──────────────────────────────────────────────────────────
 
+export type CampaignChannel = "email" | "whatsapp";
+
 export interface CampaignMetrics {
   sent: number;
   opened: number;
@@ -21,6 +23,7 @@ export interface CreateCampaignInput {
   autopilot?: boolean;
   defaultTone?: string;
   strategy?: "web_design" | "seo_visibility";
+  channels?: CampaignChannel[];
 }
 
 export interface UpdateCampaignInput {
@@ -31,7 +34,46 @@ export interface UpdateCampaignInput {
   autopilot?: boolean;
   defaultTone?: string;
   strategy?: "web_design" | "seo_visibility";
+  channels?: CampaignChannel[];
   status?: "active" | "paused" | "archived";
+}
+
+// ─── Channels ───────────────────────────────────────────────────────
+
+const VALID_CHANNELS: CampaignChannel[] = ["email", "whatsapp"];
+
+// Parse the stored comma-separated channels string into a clean array.
+// Always returns at least ["email"] so a campaign is never channel-less.
+export function parseChannels(raw: string | null | undefined): CampaignChannel[] {
+  const parsed = (raw ?? "")
+    .split(",")
+    .map((c) => c.trim())
+    .filter((c): c is CampaignChannel => VALID_CHANNELS.includes(c as CampaignChannel));
+  return parsed.length > 0 ? Array.from(new Set(parsed)) : ["email"];
+}
+
+function serializeChannels(channels?: CampaignChannel[]): string {
+  const clean = (channels ?? []).filter((c) => VALID_CHANNELS.includes(c));
+  return (clean.length > 0 ? Array.from(new Set(clean)) : ["email"]).join(",");
+}
+
+// Which channels are used by at least one non-archived campaign. Drives the
+// channel-gated service warnings (only warn about email/WhatsApp config when a
+// live campaign actually uses that channel).
+export function getChannelsInUse(): { email: boolean; whatsapp: boolean } {
+  const rows = db
+    .select({ channels: campaigns.channels })
+    .from(campaigns)
+    .where(inArray(campaigns.status, ["active", "paused"]))
+    .all();
+
+  const inUse = { email: false, whatsapp: false };
+  for (const row of rows) {
+    for (const ch of parseChannels(row.channels)) {
+      inUse[ch] = true;
+    }
+  }
+  return inUse;
 }
 
 // ─── Helpers ────────────────────────────────────────────────────────
@@ -86,7 +128,7 @@ export function listCampaigns(opts?: { status?: string }) {
     : query.all();
 
   const metricsMap = getCampaignMetrics(all.map((c) => c.id));
-  return all.map((c) => ({ ...c, metrics: metricsMap[c.id] ?? { sent: 0, opened: 0, openRate: 0, replies: 0 } }));
+  return all.map((c) => ({ ...c, channels: parseChannels(c.channels), metrics: metricsMap[c.id] ?? { sent: 0, opened: 0, openRate: 0, replies: 0 } }));
 }
 
 export function getCampaign(id: number) {
@@ -96,7 +138,7 @@ export function getCampaign(id: number) {
   const metricsMap = getCampaignMetrics([id]);
   const leadCount = db.select({ count: sql<number>`count(*)` }).from(leads).where(eq(leads.campaignId, id)).get()?.count ?? 0;
 
-  return { ...campaign, metrics: metricsMap[id] ?? { sent: 0, opened: 0, openRate: 0, replies: 0 }, leadCount };
+  return { ...campaign, channels: parseChannels(campaign.channels), metrics: metricsMap[id] ?? { sent: 0, opened: 0, openRate: 0, replies: 0 }, leadCount };
 }
 
 export function createCampaign(input: CreateCampaignInput, opts?: { idempotent?: boolean; source?: string }) {
@@ -113,6 +155,7 @@ export function createCampaign(input: CreateCampaignInput, opts?: { idempotent?:
     autopilot: input.autopilot ?? false,
     defaultTone: input.defaultTone || "professional",
     strategy: input.strategy || "web_design",
+    channels: serializeChannels(input.channels),
   }).returning().get();
 
   logActivity("campaign_change", `Campaña "${campaign.name}" creada`, {
@@ -125,7 +168,12 @@ export function createCampaign(input: CreateCampaignInput, opts?: { idempotent?:
 }
 
 export function updateCampaign(id: number, updates: UpdateCampaignInput) {
-  const result = db.update(campaigns).set(updates).where(eq(campaigns.id, id)).returning().get();
+  // channels is exposed as an array but stored as a comma-separated string.
+  const { channels, ...rest } = updates;
+  const dbUpdates: Record<string, unknown> = { ...rest };
+  if (channels !== undefined) dbUpdates.channels = serializeChannels(channels);
+
+  const result = db.update(campaigns).set(dbUpdates).where(eq(campaigns.id, id)).returning().get();
   if (!result) throw new NotFoundError("Campaign", id);
 
   logActivity("campaign_change", `Campaña "${result.name}" actualizada`, {
@@ -294,6 +342,7 @@ export function getCampaignsWithPhases() {
       id: campaign.id,
       name: campaign.name,
       status: campaign.status,
+      channels: parseChannels(campaign.channels),
       leadCount,
       currentPhase,
       currentPhaseIndex: currentIndex,
