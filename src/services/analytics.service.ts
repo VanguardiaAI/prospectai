@@ -9,7 +9,7 @@ import {
   activityLog,
   sequenceEnrollments,
 } from "@/db/schema";
-import { eq, and, sql, desc, isNotNull } from "drizzle-orm";
+import { eq, and, sql, desc, isNotNull, type Column } from "drizzle-orm";
 
 // ─── Types ──────────────────────────────────────────────────────────
 
@@ -68,19 +68,57 @@ export interface RecentActivityOpts {
   page?: number;
 }
 
+// A draft/approved/sent message row enriched with its lead + campaign, for the
+// dashboard "sample" columns (we show a few real rows, not just a count).
+export interface LeadSampleRow {
+  channel: "email" | "whatsapp";
+  id: number;
+  leadId: number | null;
+  leadName: string | null;
+  leadCity: string | null;
+  campaignName: string | null;
+  preview: string | null;
+  createdAt: string | null;
+  sentAt: string | null;
+}
+
+export interface ReplySampleRow {
+  id: number;
+  leadId: number | null;
+  leadName: string | null;
+  channel: string;
+  fromAddress: string | null;
+  body: string;
+  status: string;
+  intent: string | null;
+  receivedAt: string | null;
+}
+
+export interface DashboardSamples {
+  pending: LeadSampleRow[];
+  approved: LeadSampleRow[];
+  sentToday: LeadSampleRow[];
+  recentReplies: ReplySampleRow[];
+  counts: { pending: number; approved: number; sentToday: number; repliesRecent: number; repliesUnread: number; failed: number };
+}
+
 // ─── Service Functions ──────────────────────────────────────────────
 
-export function getDashboardMetrics(): DashboardMetrics {
+export function getDashboardMetrics(campaignId?: number | null): DashboardMetrics {
   const today = new Date().toISOString().split("T")[0];
+  const camp = campaignId ?? null;
+  // Campaign filter: when a campaign is selected, scope every aggregate to it.
+  const cc = (col: Column) => (camp != null ? eq(col, camp) : undefined);
 
   // Total leads
-  const totalLeads = db.select({ count: sql<number>`count(*)` }).from(leads).get()?.count ?? 0;
+  const totalLeads = db.select({ count: sql<number>`count(*)` }).from(leads)
+    .where(cc(leads.campaignId)).get()?.count ?? 0;
 
   // Leads by status
   const statusCounts = db.select({
     status: leads.status,
     count: sql<number>`count(*)`,
-  }).from(leads).groupBy(leads.status).all();
+  }).from(leads).where(cc(leads.campaignId)).groupBy(leads.status).all();
 
   // Analyzed count
   const analyzed = statusCounts
@@ -89,7 +127,7 @@ export function getDashboardMetrics(): DashboardMetrics {
 
   // Emails sent today
   const sentToday = db.select({ count: sql<number>`count(*)` }).from(emails)
-    .where(and(eq(emails.status, "sent"), sql`date(${emails.sentAt}) = ${today}`))
+    .where(and(eq(emails.status, "sent"), sql`date(${emails.sentAt}) = ${today}`, cc(emails.campaignId)))
     .get()?.count ?? 0;
 
   const globalDailyLimit = parseInt(getSetting("global_daily_limit") || "50");
@@ -97,22 +135,24 @@ export function getDashboardMetrics(): DashboardMetrics {
 
   // Pending review
   const pendingReview = db.select({ count: sql<number>`count(*)` }).from(emails)
-    .where(eq(emails.status, "draft"))
+    .where(and(eq(emails.status, "draft"), cc(emails.campaignId)))
     .get()?.count ?? 0;
 
   // Total sent
   const totalSent = db.select({ count: sql<number>`count(*)` }).from(emails)
-    .where(eq(emails.status, "sent"))
+    .where(and(eq(emails.status, "sent"), cc(emails.campaignId)))
     .get()?.count ?? 0;
 
-  // Active campaigns
+  // Active campaigns (when scoped, it's 1 if the selected campaign is active)
   const activeCampaigns = db.select({ count: sql<number>`count(*)` }).from(campaigns)
-    .where(eq(campaigns.status, "active"))
+    .where(camp != null
+      ? and(eq(campaigns.id, camp), eq(campaigns.status, "active"))
+      : eq(campaigns.status, "active"))
     .get()?.count ?? 0;
 
   // Pending jobs
   const pendingJobs = db.select({ count: sql<number>`count(*)` }).from(jobQueue)
-    .where(eq(jobQueue.status, "pending"))
+    .where(and(eq(jobQueue.status, "pending"), cc(jobQueue.campaignId)))
     .get()?.count ?? 0;
 
   // Emails sent per day (last 7 days)
@@ -120,7 +160,7 @@ export function getDashboardMetrics(): DashboardMetrics {
     date: sql<string>`date(${emails.sentAt})`,
     count: sql<number>`count(*)`,
   }).from(emails)
-    .where(and(eq(emails.status, "sent"), sql`${emails.sentAt} >= datetime('now', '-7 days')`))
+    .where(and(eq(emails.status, "sent"), sql`${emails.sentAt} >= datetime('now', '-7 days')`, cc(emails.campaignId)))
     .groupBy(sql`date(${emails.sentAt})`)
     .all();
 
@@ -136,7 +176,7 @@ export function getDashboardMetrics(): DashboardMetrics {
     END`,
     count: sql<number>`count(*)`,
   }).from(leads)
-    .where(sql`${leads.webQualityScore} IS NOT NULL OR ${leads.website} IS NULL`)
+    .where(and(sql`(${leads.webQualityScore} IS NOT NULL OR ${leads.website} IS NULL)`, cc(leads.campaignId)))
     .groupBy(sql`1`)
     .all();
 
@@ -145,7 +185,7 @@ export function getDashboardMetrics(): DashboardMetrics {
     city: leads.city,
     count: sql<number>`count(*)`,
   }).from(leads)
-    .where(sql`${leads.city} IS NOT NULL`)
+    .where(and(sql`${leads.city} IS NOT NULL`, cc(leads.campaignId)))
     .groupBy(leads.city)
     .orderBy(desc(sql`count(*)`))
     .limit(10)
@@ -154,14 +194,15 @@ export function getDashboardMetrics(): DashboardMetrics {
   // --- Tracking metrics ---
 
   const totalOpened = db.select({ count: sql<number>`count(*)` }).from(emails)
-    .where(isNotNull(emails.openedAt))
+    .where(and(isNotNull(emails.openedAt), cc(emails.campaignId)))
     .get()?.count ?? 0;
 
   const totalClicked = db.select({ count: sql<number>`count(*)` }).from(emails)
-    .where(isNotNull(emails.clickedAt))
+    .where(and(isNotNull(emails.clickedAt), cc(emails.campaignId)))
     .get()?.count ?? 0;
 
   const totalReplied = db.select({ count: sql<number>`count(*)` }).from(replies)
+    .where(cc(replies.campaignId))
     .get()?.count ?? 0;
 
   const openRate = totalSent > 0 ? Math.round((totalOpened / totalSent) * 100) : 0;
@@ -170,19 +211,19 @@ export function getDashboardMetrics(): DashboardMetrics {
 
   // --- Bounce metrics ---
   const totalBounced = db.select({ count: sql<number>`count(*)` }).from(emails)
-    .where(eq(emails.status, "failed"))
+    .where(and(eq(emails.status, "failed"), cc(emails.campaignId)))
     .get()?.count ?? 0;
 
   const bouncedToday = db.select({ count: sql<number>`count(*)` }).from(emails)
-    .where(and(eq(emails.status, "failed"), sql`date(${emails.sentAt}) = ${today}`))
+    .where(and(eq(emails.status, "failed"), sql`date(${emails.sentAt}) = ${today}`, cc(emails.campaignId)))
     .get()?.count ?? 0;
 
   const sentLast7 = db.select({ count: sql<number>`count(*)` }).from(emails)
-    .where(and(eq(emails.status, "sent"), sql`${emails.sentAt} >= datetime('now', '-7 days')`))
+    .where(and(eq(emails.status, "sent"), sql`${emails.sentAt} >= datetime('now', '-7 days')`, cc(emails.campaignId)))
     .get()?.count ?? 0;
 
   const bouncedLast7 = db.select({ count: sql<number>`count(*)` }).from(emails)
-    .where(and(eq(emails.status, "failed"), sql`${emails.sentAt} >= datetime('now', '-7 days')`))
+    .where(and(eq(emails.status, "failed"), sql`${emails.sentAt} >= datetime('now', '-7 days')`, cc(emails.campaignId)))
     .get()?.count ?? 0;
 
   const bounceRate7d = (sentLast7 + bouncedLast7) > 0
@@ -195,7 +236,7 @@ export function getDashboardMetrics(): DashboardMetrics {
     analysisJson: leads.analysisJson,
     status: leads.status,
   }).from(leads)
-    .where(isNotNull(leads.analysisJson))
+    .where(and(isNotNull(leads.analysisJson), cc(leads.campaignId)))
     .all();
 
   const serviceStats: Record<string, { recommended: number; contacted: number }> = {};
@@ -218,21 +259,21 @@ export function getDashboardMetrics(): DashboardMetrics {
 
   // --- WhatsApp metrics ---
   const waSentToday = db.select({ count: sql<number>`count(*)` }).from(whatsappMessages)
-    .where(and(eq(whatsappMessages.status, "sent"), sql`date(${whatsappMessages.sentAt}) = ${today}`))
+    .where(and(eq(whatsappMessages.status, "sent"), sql`date(${whatsappMessages.sentAt}) = ${today}`, cc(whatsappMessages.campaignId)))
     .get()?.count ?? 0;
 
   const waTotalSent = db.select({ count: sql<number>`count(*)` }).from(whatsappMessages)
-    .where(eq(whatsappMessages.status, "sent"))
+    .where(and(eq(whatsappMessages.status, "sent"), cc(whatsappMessages.campaignId)))
     .get()?.count ?? 0;
 
   const waPendingReview = db.select({ count: sql<number>`count(*)` }).from(whatsappMessages)
-    .where(eq(whatsappMessages.status, "draft"))
+    .where(and(eq(whatsappMessages.status, "draft"), cc(whatsappMessages.campaignId)))
     .get()?.count ?? 0;
 
   const waDailyLimit = parseInt(getSetting("wa_daily_limit") || "20");
 
   const waReplies = db.select({ count: sql<number>`count(*)` }).from(replies)
-    .where(eq(replies.channel, "whatsapp"))
+    .where(and(eq(replies.channel, "whatsapp"), cc(replies.campaignId)))
     .get()?.count ?? 0;
 
   const waReplyRate = waTotalSent > 0 ? Math.round((waReplies / waTotalSent) * 100) : 0;
@@ -241,7 +282,7 @@ export function getDashboardMetrics(): DashboardMetrics {
     date: sql<string>`date(${whatsappMessages.sentAt})`,
     count: sql<number>`count(*)`,
   }).from(whatsappMessages)
-    .where(and(eq(whatsappMessages.status, "sent"), sql`${whatsappMessages.sentAt} >= datetime('now', '-7 days')`))
+    .where(and(eq(whatsappMessages.status, "sent"), sql`${whatsappMessages.sentAt} >= datetime('now', '-7 days')`, cc(whatsappMessages.campaignId)))
     .groupBy(sql`date(${whatsappMessages.sentAt})`)
     .all();
 
@@ -369,6 +410,148 @@ export function getTodayMetrics(): TodayMetrics {
     effectiveLimit,
     pendingJobs,
   };
+}
+
+// Sample rows for the dashboard's pending / approved / sent columns plus the
+// reply monitor. Reuses the join already proven in getTodayMetrics but returns a
+// normalized, channel-tagged shape and is campaign-aware.
+export function getDashboardSamples(campaignId?: number | null): DashboardSamples {
+  const today = new Date().toISOString().split("T")[0];
+  const camp = campaignId ?? null;
+  const cc = (col: Column) => (camp != null ? eq(col, camp) : undefined);
+  const byDesc = (k: keyof LeadSampleRow) => (x: LeadSampleRow, y: LeadSampleRow) =>
+    String(y[k] ?? "").localeCompare(String(x[k] ?? ""));
+
+  const emailRows = (status: "draft" | "approved" | "sent", todayOnly = false): LeadSampleRow[] =>
+    db.select({
+      id: emails.id,
+      leadId: emails.leadId,
+      leadName: leads.name,
+      leadCity: leads.city,
+      campaignName: campaigns.name,
+      preview: emails.subject,
+      createdAt: emails.createdAt,
+      sentAt: emails.sentAt,
+    })
+      .from(emails)
+      .leftJoin(leads, eq(emails.leadId, leads.id))
+      .leftJoin(campaigns, eq(emails.campaignId, campaigns.id))
+      .where(and(
+        eq(emails.status, status),
+        todayOnly ? sql`date(${emails.sentAt}) = ${today}` : undefined,
+        cc(emails.campaignId),
+      ))
+      .orderBy(desc(todayOnly ? emails.sentAt : emails.createdAt))
+      .limit(6)
+      .all()
+      .map((r) => ({ channel: "email" as const, ...r })) as unknown as LeadSampleRow[];
+
+  const waRows = (status: "draft" | "approved" | "sent", todayOnly = false): LeadSampleRow[] =>
+    db.select({
+      id: whatsappMessages.id,
+      leadId: whatsappMessages.leadId,
+      leadName: leads.name,
+      leadCity: leads.city,
+      campaignName: campaigns.name,
+      preview: whatsappMessages.body,
+      createdAt: whatsappMessages.createdAt,
+      sentAt: whatsappMessages.sentAt,
+    })
+      .from(whatsappMessages)
+      .leftJoin(leads, eq(whatsappMessages.leadId, leads.id))
+      .leftJoin(campaigns, eq(whatsappMessages.campaignId, campaigns.id))
+      .where(and(
+        eq(whatsappMessages.status, status),
+        todayOnly ? sql`date(${whatsappMessages.sentAt}) = ${today}` : undefined,
+        cc(whatsappMessages.campaignId),
+      ))
+      .orderBy(desc(todayOnly ? whatsappMessages.sentAt : whatsappMessages.createdAt))
+      .limit(6)
+      .all()
+      .map((r) => ({ channel: "whatsapp" as const, ...r })) as unknown as LeadSampleRow[];
+
+  const pending = [...emailRows("draft"), ...waRows("draft")].sort(byDesc("createdAt")).slice(0, 6);
+  const approved = [...emailRows("approved"), ...waRows("approved")].sort(byDesc("createdAt")).slice(0, 6);
+  const sentToday = [...emailRows("sent", true), ...waRows("sent", true)].sort(byDesc("sentAt")).slice(0, 6);
+
+  const recentReplies = db.select({
+    id: replies.id,
+    leadId: replies.leadId,
+    leadName: leads.name,
+    channel: replies.channel,
+    fromAddress: replies.fromAddress,
+    body: replies.body,
+    status: replies.status,
+    intent: replies.intent,
+    receivedAt: replies.receivedAt,
+  })
+    .from(replies)
+    .leftJoin(leads, eq(replies.leadId, leads.id))
+    .where(cc(replies.campaignId))
+    .orderBy(desc(replies.receivedAt))
+    .limit(8)
+    .all() as unknown as ReplySampleRow[];
+
+  const countOf = (q: { get(): { count: number } | undefined }) => q.get()?.count ?? 0;
+  const c = sql<number>`count(*)`;
+
+  const counts = {
+    pending:
+      countOf(db.select({ count: c }).from(emails).where(and(eq(emails.status, "draft"), cc(emails.campaignId)))) +
+      countOf(db.select({ count: c }).from(whatsappMessages).where(and(eq(whatsappMessages.status, "draft"), cc(whatsappMessages.campaignId)))),
+    approved:
+      countOf(db.select({ count: c }).from(emails).where(and(eq(emails.status, "approved"), cc(emails.campaignId)))) +
+      countOf(db.select({ count: c }).from(whatsappMessages).where(and(eq(whatsappMessages.status, "approved"), cc(whatsappMessages.campaignId)))),
+    sentToday:
+      countOf(db.select({ count: c }).from(emails).where(and(eq(emails.status, "sent"), sql`date(${emails.sentAt}) = ${today}`, cc(emails.campaignId)))) +
+      countOf(db.select({ count: c }).from(whatsappMessages).where(and(eq(whatsappMessages.status, "sent"), sql`date(${whatsappMessages.sentAt}) = ${today}`, cc(whatsappMessages.campaignId)))),
+    repliesRecent: countOf(
+      db.select({ count: c }).from(replies).where(and(sql`${replies.receivedAt} >= datetime('now', '-7 days')`, cc(replies.campaignId)))
+    ),
+    repliesUnread: countOf(
+      db.select({ count: c }).from(replies).where(and(eq(replies.status, "unread"), cc(replies.campaignId)))
+    ),
+    failed:
+      countOf(db.select({ count: c }).from(emails).where(and(eq(emails.status, "failed"), cc(emails.campaignId)))) +
+      countOf(db.select({ count: c }).from(whatsappMessages).where(and(eq(whatsappMessages.status, "failed"), cc(whatsappMessages.campaignId)))),
+  };
+
+  return { pending, approved, sentToday, recentReplies, counts };
+}
+
+export interface RepliesQuery {
+  campaignId?: number | null;
+  status?: "unread" | "handled";
+  channel?: "email" | "whatsapp";
+  limit?: number;
+}
+
+// Read inbound replies with their AI-classified intent. Used by the chat agent's
+// get_replies tool so the assistant can read the inbox, not just count it.
+export function getReplies(opts: RepliesQuery = {}) {
+  const conds = [
+    opts.campaignId != null ? eq(replies.campaignId, opts.campaignId) : undefined,
+    opts.status ? eq(replies.status, opts.status) : undefined,
+    opts.channel ? eq(replies.channel, opts.channel) : undefined,
+  ].filter(Boolean);
+
+  return db.select({
+    id: replies.id,
+    leadId: replies.leadId,
+    leadName: leads.name,
+    channel: replies.channel,
+    fromAddress: replies.fromAddress,
+    body: replies.body,
+    status: replies.status,
+    intent: replies.intent,
+    receivedAt: replies.receivedAt,
+  })
+    .from(replies)
+    .leftJoin(leads, eq(replies.leadId, leads.id))
+    .where(conds.length ? and(...conds) : undefined)
+    .orderBy(desc(replies.receivedAt))
+    .limit(Math.min(opts.limit ?? 30, 100))
+    .all();
 }
 
 export function getRecentActivity(opts?: RecentActivityOpts) {

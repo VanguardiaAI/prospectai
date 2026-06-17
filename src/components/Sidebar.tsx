@@ -24,10 +24,29 @@ export function Sidebar() {
   ];
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
+  const [unreadReplies, setUnreadReplies] = useState(0);
 
   // Close sidebar on route change (mobile)
   useEffect(() => {
     setOpen(false);
+  }, [pathname]);
+
+  // Unread-reply badge on the Review item — replies are now a first-class inbox.
+  useEffect(() => {
+    let cancelled = false;
+    const load = () =>
+      fetch("/api/replies?status=unread&limit=50")
+        .then((r) => (r.ok ? r.json() : { replies: [] }))
+        .then((d) => {
+          if (!cancelled) setUnreadReplies(Array.isArray(d?.replies) ? d.replies.length : 0);
+        })
+        .catch(() => {});
+    load();
+    const iv = setInterval(load, 30000);
+    return () => {
+      cancelled = true;
+      clearInterval(iv);
+    };
   }, [pathname]);
 
   return (
@@ -104,7 +123,13 @@ export function Sidebar() {
                 >
                   <Icon className="h-[15px] w-[15px] flex-shrink-0 transition-colors duration-150" strokeWidth={1.5} />
                   {label}
-                  {isActive && <span className="ml-auto w-1 h-1 rounded-full bg-accent" />}
+                  {href === "/review" && unreadReplies > 0 ? (
+                    <span className="ml-auto inline-flex items-center justify-center min-w-[16px] h-4 px-1 rounded-full bg-accent text-white text-[9px] font-mono leading-none">
+                      {unreadReplies > 9 ? "9+" : unreadReplies}
+                    </span>
+                  ) : (
+                    isActive && <span className="ml-auto w-1 h-1 rounded-full bg-accent" />
+                  )}
                 </Link>
               );
             })}

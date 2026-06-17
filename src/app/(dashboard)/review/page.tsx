@@ -6,6 +6,16 @@ import { useToast } from "@/components/Toast";
 import { Mail, Check, X, RefreshCw, CheckCheck, Globe, MapPin, Send, FileText, Inbox, Search } from "lucide-react";
 import { WhatsAppIcon } from "@/components/icons/Brands";
 import { useT } from "@/i18n/LocaleProvider";
+import { clsx } from "clsx";
+import { INTENT_TONE, isReplyIntent } from "@/lib/reply-intent";
+import { CampaignSelector } from "@/components/CampaignSelector";
+import { useCampaign } from "@/components/CampaignProvider";
+
+const INTENT_BADGE_CLASS: Record<"good" | "warn" | "muted", string> = {
+  good: "border-success/40 text-success bg-success-subtle",
+  warn: "border-accent/40 text-accent bg-accent-subtle",
+  muted: "border-border-visible text-text-secondary bg-surface-raised",
+};
 
 type Mode = "messages" | "replies";
 type Channel = "email" | "whatsapp";
@@ -17,6 +27,9 @@ interface ReplyRow {
   channel: string;
   fromAddress: string;
   body: string | null;
+  status: string;
+  intent: string | null;
+  handledAt: string | null;
   receivedAt: string;
   leadName: string | null;
   leadCity: string | null;
@@ -71,6 +84,7 @@ interface InboxItem {
   key: string;
   channel: Channel;
   id: number;
+  campaignId: number | null;
   leadId: number;
   leadName: string | null;
   leadCategory: string | null;
@@ -97,6 +111,7 @@ function toItemFromEmail(r: EmailRow): InboxItem {
     key: `email:${r.email.id}`,
     channel: "email",
     id: r.email.id,
+    campaignId: r.email.campaignId,
     leadId: r.email.leadId,
     leadName: r.leadName,
     leadCategory: r.leadCategory,
@@ -122,6 +137,7 @@ function toItemFromWA(r: WARow): InboxItem {
     key: `whatsapp:${r.message.id}`,
     channel: "whatsapp",
     id: r.message.id,
+    campaignId: r.message.campaignId,
     leadId: r.message.leadId,
     leadName: r.leadName,
     leadCategory: r.leadCategory,
@@ -184,6 +200,8 @@ export default function ReviewPage() {
   const [bulkMode, setBulkMode] = useState(false);
   const [bulkKeys, setBulkKeys] = useState<Set<string>>(new Set());
 
+  const { selectedId } = useCampaign();
+
   const fetchMessages = useCallback(async () => {
     try {
       const [er, wr] = await Promise.all([
@@ -199,13 +217,31 @@ export default function ReviewPage() {
 
   const fetchReplies = useCallback(async () => {
     try {
-      const res = await fetch("/api/replies");
+      const qs = selectedId != null ? `?campaignId=${selectedId}` : "";
+      const res = await fetch(`/api/replies${qs}`);
       const data = await res.json();
       setReplyList(data.replies || []);
     } finally {
       setRepliesLoading(false);
     }
-  }, []);
+  }, [selectedId]);
+
+  const toggleReplyHandled = useCallback(async (id: number, handled: boolean) => {
+    const action = handled ? "handle" : "unhandle";
+    // Optimistic: flip locally, then persist.
+    setReplyList((prev) =>
+      prev.map((r) => (r.id === id ? { ...r, status: handled ? "handled" : "unread" } : r))
+    );
+    try {
+      await fetch("/api/replies", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id, action }),
+      });
+    } catch {
+      fetchReplies();
+    }
+  }, [fetchReplies]);
 
   useEffect(() => { fetchMessages(); }, [fetchMessages]);
   useEffect(() => { fetchReplies(); }, [fetchReplies]);
@@ -217,9 +253,15 @@ export default function ReviewPage() {
     return merged;
   }, [emails, waMessages]);
 
+  // Scope to the globally-selected campaign (null = all campaigns).
+  const campaignItems = useMemo<InboxItem[]>(
+    () => (selectedId == null ? allItems : allItems.filter((it) => it.campaignId === selectedId)),
+    [allItems, selectedId]
+  );
+
   const items = useMemo<InboxItem[]>(() => {
     const q = search.trim().toLowerCase();
-    return allItems.filter((it) => {
+    return campaignItems.filter((it) => {
       if (channelFilter !== "all" && it.channel !== channelFilter) return false;
       if (!q) return true;
       return (
@@ -229,10 +271,10 @@ export default function ReviewPage() {
         it.recipient.toLowerCase().includes(q)
       );
     });
-  }, [allItems, channelFilter, search]);
+  }, [campaignItems, channelFilter, search]);
 
-  const emailCount = useMemo(() => allItems.filter((i) => i.channel === "email").length, [allItems]);
-  const waCount = useMemo(() => allItems.filter((i) => i.channel === "whatsapp").length, [allItems]);
+  const emailCount = useMemo(() => campaignItems.filter((i) => i.channel === "email").length, [campaignItems]);
+  const waCount = useMemo(() => campaignItems.filter((i) => i.channel === "whatsapp").length, [campaignItems]);
 
   // Derive the effective selection during render (no effect): fall back to the
   // first visible message whenever the current one is filtered out or gone.
@@ -397,14 +439,17 @@ export default function ReviewPage() {
           <h1>{t("review.title")}</h1>
           <p className="nd-label mt-2">{subtitle}</p>
         </div>
-        <Segment
-          value={mode}
-          onChange={(v) => setMode(v)}
-          options={[
-            { value: "messages", label: <><Inbox className="h-3 w-3" strokeWidth={1.6} />{t("review.messagesTab")}</> },
-            { value: "replies", label: <><Send className="h-3 w-3 rotate-180" strokeWidth={1.6} />{t("review.repliesTab")}</> },
-          ]}
-        />
+        <div className="flex items-center gap-3">
+          <CampaignSelector />
+          <Segment
+            value={mode}
+            onChange={(v) => setMode(v)}
+            options={[
+              { value: "messages", label: <><Inbox className="h-3 w-3" strokeWidth={1.6} />{t("review.messagesTab")}</> },
+              { value: "replies", label: <><Send className="h-3 w-3 rotate-180" strokeWidth={1.6} />{t("review.repliesTab")}</> },
+            ]}
+          />
+        </div>
       </div>
 
       {/* ════════ MESSAGES (unified inbox) ════════ */}
@@ -709,19 +754,32 @@ export default function ReviewPage() {
           <div className="space-y-3">
             {replyList.map((r) => {
               const ch: Channel = r.channel === "whatsapp" ? "whatsapp" : "email";
+              const handled = r.status === "handled";
               return (
-                <Card key={r.id} className="nd-enter-fade">
+                <Card key={r.id} className={clsx("nd-enter-fade", handled && "opacity-60")}>
                   <div className="flex items-start gap-3">
                     <div className="rv-icon" data-ch={ch}>
                       <ChannelGlyph channel={ch} />
                     </div>
                     <div className="flex-1 min-w-0">
-                      <div className="flex items-center justify-between gap-2 mb-1">
+                      <div className="flex items-center gap-2 mb-1">
+                        {!handled && <span className="w-1.5 h-1.5 rounded-full bg-accent flex-shrink-0" aria-label={t("review.unread")} />}
                         <span className="text-sm font-medium text-text-display truncate">{r.leadName || t("review.unknownLead")}</span>
-                        <span className="nd-label text-text-muted flex-shrink-0">{r.receivedAt}</span>
+                        {isReplyIntent(r.intent) && (
+                          <span className={clsx("flex-shrink-0 rounded-full border px-2 py-0.5 text-[9px] font-mono uppercase tracking-[0.06em]", INTENT_BADGE_CLASS[INTENT_TONE[r.intent]])}>
+                            {t(`intent.${r.intent}`)}
+                          </span>
+                        )}
+                        <span className="nd-label text-text-muted flex-shrink-0 ml-auto">{r.receivedAt}</span>
                       </div>
                       <p className="text-[11px] text-text-muted font-mono mb-2 truncate">{r.fromAddress}</p>
                       <p className="text-[13px] text-text-primary leading-relaxed whitespace-pre-wrap">{r.body || ""}</p>
+                      <div className="mt-3 flex items-center gap-2">
+                        <Button size="sm" variant={handled ? "ghost" : "secondary"} onClick={() => toggleReplyHandled(r.id, !handled)}>
+                          <CheckCheck className="h-3.5 w-3.5" strokeWidth={1.6} />
+                          {handled ? t("review.markUnread") : t("review.markHandled")}
+                        </Button>
+                      </div>
                     </div>
                   </div>
                 </Card>

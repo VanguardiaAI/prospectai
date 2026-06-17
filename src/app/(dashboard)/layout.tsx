@@ -2,9 +2,11 @@
 
 import { useEffect } from "react";
 import { useRouter, usePathname } from "next/navigation";
+import { clsx } from "clsx";
 import { Sidebar } from "@/components/Sidebar";
 import { CommandPalette } from "@/components/CommandPalette";
-import { ChatbotProvider } from "@/components/ChatbotProvider";
+import { ChatbotProvider, useChatbot } from "@/components/ChatbotProvider";
+import { CampaignProvider } from "@/components/CampaignProvider";
 import { Chatbot } from "@/components/Chatbot";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { useT } from "@/i18n/LocaleProvider";
@@ -41,25 +43,41 @@ function OnboardingGate() {
   return null;
 }
 
+// Content column. When the chat is expanded to the right-side dock (desktop),
+// make room for it so the agent and the page sit side by side instead of overlapping.
+function ShellMain({ children }: { children: React.ReactNode }) {
+  const { mode } = useChatbot();
+  return (
+    <main
+      className={clsx(
+        "relative lg:ml-60 min-h-screen transition-[margin] duration-300 ease-out",
+        mode === "panel" && "lg:mr-[420px]"
+      )}
+    >
+      {/* pb-28 leaves room for the always-present chat bar docked at the bottom */}
+      <div className="px-4 pt-16 pb-28 lg:px-10 lg:pt-8 lg:pb-28 max-w-[1440px]">
+        <TranslatedErrorBoundary>{children}</TranslatedErrorBoundary>
+      </div>
+    </main>
+  );
+}
+
 export default function DashboardLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
   return (
-    <ChatbotProvider>
-      {/* Ambient gradient backdrop — what the glass surfaces refract */}
-      <div className="nd-ambient" aria-hidden />
-      <OnboardingGate />
-      <Sidebar />
-      <CommandPalette />
-      <Chatbot />
-      <main className="relative lg:ml-60 min-h-screen">
-        {/* pb-28 leaves room for the always-present chat bar docked at the bottom */}
-        <div className="px-4 pt-16 pb-28 lg:px-10 lg:pt-8 lg:pb-28 max-w-[1440px]">
-          <TranslatedErrorBoundary>{children}</TranslatedErrorBoundary>
-        </div>
-      </main>
-    </ChatbotProvider>
+    <CampaignProvider>
+      <ChatbotProvider>
+        {/* Ambient gradient backdrop — what the glass surfaces refract */}
+        <div className="nd-ambient" aria-hidden />
+        <OnboardingGate />
+        <Sidebar />
+        <CommandPalette />
+        <Chatbot />
+        <ShellMain>{children}</ShellMain>
+      </ChatbotProvider>
+    </CampaignProvider>
   );
 }

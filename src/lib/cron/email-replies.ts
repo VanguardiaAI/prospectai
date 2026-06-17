@@ -7,6 +7,7 @@ import { logActivity } from "@/lib/activity";
 import { triggerCrmWebhook } from "@/lib/crm-webhook";
 import { prioritizeLeadOnReply } from "@/lib/lead-prioritization";
 import { markUnsubscribed } from "@/lib/unsubscribe";
+import { classifyReply } from "@/lib/reply-classification";
 import { logger } from "@/lib/logger";
 
 interface EmailRepliesResult {
@@ -85,12 +86,18 @@ export async function processEmailReplies(): Promise<EmailRepliesResult> {
           if (!lead) continue;
           matched++;
 
+          // An explicit opt-out short-circuits the AI classifier.
+          const subject = (parsed.subject || "").toLowerCase();
+          const isUnsub = /unsubscribe/.test(subject) || /\b(baja|darme de baja|no quiero recibir|remove me|unsubscribe)\b/i.test(body);
+          const intent = isUnsub ? "unsubscribe" : await classifyReply(body, "email");
+
           db.insert(replies).values({
             leadId: lead.id,
             campaignId: lead.campaignId,
             channel: "email",
             fromAddress: fromAddr,
             body,
+            intent: intent ?? undefined,
           }).run();
 
           // Stop active sequences for this lead
@@ -105,8 +112,7 @@ export async function processEmailReplies(): Promise<EmailRepliesResult> {
           prioritizeLeadOnReply(lead.id);
 
           // Honor opt-out requests (mailto unsubscribe / "baja" replies)
-          const subject = (parsed.subject || "").toLowerCase();
-          if (/unsubscribe/.test(subject) || /\b(baja|darme de baja|no quiero recibir|remove me|unsubscribe)\b/i.test(body)) {
+          if (isUnsub) {
             markUnsubscribed(fromAddr, lead.id);
             logActivity("blacklist", `Baja solicitada por email: ${fromAddr}`, {
               leadId: lead.id,

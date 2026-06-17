@@ -1,4 +1,12 @@
 {
+  "intent": {
+    "interested": "Interesado",
+    "question": "Pregunta",
+    "not_interested": "No interesado",
+    "auto_reply": "Autorespuesta",
+    "unsubscribe": "Baja",
+    "other": "Otro"
+  },
   "sidebar": {
     "home": "INICIO",
     "dashboard": "DASHBOARD",
@@ -49,6 +57,11 @@
     "leads": "Leads",
     "topCities": "Ciudades top",
     "pipeline": "Embudo",
+    "pending": "Pendientes",
+    "approved": "Aprobados",
+    "sendHealth": "Salud de envío",
+    "bounce": "Rebote 7d",
+    "noReplies": "Aún no hay respuestas",
     "analyzed": "analizados",
     "noData": "Sin datos aún",
     "weeklySends": "Envíos · semana",
@@ -251,6 +264,9 @@
     "repliesTab": "Respuestas",
     "noReplies": "Aún no hay respuestas. Las respuestas de email y WhatsApp aparecerán aquí.",
     "unknownLead": "Lead desconocido",
+    "markHandled": "Marcar gestionada",
+    "markUnread": "Marcar sin leer",
+    "unread": "Sin leer",
     "title": "Revision",
     "tone": "Tono",
     "testEmailSent": "Email de prueba enviado a {{email}}",

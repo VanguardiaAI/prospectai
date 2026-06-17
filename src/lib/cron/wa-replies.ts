@@ -5,6 +5,7 @@ import { getClient } from "@/lib/whatsapp-client";
 import { logActivity } from "@/lib/activity";
 import { triggerCrmWebhook } from "@/lib/crm-webhook";
 import { prioritizeLeadOnReply } from "@/lib/lead-prioritization";
+import { classifyReply } from "@/lib/reply-classification";
 import { logger } from "@/lib/logger";
 
 // Track which client instance has the listener to avoid duplicates.
@@ -38,6 +39,8 @@ export function setupWhatsAppReplyListener(): void {
 
       if (!lead) return;
 
+      const intent = await classifyReply(msg.body, "whatsapp");
+
       // Record the reply
       db.insert(replies).values({
         leadId: lead.id,
@@ -45,6 +48,7 @@ export function setupWhatsAppReplyListener(): void {
         channel: "whatsapp",
         fromAddress: rawFrom,
         body: msg.body,
+        intent: intent ?? undefined,
       }).run();
 
       // Stop active sequences

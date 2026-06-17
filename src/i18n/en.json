@@ -1,4 +1,12 @@
 {
+  "intent": {
+    "interested": "Interested",
+    "question": "Question",
+    "not_interested": "Not interested",
+    "auto_reply": "Auto-reply",
+    "unsubscribe": "Unsubscribe",
+    "other": "Other"
+  },
   "sidebar": {
     "home": "HOME",
     "dashboard": "DASHBOARD",
@@ -49,6 +57,11 @@
     "leads": "Leads",
     "topCities": "Top cities",
     "pipeline": "Pipeline",
+    "pending": "Pending",
+    "approved": "Approved",
+    "sendHealth": "Sending health",
+    "bounce": "Bounce 7d",
+    "noReplies": "No replies yet",
     "analyzed": "analyzed",
     "noData": "No data yet",
     "weeklySends": "Weekly sends",
@@ -251,6 +264,9 @@
     "repliesTab": "Replies",
     "noReplies": "No replies yet. Email and WhatsApp replies will show up here.",
     "unknownLead": "Unknown lead",
+    "markHandled": "Mark handled",
+    "markUnread": "Mark unread",
+    "unread": "Unread",
     "title": "Review",
     "tone": "Tone",
     "testEmailSent": "Test email sent to {{email}}",

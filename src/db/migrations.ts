@@ -261,6 +261,9 @@ export function runMigrations(): void {
     channel TEXT NOT NULL,
     from_address TEXT NOT NULL,
     body TEXT,
+    status TEXT NOT NULL DEFAULT 'unread',
+    intent TEXT,
+    handled_at TEXT,
     received_at TEXT NOT NULL DEFAULT (datetime('now')),
     created_at TEXT NOT NULL DEFAULT (datetime('now'))
   );
@@ -293,6 +296,14 @@ export function runMigrations(): void {
   safeAddColumn(`ALTER TABLE sending_domains ADD COLUMN warmup_increment INTEGER NOT NULL DEFAULT 5`);
   safeAddColumn(`ALTER TABLE campaigns ADD COLUMN strategy TEXT NOT NULL DEFAULT 'web_design'`);
   safeAddColumn(`ALTER TABLE campaigns ADD COLUMN channels TEXT NOT NULL DEFAULT 'email'`);
+
+  // Replies become an actionable inbox: triage state + AI-classified intent.
+  // The index must be created AFTER the column ALTERs (existing DBs lack the
+  // column inside the CREATE-TABLE block), so it lives here via safeAddColumn.
+  safeAddColumn(`ALTER TABLE replies ADD COLUMN status TEXT NOT NULL DEFAULT 'unread'`);
+  safeAddColumn(`ALTER TABLE replies ADD COLUMN intent TEXT`);
+  safeAddColumn(`ALTER TABLE replies ADD COLUMN handled_at TEXT`);
+  safeAddColumn(`CREATE INDEX IF NOT EXISTS idx_replies_status ON replies(status)`);
 
   // Multiple agency profiles + per-campaign profile selection
   safeAddColumn(`ALTER TABLE agency_profile ADD COLUMN label TEXT`);

@@ -14,10 +14,13 @@ import {
   ChevronDown,
   Trash2,
   AlertCircle,
+  PanelRight,
+  Minimize2,
 } from "lucide-react";
 import { clsx } from "clsx";
 import { useT } from "@/i18n/LocaleProvider";
 import { useChatbot } from "./ChatbotProvider";
+import { useCampaign } from "./CampaignProvider";
 import { ChatbotShortcuts } from "./ChatbotShortcuts";
 
 // ─── Minimal Markdown Renderer ──────────────────────────────────────
@@ -211,7 +214,14 @@ function MessageParts({ message }: { message: UIMessage }) {
 
 export function Chatbot() {
   const { t } = useT();
-  const { isOpen, openChat, closeChat, registerSender } = useChatbot();
+  const { isOpen, openChat, closeChat, mode, expand, collapseToBar, registerSender } =
+    useChatbot();
+  const { selectedId } = useCampaign();
+  // Keep the latest campaign scope reachable from the (stably-registered) sender.
+  const campaignIdRef = useRef<number | null>(selectedId);
+  useEffect(() => {
+    campaignIdRef.current = selectedId;
+  }, [selectedId]);
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const [provider, setProvider] = useState<string | null>(null);
@@ -223,6 +233,9 @@ export function Chatbot() {
   });
 
   const isLoading = status === "streaming" || status === "submitted";
+  const isPanel = mode === "panel";
+  // In panel mode the conversation is always shown; in bar mode it's gated by isOpen.
+  const showConversation = isPanel || isOpen;
 
   // Active AI provider, for the status label.
   useEffect(() => {
@@ -248,21 +261,21 @@ export function Chatbot() {
   // Register the sender for external use (command palette, shortcuts).
   useEffect(() => {
     registerSender((text: string) => {
-      sendMessage({ text });
+      sendMessage({ text }, { body: { campaignId: campaignIdRef.current } });
     });
   }, [registerSender, sendMessage]);
 
-  // Auto-scroll to bottom while expanded.
+  // Auto-scroll to bottom while the conversation is visible.
   useEffect(() => {
-    if (isOpen && scrollRef.current) {
+    if (showConversation && scrollRef.current) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }
-  }, [messages, status, isOpen]);
+  }, [messages, status, showConversation]);
 
   const submitText = (text: string) => {
     const trimmed = text.trim();
     if (!trimmed || isLoading) return;
-    sendMessage({ text: trimmed });
+    sendMessage({ text: trimmed }, { body: { campaignId: selectedId } });
     openChat();
   };
 
@@ -294,10 +307,184 @@ export function Chatbot() {
       })()
     : null;
 
+  // ─── Shared brand/header strip ───
+  const headerLeft = (
+    <div className="flex items-center gap-2">
+      <div className="w-6 h-6 rounded-lg bg-accent-subtle flex items-center justify-center">
+        <Sparkles className="w-3.5 h-3.5 text-accent" />
+      </div>
+      <span className="text-sm font-semibold text-text-display leading-none">
+        ProspectAI
+      </span>
+      <span className="nd-label text-text-secondary">
+        {isLoading ? t("chatbot.thinking") || "Pensando…" : providerLabel}
+      </span>
+    </div>
+  );
+
+  const clearButton =
+    messages.length > 0 ? (
+      <button
+        onClick={() => setMessages([])}
+        className="p-1.5 rounded-lg hover:bg-bg-tertiary transition-colors cursor-pointer text-text-secondary"
+        title={t("chatbot.clear") || "Limpiar conversación"}
+        aria-label="Clear conversation"
+      >
+        <Trash2 className="w-4 h-4" />
+      </button>
+    ) : null;
+
+  // ─── Shared conversation body ───
+  const conversation = (
+    <div ref={scrollRef} className="flex-1 overflow-y-auto px-4 py-3 space-y-4">
+      {messages.length === 0 && (
+        <div className="text-center mt-8 mb-2">
+          <div className="w-12 h-12 rounded-2xl bg-accent-subtle flex items-center justify-center mx-auto mb-4">
+            <Bot className="w-6 h-6 text-accent opacity-70" />
+          </div>
+          <p className="text-sm text-text-display font-medium mb-1">
+            {t("chatbot.welcome") || "Pregúntame lo que sea sobre tus campañas"}
+          </p>
+          <p className="text-[11px] text-text-secondary mb-6">
+            {t("chatbot.examples") ||
+              "Puedo crear campañas, buscar leads, revisar emails y más"}
+          </p>
+
+          <ChatbotShortcuts onSelect={submitText} />
+        </div>
+      )}
+
+      {messages.map((msg) => (
+        <MessageParts key={msg.id} message={msg} />
+      ))}
+
+      {/* Loading indicator */}
+      {isLoading &&
+        messages.length > 0 &&
+        (() => {
+          const lastMsg = messages[messages.length - 1];
+          const hasText = lastMsg?.parts.some(
+            (p) => p.type === "text" && (p as { text: string }).text.length > 0
+          );
+          if (lastMsg?.role === "assistant" && !hasText) {
+            return (
+              <div className="flex gap-2 items-start">
+                <div className="w-6 h-6 rounded-lg bg-accent-subtle flex items-center justify-center shrink-0">
+                  <Bot className="w-3.5 h-3.5 text-accent" />
+                </div>
+                <div className="bg-bg-tertiary border border-border rounded-2xl rounded-bl-md px-4 py-3">
+                  <div className="flex gap-1">
+                    <div className="w-1.5 h-1.5 rounded-full bg-text-secondary/40 animate-bounce [animation-delay:0ms]" />
+                    <div className="w-1.5 h-1.5 rounded-full bg-text-secondary/40 animate-bounce [animation-delay:150ms]" />
+                    <div className="w-1.5 h-1.5 rounded-full bg-text-secondary/40 animate-bounce [animation-delay:300ms]" />
+                  </div>
+                </div>
+              </div>
+            );
+          }
+          return null;
+        })()}
+
+      {/* Error row */}
+      {errorMessage && (
+        <div className="flex gap-2 items-start">
+          <div className="w-6 h-6 rounded-lg bg-accent-subtle flex items-center justify-center shrink-0 mt-0.5">
+            <AlertCircle className="w-3.5 h-3.5 text-accent" />
+          </div>
+          <div className="max-w-[85%] rounded-2xl rounded-bl-md px-3.5 py-2.5 text-[13px] leading-relaxed bg-accent-subtle border border-accent/30 text-text-primary">
+            {renderMarkdown(errorMessage)}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+
+  // ─── Shared input form ───
+  const inputForm = (
+    <form
+      onSubmit={handleSubmit}
+      className="flex items-end gap-2 rounded-2xl border border-border bg-bg-secondary px-2.5 py-2 shadow-lg shadow-black/20"
+    >
+      <button
+        type="button"
+        onClick={() => (isPanel ? collapseToBar() : isOpen ? closeChat() : openChat())}
+        className="w-9 h-9 shrink-0 self-center rounded-xl bg-accent-subtle flex items-center justify-center cursor-pointer hover:bg-accent/15 transition-colors"
+        aria-label={isPanel ? "Collapse to bar" : isOpen ? "Collapse chat" : "Expand chat"}
+        title={providerLabel}
+      >
+        <Sparkles className="w-4 h-4 text-accent" />
+      </button>
+
+      <textarea
+        ref={inputRef}
+        name="chatInput"
+        onKeyDown={handleKeyDown}
+        onFocus={isPanel ? undefined : openChat}
+        placeholder={
+          t("chatbot.placeholder") ||
+          "Pídele al agente que cree campañas, busque leads…"
+        }
+        rows={1}
+        className={clsx(
+          "flex-1 px-2 py-2 rounded-xl text-sm resize-none bg-transparent",
+          "focus:outline-none",
+          "placeholder:text-text-muted",
+          "max-h-32 min-h-[36px]"
+        )}
+      />
+      <button
+        type="submit"
+        disabled={isLoading}
+        className={clsx(
+          "w-9 h-9 rounded-xl shrink-0 self-center",
+          "flex items-center justify-center",
+          "transition-all duration-200 cursor-pointer",
+          !isLoading
+            ? "bg-accent text-white hover:bg-accent/90 shadow-sm"
+            : "bg-bg-tertiary text-text-muted cursor-not-allowed"
+        )}
+        aria-label="Send message"
+      >
+        {isLoading ? (
+          <Loader2 className="w-4 h-4 animate-spin" />
+        ) : (
+          <Send className="w-4 h-4" />
+        )}
+      </button>
+    </form>
+  );
+
+  // ─── Expanded mode: right-side dock (desktop) / fullscreen (mobile) ───
+  if (isPanel) {
+    return (
+      <div className="fixed z-[80] flex flex-col bg-bg-secondary inset-0 lg:inset-auto lg:top-0 lg:right-0 lg:bottom-0 lg:w-[420px] lg:border-l lg:border-border">
+        <div className="flex items-center justify-between px-4 py-2.5 border-b border-border">
+          {headerLeft}
+          <div className="flex items-center gap-1">
+            {clearButton}
+            <button
+              onClick={collapseToBar}
+              className="p-1.5 rounded-lg hover:bg-bg-tertiary transition-colors cursor-pointer text-text-secondary"
+              title={t("chatbot.dockBottom") || "Acoplar abajo"}
+              aria-label="Collapse to bottom bar"
+            >
+              <Minimize2 className="w-4 h-4" />
+            </button>
+          </div>
+        </div>
+
+        {conversation}
+
+        <div className="px-3 py-3 border-t border-border">{inputForm}</div>
+      </div>
+    );
+  }
+
+  // ─── Bar mode: always-present bottom bar + upward panel ───
   return (
     <div className="fixed bottom-0 left-0 right-0 lg:left-60 z-40 pointer-events-none">
       <div className="mx-auto max-w-[1100px] px-4 lg:px-8 pb-4 pointer-events-auto">
-        {/* ─── Expanded conversation panel ─── */}
+        {/* Expanded conversation panel (grows upward) */}
         <div
           className={clsx(
             "mb-2 flex flex-col overflow-hidden rounded-2xl border border-border bg-bg-secondary shadow-2xl shadow-black/30",
@@ -308,32 +495,18 @@ export function Chatbot() {
           )}
           style={{ maxHeight: isOpen ? "min(60vh, 560px)" : 0 }}
         >
-          {/* Header */}
           <div className="flex items-center justify-between px-4 py-2.5 border-b border-border">
-            <div className="flex items-center gap-2">
-              <div className="w-6 h-6 rounded-lg bg-accent-subtle flex items-center justify-center">
-                <Sparkles className="w-3.5 h-3.5 text-accent" />
-              </div>
-              <span className="text-sm font-semibold text-text-display leading-none">
-                ProspectAI
-              </span>
-              <span className="nd-label text-text-secondary">
-                {isLoading
-                  ? t("chatbot.thinking") || "Pensando…"
-                  : providerLabel}
-              </span>
-            </div>
+            {headerLeft}
             <div className="flex items-center gap-1">
-              {messages.length > 0 && (
-                <button
-                  onClick={() => setMessages([])}
-                  className="p-1.5 rounded-lg hover:bg-bg-tertiary transition-colors cursor-pointer text-text-secondary"
-                  title={t("chatbot.clear") || "Limpiar conversación"}
-                  aria-label="Clear conversation"
-                >
-                  <Trash2 className="w-4 h-4" />
-                </button>
-              )}
+              <button
+                onClick={expand}
+                className="p-1.5 rounded-lg hover:bg-bg-tertiary transition-colors cursor-pointer text-text-secondary"
+                title={t("chatbot.expand") || "Expandir a panel lateral"}
+                aria-label="Expand to side panel"
+              >
+                <PanelRight className="w-4 h-4" />
+              </button>
+              {clearButton}
               <button
                 onClick={closeChat}
                 className="p-1.5 rounded-lg hover:bg-bg-tertiary transition-colors cursor-pointer text-text-secondary"
@@ -344,125 +517,11 @@ export function Chatbot() {
             </div>
           </div>
 
-          {/* Messages */}
-          <div ref={scrollRef} className="flex-1 overflow-y-auto px-4 py-3 space-y-4">
-            {messages.length === 0 && (
-              <div className="text-center mt-8 mb-2">
-                <div className="w-12 h-12 rounded-2xl bg-accent-subtle flex items-center justify-center mx-auto mb-4">
-                  <Bot className="w-6 h-6 text-accent opacity-70" />
-                </div>
-                <p className="text-sm text-text-display font-medium mb-1">
-                  {t("chatbot.welcome") ||
-                    "Pregúntame lo que sea sobre tus campañas"}
-                </p>
-                <p className="text-[11px] text-text-secondary mb-6">
-                  {t("chatbot.examples") ||
-                    "Puedo crear campañas, buscar leads, revisar emails y más"}
-                </p>
-
-                <ChatbotShortcuts onSelect={submitText} />
-              </div>
-            )}
-
-            {messages.map((msg) => (
-              <MessageParts key={msg.id} message={msg} />
-            ))}
-
-            {/* Loading indicator */}
-            {isLoading &&
-              messages.length > 0 &&
-              (() => {
-                const lastMsg = messages[messages.length - 1];
-                const hasText = lastMsg?.parts.some(
-                  (p) =>
-                    p.type === "text" &&
-                    (p as { text: string }).text.length > 0
-                );
-                if (lastMsg?.role === "assistant" && !hasText) {
-                  return (
-                    <div className="flex gap-2 items-start">
-                      <div className="w-6 h-6 rounded-lg bg-accent-subtle flex items-center justify-center shrink-0">
-                        <Bot className="w-3.5 h-3.5 text-accent" />
-                      </div>
-                      <div className="bg-bg-tertiary border border-border rounded-2xl rounded-bl-md px-4 py-3">
-                        <div className="flex gap-1">
-                          <div className="w-1.5 h-1.5 rounded-full bg-text-secondary/40 animate-bounce [animation-delay:0ms]" />
-                          <div className="w-1.5 h-1.5 rounded-full bg-text-secondary/40 animate-bounce [animation-delay:150ms]" />
-                          <div className="w-1.5 h-1.5 rounded-full bg-text-secondary/40 animate-bounce [animation-delay:300ms]" />
-                        </div>
-                      </div>
-                    </div>
-                  );
-                }
-                return null;
-              })()}
-
-            {/* Error row */}
-            {errorMessage && (
-              <div className="flex gap-2 items-start">
-                <div className="w-6 h-6 rounded-lg bg-accent-subtle flex items-center justify-center shrink-0 mt-0.5">
-                  <AlertCircle className="w-3.5 h-3.5 text-accent" />
-                </div>
-                <div className="max-w-[85%] rounded-2xl rounded-bl-md px-3.5 py-2.5 text-[13px] leading-relaxed bg-accent-subtle border border-accent/30 text-text-primary">
-                  {renderMarkdown(errorMessage)}
-                </div>
-              </div>
-            )}
-          </div>
+          {conversation}
         </div>
 
-        {/* ─── Always-present input bar ─── */}
-        <form
-          onSubmit={handleSubmit}
-          className="flex items-end gap-2 rounded-2xl border border-border bg-bg-secondary px-2.5 py-2 shadow-lg shadow-black/20"
-        >
-          <button
-            type="button"
-            onClick={() => (isOpen ? closeChat() : openChat())}
-            className="w-9 h-9 shrink-0 self-center rounded-xl bg-accent-subtle flex items-center justify-center cursor-pointer hover:bg-accent/15 transition-colors"
-            aria-label={isOpen ? "Collapse chat" : "Expand chat"}
-            title={providerLabel}
-          >
-            <Sparkles className="w-4 h-4 text-accent" />
-          </button>
-
-          <textarea
-            ref={inputRef}
-            name="chatInput"
-            onKeyDown={handleKeyDown}
-            onFocus={openChat}
-            placeholder={
-              t("chatbot.placeholder") ||
-              "Pídele al agente que cree campañas, busque leads…"
-            }
-            rows={1}
-            className={clsx(
-              "flex-1 px-2 py-2 rounded-xl text-sm resize-none bg-transparent",
-              "focus:outline-none",
-              "placeholder:text-text-muted",
-              "max-h-32 min-h-[36px]"
-            )}
-          />
-          <button
-            type="submit"
-            disabled={isLoading}
-            className={clsx(
-              "w-9 h-9 rounded-xl shrink-0 self-center",
-              "flex items-center justify-center",
-              "transition-all duration-200 cursor-pointer",
-              !isLoading
-                ? "bg-accent text-white hover:bg-accent/90 shadow-sm"
-                : "bg-bg-tertiary text-text-muted cursor-not-allowed"
-            )}
-            aria-label="Send message"
-          >
-            {isLoading ? (
-              <Loader2 className="w-4 h-4 animate-spin" />
-            ) : (
-              <Send className="w-4 h-4" />
-            )}
-          </button>
-        </form>
+        {/* Always-present input bar */}
+        {inputForm}
       </div>
     </div>
   );
