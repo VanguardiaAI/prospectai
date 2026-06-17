@@ -1,7 +1,7 @@
 import { db, getSetting } from "@/db";
 import { emails, leads, campaigns, jobQueue, sendingDomains } from "@/db/schema";
 import { eq, and, sql, ne } from "drizzle-orm";
-import { sendEmail } from "@/lib/resend-client";
+import { sendEmail } from "@/lib/email-sender";
 import { logActivity } from "@/lib/activity";
 import { isUnsubscribed, generateUnsubscribeUrl, injectUnsubscribeLink, appendUnsubscribeText } from "@/lib/unsubscribe";
 import { injectTrackingPixel, wrapLinksWithTracking } from "@/lib/tracking";

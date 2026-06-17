@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { sendEmail } from "@/lib/resend-client";
+import { sendEmail } from "@/lib/email-sender";
 import { db, getSetting } from "@/db";
 import { emails } from "@/db/schema";
 import { eq } from "drizzle-orm";
