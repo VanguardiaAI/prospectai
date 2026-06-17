@@ -8,8 +8,6 @@ import {
   Inbox,
   Settings,
   LogOut,
-  Sun,
-  Moon,
   Menu,
   X,
 } from "lucide-react";
@@ -17,7 +15,7 @@ import { clsx } from "clsx";
 import { useT } from "@/i18n/LocaleProvider";
 
 export function Sidebar() {
-  const { t, lang, setLang } = useT();
+  const { t } = useT();
 
   const nav = [
     { href: "/inicio", label: t("sidebar.home"), icon: Home },
@@ -25,27 +23,12 @@ export function Sidebar() {
     { href: "/settings", label: t("sidebar.config"), icon: Settings },
   ];
   const pathname = usePathname();
-  const [theme, setTheme] = useState<"light" | "dark">("light");
   const [open, setOpen] = useState(false);
-
-  useEffect(() => {
-    const stored = localStorage.getItem("theme") as "light" | "dark" | null;
-    const initial = stored || "light";
-    setTheme(initial);
-    document.documentElement.setAttribute("data-theme", initial);
-  }, []);
 
   // Close sidebar on route change (mobile)
   useEffect(() => {
     setOpen(false);
   }, [pathname]);
-
-  const toggleTheme = () => {
-    const next = theme === "light" ? "dark" : "light";
-    setTheme(next);
-    document.documentElement.setAttribute("data-theme", next);
-    localStorage.setItem("theme", next);
-  };
 
   return (
     <>
@@ -130,56 +113,6 @@ export function Sidebar() {
 
         {/* Footer */}
         <div className="px-5 py-4 border-t border-border space-y-3">
-          {/* Language toggle */}
-          <button
-            onClick={() => {
-              const next = lang === "en" ? "es" : "en";
-              setLang(next);
-              fetch("/api/settings", {
-                method: "PUT",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ locale: next === "en" ? "en-US" : "es-MX" }),
-              });
-            }}
-            className="flex items-center gap-2 text-[10px] text-text-muted font-mono uppercase tracking-[0.06em] hover:text-text-secondary transition-colors duration-150 cursor-pointer w-full"
-          >
-            <div className="relative w-9 h-[20px] rounded-full border border-border-light bg-transparent transition-colors duration-150">
-              <div
-                className={clsx(
-                  "absolute top-[3px] w-3.5 h-3.5 rounded-full transition-transform duration-200 flex items-center justify-center text-[7px] font-bold",
-                  lang === "es"
-                    ? "translate-x-[18px] bg-text-display text-bg-primary"
-                    : "translate-x-[3px] bg-text-muted text-bg-primary"
-                )}
-              >
-                {lang === "es" ? "ES" : "EN"}
-              </div>
-            </div>
-            {lang === "es" ? "ESPANOL" : "ENGLISH"}
-          </button>
-          {/* Theme toggle */}
-          <button
-            onClick={toggleTheme}
-            className="flex items-center gap-2 text-[10px] text-text-muted font-mono uppercase tracking-[0.06em] hover:text-text-secondary transition-colors duration-150 cursor-pointer w-full"
-          >
-            <div className="relative w-9 h-[20px] rounded-full border border-border-light bg-transparent transition-colors duration-150">
-              <div
-                className={clsx(
-                  "absolute top-[3px] w-3.5 h-3.5 rounded-full transition-transform duration-200 flex items-center justify-center",
-                  theme === "dark"
-                    ? "translate-x-[18px] bg-text-display"
-                    : "translate-x-[3px] bg-text-muted"
-                )}
-              >
-                {theme === "dark" ? (
-                  <Moon className="h-2 w-2 text-bg-primary" strokeWidth={2} />
-                ) : (
-                  <Sun className="h-2 w-2 text-bg-primary" strokeWidth={2} />
-                )}
-              </div>
-            </div>
-            {theme === "dark" ? t("sidebar.darkMode") : t("sidebar.lightMode")}
-          </button>
           <button
             onClick={async () => {
               await fetch("/api/auth/logout", { method: "POST" });

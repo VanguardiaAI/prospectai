@@ -2,7 +2,12 @@ import type { Metadata } from "next";
 import { Space_Grotesk, Space_Mono } from "next/font/google";
 import { ToastProvider } from "@/components/Toast";
 import { LocaleProvider } from "@/i18n/LocaleProvider";
+import { ThemeProvider } from "@/components/ThemeProvider";
 import "./globals.css";
+
+// Applied before paint so the page never flashes the wrong theme. Dark is the
+// default; a stored preference (set from Settings → System) wins.
+const themeScript = `(function(){try{var t=localStorage.getItem('theme');if(t!=='light'&&t!=='dark')t='dark';document.documentElement.setAttribute('data-theme',t);}catch(e){document.documentElement.setAttribute('data-theme','dark');}})();`;
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
 
@@ -83,19 +88,22 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className={`${spaceGrotesk.variable} ${spaceMono.variable} h-full`}>
+    <html lang="en" suppressHydrationWarning className={`${spaceGrotesk.variable} ${spaceMono.variable} h-full`}>
       <head>
+        <script dangerouslySetInnerHTML={{ __html: themeScript }} />
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
         />
       </head>
       <body className="min-h-full bg-bg-primary text-text-primary">
-        <LocaleProvider>
-          <ToastProvider>
-            {children}
-          </ToastProvider>
-        </LocaleProvider>
+        <ThemeProvider>
+          <LocaleProvider>
+            <ToastProvider>
+              {children}
+            </ToastProvider>
+          </LocaleProvider>
+        </ThemeProvider>
       </body>
     </html>
   );

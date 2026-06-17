@@ -666,7 +666,16 @@
       "profile": "PERFIL",
       "connections": "CONEXIONES",
       "sending": "ENVÍO",
-      "advanced": "AVANZADO"
+      "advanced": "AVANZADO",
+      "system": "SISTEMA"
+    },
+    "system": {
+      "appearance": "Apariencia",
+      "appearanceHint": "Tema de la interfaz. Oscuro por defecto.",
+      "language": "Idioma",
+      "languageHint": "Idioma de la interfaz del dashboard. Se detecta automáticamente del navegador en la primera visita.",
+      "dark": "Oscuro",
+      "light": "Claro"
     },
     "apiKeys": {
       "section": "Claves API",

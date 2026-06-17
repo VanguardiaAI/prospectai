@@ -666,7 +666,16 @@
       "profile": "PROFILE",
       "connections": "CONNECTIONS",
       "sending": "SENDING",
-      "advanced": "ADVANCED"
+      "advanced": "ADVANCED",
+      "system": "SYSTEM"
+    },
+    "system": {
+      "appearance": "Appearance",
+      "appearanceHint": "Interface theme. Dark by default.",
+      "language": "Language",
+      "languageHint": "Dashboard interface language. Auto-detected from your browser on first visit.",
+      "dark": "Dark",
+      "light": "Light"
     },
     "apiKeys": {
       "section": "API keys",

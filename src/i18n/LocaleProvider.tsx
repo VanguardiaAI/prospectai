@@ -29,16 +29,29 @@ export function LocaleProvider({ children }: { children: ReactNode }) {
   const [lang, setLangState] = useState<Lang>("en");
 
   useEffect(() => {
-    fetch("/api/settings")
-      .then((r) => r.json())
-      .then((data: Record<string, string>) => {
-        setLangState(getLang(data?.locale));
-      })
-      .catch(() => {});
+    // A previously chosen language wins; otherwise auto-detect from the browser
+    // (Spanish → "es", anything else → "en") and remember the resolved choice.
+    try {
+      const stored = localStorage.getItem("lang");
+      if (stored === "en" || stored === "es") {
+        setLangState(stored);
+        return;
+      }
+      const detected = getLang(navigator.language || navigator.languages?.[0]);
+      setLangState(detected);
+      localStorage.setItem("lang", detected);
+    } catch {
+      setLangState(getLang(typeof navigator !== "undefined" ? navigator.language : null));
+    }
   }, []);
 
   const setLang = useCallback((newLang: Lang) => {
     setLangState(newLang);
+    try {
+      localStorage.setItem("lang", newLang);
+    } catch {
+      /* ignore */
+    }
   }, []);
 
   const t = useCallback(
