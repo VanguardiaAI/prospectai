@@ -143,7 +143,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     const fromName = getSetting("from_name") || getSetting("agency_name") || "ProspectAI";
     const fromEmail = getSetting("from_email") || "";
 
-    const generated = await generateEmail(lead.name, lead.category, lead.city, lead.website, analysis, tone, fromName, undefined, withStrategyDirective(campaign?.strategy), detectCountryFromPhone(lead.phone) || undefined);
+    const generated = await generateEmail(lead.name, lead.category, lead.city, lead.website, analysis, tone, fromName, undefined, withStrategyDirective(campaign?.strategy), detectCountryFromPhone(lead.phone) || undefined, campaign?.agencyProfileId ?? undefined);
 
     db.insert(emails).values({
       leadId: lead.id,
@@ -180,7 +180,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     const tone = v.data.tone || campaign?.defaultTone || getSetting("default_tone") || "professional";
     const fromName = getSetting("from_name") || getSetting("agency_name") || "ProspectAI";
 
-    const generated = await generateWhatsApp(lead.name, lead.category, lead.city, lead.website, waAnalysis, tone, fromName, undefined, withStrategyDirective(campaign?.strategy), detectCountryFromPhone(lead.phone) || undefined);
+    const generated = await generateWhatsApp(lead.name, lead.category, lead.city, lead.website, waAnalysis, tone, fromName, undefined, withStrategyDirective(campaign?.strategy), detectCountryFromPhone(lead.phone) || undefined, campaign?.agencyProfileId ?? undefined);
 
     db.insert(whatsappMessages).values({
       leadId: lead.id,

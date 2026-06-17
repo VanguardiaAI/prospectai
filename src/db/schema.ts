@@ -9,8 +9,11 @@ export const campaigns = sqliteTable("campaigns", {
   qualityThreshold: integer("quality_threshold").notNull().default(40),
   autopilot: integer("autopilot", { mode: "boolean" }).notNull().default(false),
   defaultTone: text("default_tone").notNull().default("professional"),
-  // Campaign angle: "web_design" pitches the website, "seo_visibility" pitches Google visibility (recurring SEO)
+  // Campaign angle: "web_design" pitches the website, "seo_visibility" pitches Google visibility (recurring SEO).
+  // Mirrored from the selected agency profile's own angle; kept as a non-destructive fallback.
   strategy: text("strategy", { enum: ["web_design", "seo_visibility"] }).notNull().default("web_design"),
+  // Agency profile (identity + angle) this campaign writes as. NULL = fall back to the default profile.
+  agencyProfileId: integer("agency_profile_id").references(() => agencyProfile.id),
   status: text("status", { enum: ["active", "paused", "archived"] }).notNull().default("active"),
   createdAt: text("created_at").notNull().default(sql`(datetime('now'))`),
   updatedAt: text("updated_at").notNull().default(sql`(datetime('now'))`),
@@ -122,6 +125,12 @@ export const settings = sqliteTable("settings", {
 
 export const agencyProfile = sqliteTable("agency_profile", {
   id: integer("id").primaryKey({ autoIncrement: true }),
+  // Internal nickname used in the profile picker (the public `name` may repeat across profiles)
+  label: text("label"),
+  // Messaging angle this profile writes with: "web_design" or "seo_visibility"
+  strategy: text("strategy", { enum: ["web_design", "seo_visibility"] }).notNull().default("web_design"),
+  // Exactly one profile is the default (fallback for campaigns without a profile, onboarding, and no-campaign context)
+  isDefault: integer("is_default", { mode: "boolean" }).notNull().default(false),
   // Identity
   name: text("name"),
   url: text("url"),

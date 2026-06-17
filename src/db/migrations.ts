@@ -291,4 +291,28 @@ export function runMigrations(): void {
   safeAddColumn(`ALTER TABLE sending_domains ADD COLUMN warmup_start_limit INTEGER NOT NULL DEFAULT 5`);
   safeAddColumn(`ALTER TABLE sending_domains ADD COLUMN warmup_increment INTEGER NOT NULL DEFAULT 5`);
   safeAddColumn(`ALTER TABLE campaigns ADD COLUMN strategy TEXT NOT NULL DEFAULT 'web_design'`);
+
+  // Multiple agency profiles + per-campaign profile selection
+  safeAddColumn(`ALTER TABLE agency_profile ADD COLUMN label TEXT`);
+  safeAddColumn(`ALTER TABLE agency_profile ADD COLUMN strategy TEXT NOT NULL DEFAULT 'web_design'`);
+  safeAddColumn(`ALTER TABLE agency_profile ADD COLUMN is_default INTEGER NOT NULL DEFAULT 0`);
+  safeAddColumn(`ALTER TABLE campaigns ADD COLUMN agency_profile_id INTEGER REFERENCES agency_profile(id)`);
+
+  // Backfill: ensure exactly one default profile and a usable label.
+  try {
+    const hasDefault = sqlite
+      .prepare(`SELECT COUNT(*) AS n FROM agency_profile WHERE is_default = 1`)
+      .get() as { n: number };
+    if (hasDefault.n === 0) {
+      const first = sqlite
+        .prepare(`SELECT id FROM agency_profile ORDER BY id ASC LIMIT 1`)
+        .get() as { id: number } | undefined;
+      if (first) {
+        sqlite.prepare(`UPDATE agency_profile SET is_default = 1 WHERE id = ?`).run(first.id);
+      }
+    }
+    sqlite
+      .prepare(`UPDATE agency_profile SET label = COALESCE(NULLIF(name, ''), 'Perfil principal') WHERE label IS NULL OR label = ''`)
+      .run();
+  } catch { /* table empty or columns just created on a fresh DB */ }
 }

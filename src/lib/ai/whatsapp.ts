@@ -30,9 +30,10 @@ export async function generateWhatsApp(
   fromName: string,
   sequenceStep?: number,
   customInstructions?: string,
-  leadCountry?: string
+  leadCountry?: string,
+  agencyProfileId?: number | null
 ): Promise<WhatsAppGeneration> {
-  const ctx = getAgencyContext();
+  const ctx = getAgencyContext(agencyProfileId);
   const effectiveCountry = leadCountry || ctx.country;
   const localeLabel = getLocaleLabel(effectiveCountry);
   const writingRules = getLocaleWritingRules(effectiveCountry);
@@ -121,9 +122,10 @@ export async function regenerateWhatsApp(
   fromName: string,
   previousMessage: string,
   instructions: string,
-  leadCountry?: string
+  leadCountry?: string,
+  agencyProfileId?: number | null
 ): Promise<WhatsAppGeneration> {
-  const ctx = getAgencyContext();
+  const ctx = getAgencyContext(agencyProfileId);
   const effectiveCountry = leadCountry || ctx.country;
   const localeLabel = getLocaleLabel(effectiveCountry);
   const writingRules = getLocaleWritingRules(effectiveCountry);

@@ -6,6 +6,7 @@ import { eq, sql, and, isNotNull } from "drizzle-orm";
 import { logActivity } from "@/lib/activity";
 import { formatCampaignSummary } from "../helpers/formatters.js";
 import { paginationParams } from "../helpers/pagination.js";
+import { getAgencyProfileById } from "@/services/agency-profile.service";
 
 export function registerCampaignTools(server: McpServer) {
   server.tool(
@@ -109,9 +110,10 @@ export function registerCampaignTools(server: McpServer) {
       qualityThreshold: z.number().int().min(0).max(100).optional().describe("Max web quality score to contact (default 40)"),
       autopilot: z.boolean().optional().describe("Auto-approve generated messages"),
       defaultTone: z.string().optional().describe("Default tone for messages (profesional, casual, etc.)"),
-      strategy: z.enum(["web_design", "seo_visibility"]).optional().describe("Campaign angle (default web_design). web_design = pitch the website, targets low web-quality leads. seo_visibility = pitch Google visibility/local SEO (recurring), targets leads that HAVE a website but low SEO; for it, qualityThreshold is read as the max seoScore to contact."),
+      strategy: z.enum(["web_design", "seo_visibility"]).optional().describe("Campaign angle (default web_design). web_design = pitch the website, targets low web-quality leads. seo_visibility = pitch Google visibility/local SEO (recurring), targets leads that HAVE a website but low SEO; for it, qualityThreshold is read as the max seoScore to contact. Ignored if agencyProfileId is given (the profile defines the angle)."),
+      agencyProfileId: z.number().int().positive().optional().describe("Agency profile to write as. Its angle drives the campaign's strategy. Omit to use the default profile."),
     },
-    async ({ name, description, dailyLimit, qualityThreshold, autopilot, defaultTone, strategy }) => {
+    async ({ name, description, dailyLimit, qualityThreshold, autopilot, defaultTone, strategy, agencyProfileId }) => {
       // Idempotency: check if campaign with same name exists
       const existing = db.select().from(campaigns)
         .where(eq(campaigns.name, name))
@@ -123,6 +125,12 @@ export function registerCampaignTools(server: McpServer) {
         };
       }
 
+      // The chosen profile defines the angle; mirror it onto strategy.
+      const profile = agencyProfileId ? getAgencyProfileById(agencyProfileId) : null;
+      if (agencyProfileId && !profile) {
+        return { content: [{ type: "text", text: `Agency profile ID ${agencyProfileId} not found.` }], isError: true };
+      }
+
       const campaign = db.insert(campaigns).values({
         name,
         description: description ?? null,
@@ -130,7 +138,8 @@ export function registerCampaignTools(server: McpServer) {
         qualityThreshold: qualityThreshold ?? 40,
         autopilot: autopilot ?? false,
         defaultTone: defaultTone ?? "professional",
-        strategy: strategy ?? "web_design",
+        strategy: profile?.strategy ?? strategy ?? "web_design",
+        agencyProfileId: agencyProfileId ?? null,
       }).returning().get();
 
       logActivity("campaign_change", `Campaign created via MCP: "${name}"`, {
@@ -156,7 +165,8 @@ export function registerCampaignTools(server: McpServer) {
       qualityThreshold: z.number().int().min(0).max(100).optional(),
       autopilot: z.boolean().optional(),
       defaultTone: z.string().optional(),
-      strategy: z.enum(["web_design", "seo_visibility"]).optional().describe("Campaign angle: web_design or seo_visibility"),
+      strategy: z.enum(["web_design", "seo_visibility"]).optional().describe("Campaign angle: web_design or seo_visibility. Ignored if agencyProfileId is given."),
+      agencyProfileId: z.number().int().positive().nullable().optional().describe("Agency profile to write as (its angle drives strategy). null = clear and fall back to the default profile."),
       status: z.enum(["active", "paused", "archived"]).optional(),
     },
     async ({ campaignId, ...updates }) => {
@@ -174,7 +184,17 @@ export function registerCampaignTools(server: McpServer) {
       if (updates.qualityThreshold !== undefined) { setValues.qualityThreshold = updates.qualityThreshold; changed.push("qualityThreshold"); }
       if (updates.autopilot !== undefined) { setValues.autopilot = updates.autopilot; changed.push("autopilot"); }
       if (updates.defaultTone !== undefined) { setValues.defaultTone = updates.defaultTone; changed.push("defaultTone"); }
-      if (updates.strategy !== undefined) { setValues.strategy = updates.strategy; changed.push("strategy"); }
+      if (updates.agencyProfileId !== undefined) {
+        setValues.agencyProfileId = updates.agencyProfileId;
+        changed.push("agencyProfileId");
+        // Mirror the profile's angle onto strategy when a profile is set.
+        if (updates.agencyProfileId) {
+          const profile = getAgencyProfileById(updates.agencyProfileId);
+          if (!profile) return { content: [{ type: "text", text: `Agency profile ID ${updates.agencyProfileId} not found.` }], isError: true };
+          setValues.strategy = profile.strategy;
+        }
+      }
+      if (updates.strategy !== undefined && setValues.strategy === undefined) { setValues.strategy = updates.strategy; changed.push("strategy"); }
       if (updates.status !== undefined) { setValues.status = updates.status; changed.push("status"); }
 
       if (changed.length === 0) {

@@ -56,13 +56,16 @@ export const SERVICE_DEFINITIONS: Record<string, { label: string; description: s
   },
 };
 
-export function getEnabledServices(): { key: string; label: string; description: string }[] {
-  const raw = getSetting("agency_services") || "web_development";
-  return raw.split(",").map((s) => s.trim()).filter(Boolean).map((key) => ({
+function servicesFromKeys(raw: string | null | undefined): { key: string; label: string; description: string }[] {
+  return (raw || "").split(",").map((s) => s.trim()).filter(Boolean).map((key) => ({
     key,
     label: SERVICE_DEFINITIONS[key]?.label || key,
     description: SERVICE_DEFINITIONS[key]?.description || key,
   }));
+}
+
+export function getEnabledServices(): { key: string; label: string; description: string }[] {
+  return servicesFromKeys(getSetting("agency_services") || "web_development");
 }
 
 // --- Agency context helper ---
@@ -93,13 +96,28 @@ function parseJsonArray<T>(raw: string | null): T[] {
   }
 }
 
-export function getAgencyContext(): AgencyContext {
-  let profile: typeof agencyProfile.$inferSelect | null = null;
+/** Resolve a profile row by id, falling back to the default (flagged or lowest-id) profile. */
+function resolveProfileRow(profileId?: number | null): typeof agencyProfile.$inferSelect | null {
   try {
-    profile = db.select().from(agencyProfile).where(eq(agencyProfile.id, 1)).get() ?? null;
+    if (profileId) {
+      return db.select().from(agencyProfile).where(eq(agencyProfile.id, profileId)).get() ?? null;
+    }
+    const flagged = db.select().from(agencyProfile).where(eq(agencyProfile.isDefault, true)).get();
+    if (flagged) return flagged;
+    return db.select().from(agencyProfile).orderBy(agencyProfile.id).get() ?? null;
   } catch {
-    profile = null;
+    return null;
   }
+}
+
+/**
+ * Build the agency identity injected into copy prompts. Pass a `profileId` to write as a
+ * specific profile (per-campaign); omit it to use the default profile.
+ */
+export function getAgencyContext(profileId?: number | null): AgencyContext {
+  const profile = resolveProfileRow(profileId);
+
+  const profileServices = servicesFromKeys(profile?.services);
 
   return {
     name: profile?.name || getSetting("agency_name") || "ProspectAI",
@@ -109,7 +127,7 @@ export function getAgencyContext(): AgencyContext {
     ownerName: profile?.ownerName || getSetting("from_name") || "",
     ownerRole: profile?.ownerRole || "",
     city: profile?.city || "",
-    services: getEnabledServices(),
+    services: profileServices.length ? profileServices : getEnabledServices(),
     customServices: parseJsonArray(profile?.customServices ?? null),
     valueProps: parseJsonArray(profile?.valueProps ?? null),
     caseStudies: parseJsonArray(profile?.caseStudies ?? null),

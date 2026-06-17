@@ -78,7 +78,8 @@ export async function processEmailGenerationJobs() {
 
       const generated = await generateEmail(
         lead.name, lead.category, lead.city, lead.website, analysis, tone, fromName,
-        undefined, withStrategyDirective(campaign?.strategy, abCustomInstructions), detectCountryFromPhone(lead.phone) || undefined
+        undefined, withStrategyDirective(campaign?.strategy, abCustomInstructions), detectCountryFromPhone(lead.phone) || undefined,
+        campaign?.agencyProfileId ?? undefined
       );
 
       db.insert(emails).values({
