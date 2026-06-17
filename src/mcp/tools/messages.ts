@@ -1,7 +1,7 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { db, getSetting, getApiKey } from "@/db";
-import { emails, whatsappMessages, leads, jobQueue } from "@/db/schema";
+import { emails, whatsappMessages, leads, jobQueue, campaigns } from "@/db/schema";
 import { eq, and, sql, desc } from "drizzle-orm";
 import { logActivity } from "@/lib/activity";
 import { formatEmailSummary, formatEmailPreview, formatWASummary, formatWAPreview } from "../helpers/formatters.js";
@@ -299,12 +299,14 @@ export function registerMessageTools(server: McpServer) {
 
         const { regenerateEmail, defaultWebAnalysis } = await import("@/lib/gemini");
         const fromName = getSetting("from_name") || getSetting("agency_name") || "ProspectAI";
+        const emailCampaign = email.campaignId ? db.select().from(campaigns).where(eq(campaigns.id, email.campaignId)).get() : null;
         const result = await regenerateEmail(
           lead.name, lead.category, lead.city, lead.website,
           lead.analysisJson ? JSON.parse(lead.analysisJson) : defaultWebAnalysis(lead.website, lead.webQualityScore ?? 0, lead.analysisSummary ?? ""),
           tone || email.tone, fromName,
           email.subject, email.bodyText,
-          instructions || ""
+          instructions || "",
+          undefined, emailCampaign?.agencyProfileId ?? undefined
         );
 
         db.update(emails).set({
@@ -326,12 +328,14 @@ export function registerMessageTools(server: McpServer) {
 
         const { regenerateWhatsApp, defaultWebAnalysis } = await import("@/lib/gemini");
         const waFromName = getSetting("from_name") || getSetting("agency_name") || "ProspectAI";
+        const waCampaign = msg.campaignId ? db.select().from(campaigns).where(eq(campaigns.id, msg.campaignId)).get() : null;
         const result = await regenerateWhatsApp(
           lead.name, lead.category, lead.city, lead.website,
           lead.analysisJson ? JSON.parse(lead.analysisJson) : defaultWebAnalysis(lead.website, lead.webQualityScore ?? 0, lead.analysisSummary ?? ""),
           tone || msg.tone, waFromName,
           msg.body,
-          instructions || ""
+          instructions || "",
+          undefined, waCampaign?.agencyProfileId ?? undefined
         );
 
         db.update(whatsappMessages).set({

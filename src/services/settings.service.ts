@@ -2,6 +2,8 @@ import { db, getSetting, setSetting } from "@/db";
 import { settings } from "@/db/schema";
 import { logActivity } from "@/lib/activity";
 import { checkFullConfig } from "@/mcp/helpers/validators";
+import { getChannelsInUse } from "@/services/campaign.service";
+import { isWhatsAppReady } from "@/lib/whatsapp-client";
 
 // ─── Service Functions ──────────────────────────────────────────────
 
@@ -42,5 +44,19 @@ export function updateSettings(updates: Record<string, string>) {
 }
 
 export function checkConfiguration() {
-  return checkFullConfig();
+  const checks = checkFullConfig();
+  const inUse = getChannelsInUse();
+
+  // A service is only "required" when at least one live campaign uses that
+  // channel — that's what gates the missing-config warning. WhatsApp readiness
+  // lives in the web-app process, so resolve `ok` from the live client state.
+  return {
+    ...checks,
+    email: { ...checks.email, required: inUse.email },
+    whatsapp: {
+      ...checks.whatsapp,
+      required: inUse.whatsapp,
+      ok: isWhatsAppReady(),
+    },
+  };
 }

@@ -72,7 +72,8 @@ export async function POST(req: NextRequest) {
       lead.name, lead.category, lead.city, lead.website,
       analysis, v.data.tone || msg.tone, fromName,
       msg.body, withStrategyDirective(campaign?.strategy, v.data.instructions) || "",
-      detectCountryFromPhone(lead.phone) || undefined
+      detectCountryFromPhone(lead.phone) || undefined,
+      campaign?.agencyProfileId ?? undefined
     );
 
     db.update(whatsappMessages).set({
@@ -101,7 +102,8 @@ export async function POST(req: NextRequest) {
 
     const generated = await generateWhatsApp(
       lead.name, lead.category, lead.city, lead.website, analysis, tone, fromName,
-      undefined, undefined, detectCountryFromPhone(lead.phone) || undefined
+      undefined, withStrategyDirective(campaign?.strategy), detectCountryFromPhone(lead.phone) || undefined,
+      campaign?.agencyProfileId ?? undefined
     );
 
     db.insert(whatsappMessages).values({

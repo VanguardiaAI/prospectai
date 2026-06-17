@@ -4,11 +4,12 @@ import { useEffect, useState, useCallback, useRef } from "react";
 import Link from "next/link";
 import { Card, Button, Input, Select, Toggle, Spinner, Badge, ProgressBar, Segment } from "@/components/ui";
 import { useToast } from "@/components/Toast";
-import { Zap, TestTube, CheckCircle, XCircle, RefreshCw, MessageCircle, Wifi, WifiOff, Globe, Building, Shield, Clock, Link2, Webhook, Settings2, Play, Square, Wand2, KeyRound, Cpu, Mail, Palette } from "lucide-react";
+import { Zap, TestTube, CheckCircle, XCircle, RefreshCw, MessageCircle, Wifi, WifiOff, Globe, Shield, Clock, Link2, Webhook, Settings2, Play, Square, Wand2, KeyRound, Cpu, Mail, Palette } from "lucide-react";
 import { AnthropicIcon, GeminiIcon, WhatsAppIcon, GoogleIcon, ResendIcon } from "@/components/icons/Brands";
 import { useT } from "@/i18n/LocaleProvider";
 import { useTheme } from "@/components/ThemeProvider";
-import { getLang, type Lang } from "@/i18n/index";
+import { getLang } from "@/i18n/index";
+import { AgencyProfilesManager } from "@/components/AgencyProfilesManager";
 
 interface ConnectionTest {
   ok: boolean;
@@ -21,8 +22,6 @@ interface WAStatus {
   error: string | null;
   phone: string | null;
 }
-
-const SERVICE_KEYS = ["web_development", "seo", "ai_agents", "google_business", "social_media"] as const;
 
 const COUNTRY_OPTIONS = [
   { code: "ES", phoneCode: "34", phoneDigits: "9", currency: "EUR" },
@@ -201,9 +200,13 @@ export default function SettingsPage() {
 
     setSaving(true);
     // Drop UI-only `*_configured` flags; never send them to the API.
+    // Agency identity (name/url/description/services) is owned by the Profiles manager
+    // (mirrored from the default profile) — don't let the global save clobber it.
+    const AGENCY_OWNED = new Set(["agency_name", "agency_url", "agency_description", "agency_services"]);
     const payload: Record<string, string> = {};
     for (const [k, v] of Object.entries(settings)) {
       if (k.endsWith("_configured")) continue;
+      if (AGENCY_OWNED.has(k)) continue;
       payload[k] = v;
     }
     const res = await fetch("/api/settings", {
@@ -238,14 +241,6 @@ export default function SettingsPage() {
     setProcessing(false);
   };
 
-  const toggleService = (key: string) => {
-    const current = (settings.agency_services || "").split(",").map((s) => s.trim()).filter(Boolean);
-    const updated = current.includes(key)
-      ? current.filter((s) => s !== key)
-      : [...current, key];
-    setSettings({ ...settings, agency_services: updated.join(",") });
-  };
-
   const handleCountryChange = (code: string) => {
     const country = COUNTRY_OPTIONS.find((c) => c.code === code);
     if (country) {
@@ -258,8 +253,6 @@ export default function SettingsPage() {
       });
     }
   };
-
-  const enabledServices = (settings.agency_services || "").split(",").map((s) => s.trim()).filter(Boolean);
 
   // Warmup effective limit calculation
   const warmupEffective = Math.min(
@@ -329,50 +322,8 @@ export default function SettingsPage() {
         </Card>
       </div>
 
-      {/* ─── Identity (sin la card de Country/Localization) ─── */}
-      <div id="agency" className="grid grid-cols-12 gap-4 nd-section">
-        <Card className="col-span-12">
-          <h3 className="nd-heading mb-6">
-            <Building className="h-4 w-4 inline mr-2" strokeWidth={1.5} />
-            {t("settings.agencyIdentity")}
-          </h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-5">
-            <div>
-              <label className="nd-label block mb-2">{t("settings.agencyName")}</label>
-              <Input value={settings.agency_name || ""} onChange={(e) => setSettings({ ...settings, agency_name: e.target.value })} />
-            </div>
-            <div>
-              <label className="nd-label block mb-2">{t("settings.agencyUrl")}</label>
-              <Input value={settings.agency_url || ""} onChange={(e) => setSettings({ ...settings, agency_url: e.target.value })} placeholder={t("settings.agencyUrlPlaceholder")} {...fieldProps("agency_url")} />
-              {getError("agency_url") && <p className="text-[11px] text-accent mt-1">{getError("agency_url")}</p>}
-            </div>
-            <div className="md:col-span-2">
-              <label className="nd-label block mb-2">{t("common.description")}</label>
-              <Input value={settings.agency_description || ""} onChange={(e) => setSettings({ ...settings, agency_description: e.target.value })} placeholder={t("settings.descriptionPlaceholder")} />
-            </div>
-            <div className="md:col-span-2">
-              <label className="nd-label block mb-3">{t("settings.servicesOffered")}</label>
-              <div className="flex flex-wrap gap-2">
-                {SERVICE_KEYS.map((key) => (
-                  <button
-                    key={key}
-                    onClick={() => toggleService(key)}
-                    className={`inline-flex items-center px-3 py-1.5 rounded-full border text-[11px] font-mono uppercase tracking-[0.04em] transition-all cursor-pointer ${
-                      enabledServices.includes(key)
-                        ? "border-accent bg-accent-subtle text-accent"
-                        : "border-border text-text-muted hover:border-border-light hover:text-text-secondary"
-                    }`}
-                  >
-                    {t(`services.${key}`)}
-                  </button>
-                ))}
-              </div>
-              <p className="text-[11px] text-text-muted mt-2">{t("settings.servicesHelp")}</p>
-            </div>
-          </div>
-        </Card>
-
-      </div>
+      {/* ─── Agency profiles (identity + angle, selectable per campaign) ─── */}
+      <AgencyProfilesManager />
         </>
       )}
 

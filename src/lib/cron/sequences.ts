@@ -63,7 +63,7 @@ export async function processSequences() {
         const generated = await generateEmail(
           lead.name, lead.category, lead.city, lead.website, analysis,
           step.tone, fromName, step.stepNumber, withStrategyDirective(campaign?.strategy, step.customInstructions),
-          detectCountryFromPhone(lead.phone) || undefined
+          detectCountryFromPhone(lead.phone) || undefined, campaign?.agencyProfileId ?? undefined
         );
 
         const fromEmail = getSetting("from_email") || "";
@@ -98,7 +98,7 @@ export async function processSequences() {
         const generated = await generateWhatsApp(
           lead.name, lead.category, lead.city, lead.website, analysis,
           step.tone, fromName, step.stepNumber, withStrategyDirective(campaign?.strategy, step.customInstructions),
-          detectCountryFromPhone(lead.phone) || undefined
+          detectCountryFromPhone(lead.phone) || undefined, campaign?.agencyProfileId ?? undefined
         );
 
         db.insert(whatsappMessages).values({
