@@ -4,9 +4,10 @@ import { useEffect, useState, useCallback, useRef } from "react";
 import Link from "next/link";
 import { Card, Button, Input, Select, Toggle, Spinner, Badge, ProgressBar, Segment } from "@/components/ui";
 import { useToast } from "@/components/Toast";
-import { Zap, TestTube, CheckCircle, XCircle, RefreshCw, MessageCircle, Wifi, WifiOff, Globe, Shield, Clock, Link2, Webhook, Settings2, Play, Square, Wand2, KeyRound, Cpu, Mail } from "lucide-react";
+import { Zap, TestTube, CheckCircle, XCircle, RefreshCw, MessageCircle, Wifi, WifiOff, Globe, Shield, Clock, Link2, Webhook, Settings2, Play, Square, Wand2, KeyRound, Cpu, Mail, Palette } from "lucide-react";
 import { AnthropicIcon, GeminiIcon, WhatsAppIcon, GoogleIcon, ResendIcon } from "@/components/icons/Brands";
 import { useT } from "@/i18n/LocaleProvider";
+import { useTheme } from "@/components/ThemeProvider";
 import { getLang } from "@/i18n/index";
 import { AgencyProfilesManager } from "@/components/AgencyProfilesManager";
 
@@ -43,7 +44,7 @@ const COUNTRY_OPTIONS = [
   { code: "NL", phoneCode: "31", phoneDigits: "9", currency: "EUR" },
 ];
 
-type SettingsTab = "profile" | "connections" | "sending" | "advanced";
+type SettingsTab = "profile" | "connections" | "sending" | "advanced" | "system";
 
 // ─── Validation helpers ────────────────────────────────────────────
 function validateEmail(value: string): string | null {
@@ -105,7 +106,8 @@ export default function SettingsPage() {
   const [activeTab, setActiveTab] = useState<SettingsTab>("profile");
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const { toast } = useToast();
-  const { t, setLang } = useT();
+  const { t, lang, setLang } = useT();
+  const { theme, setTheme } = useTheme();
 
   // Per-field validation: only shows errors for fields the user has interacted with
   const getError = (key: string): string | null => {
@@ -289,6 +291,7 @@ export default function SettingsPage() {
             { value: "connections", label: t("settings.tabs.connections") },
             { value: "sending", label: t("settings.tabs.sending") },
             { value: "advanced", label: t("settings.tabs.advanced") },
+            { value: "system", label: t("settings.tabs.system") },
           ]}
         />
       </div>
@@ -950,21 +953,54 @@ export default function SettingsPage() {
         </Card>
       </div>
 
-      {/* ─── Idioma del dashboard ─── */}
-      <div className="grid grid-cols-12 gap-4 nd-section">
-        <Card className="col-span-12 md:col-span-4">
-          <h3 className="nd-heading mb-3">
-            <Globe className="h-4 w-4 inline mr-2" strokeWidth={1.5} />
-            {t("settings.language")}
-          </h3>
-          <Select value={settings.locale || "en-US"} onChange={(e) => setSettings({ ...settings, locale: e.target.value })}>
-            <option value="en-US">English</option>
-            <option value="es-ES">Español</option>
-          </Select>
-          <p className="text-[11px] text-text-muted mt-2">{t("settings.languageHint")}</p>
-        </Card>
-      </div>
         </>
+      )}
+
+      {activeTab === "system" && (
+        <div className="grid grid-cols-12 gap-4 nd-section">
+          {/* Appearance / theme */}
+          <Card className="col-span-12 md:col-span-6">
+            <h3 className="nd-heading mb-3">
+              <Palette className="h-4 w-4 inline mr-2" strokeWidth={1.5} />
+              {t("settings.system.appearance")}
+            </h3>
+            <Segment
+              value={theme}
+              onChange={(v) => setTheme(v)}
+              options={[
+                { value: "dark", label: t("settings.system.dark") },
+                { value: "light", label: t("settings.system.light") },
+              ]}
+            />
+            <p className="text-[11px] text-text-muted mt-3">{t("settings.system.appearanceHint")}</p>
+          </Card>
+
+          {/* Interface language */}
+          <Card className="col-span-12 md:col-span-6">
+            <h3 className="nd-heading mb-3">
+              <Globe className="h-4 w-4 inline mr-2" strokeWidth={1.5} />
+              {t("settings.system.language")}
+            </h3>
+            <Segment
+              value={lang}
+              onChange={(v) => {
+                setLang(v);
+                const locale = v === "es" ? "es-ES" : "en-US";
+                setSettings((prev) => ({ ...prev, locale }));
+                fetch("/api/settings", {
+                  method: "PUT",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({ locale }),
+                });
+              }}
+              options={[
+                { value: "en", label: "English" },
+                { value: "es", label: "Español" },
+              ]}
+            />
+            <p className="text-[11px] text-text-muted mt-3">{t("settings.system.languageHint")}</p>
+          </Card>
+        </div>
       )}
     </div>
   );
