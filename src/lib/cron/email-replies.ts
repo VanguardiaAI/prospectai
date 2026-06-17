@@ -6,6 +6,7 @@ import { eq, and, sql } from "drizzle-orm";
 import { logActivity } from "@/lib/activity";
 import { triggerCrmWebhook } from "@/lib/crm-webhook";
 import { prioritizeLeadOnReply } from "@/lib/lead-prioritization";
+import { markUnsubscribed } from "@/lib/unsubscribe";
 import { logger } from "@/lib/logger";
 
 interface EmailRepliesResult {
@@ -102,6 +103,17 @@ export async function processEmailReplies(): Promise<EmailRepliesResult> {
             .run();
 
           prioritizeLeadOnReply(lead.id);
+
+          // Honor opt-out requests (mailto unsubscribe / "baja" replies)
+          const subject = (parsed.subject || "").toLowerCase();
+          if (/unsubscribe/.test(subject) || /\b(baja|darme de baja|no quiero recibir|remove me|unsubscribe)\b/i.test(body)) {
+            markUnsubscribed(fromAddr, lead.id);
+            logActivity("blacklist", `Baja solicitada por email: ${fromAddr}`, {
+              leadId: lead.id,
+              messageKey: "activityLog.leadUnsubscribed",
+              messageVars: { name: fromAddr },
+            });
+          }
 
           logActivity("email_sent", `Respuesta de email recibida de ${fromAddr}`, {
             leadId: lead.id,

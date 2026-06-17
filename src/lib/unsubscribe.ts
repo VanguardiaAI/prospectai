@@ -68,3 +68,30 @@ export function isUnsubscribed(email: string): boolean {
     .get();
   return !!record?.unsubscribedAt;
 }
+
+/** Mark an email address as unsubscribed (e.g. from a "baja"/unsubscribe reply). */
+export function markUnsubscribed(email: string, leadId?: number): void {
+  const existing = db.select().from(unsubscribes).where(eq(unsubscribes.email, email)).get();
+  if (existing) {
+    db.update(unsubscribes).set({ unsubscribedAt: new Date().toISOString() }).where(eq(unsubscribes.email, email)).run();
+  } else {
+    db.insert(unsubscribes).values({
+      email,
+      token: crypto.randomBytes(32).toString("hex"),
+      leadId: leadId ?? null,
+      unsubscribedAt: new Date().toISOString(),
+    }).run();
+  }
+}
+
+// Mailto-based opt-out, for setups without a public URL (local / self-hosted
+// without a tunnel). The recipient replies and the IMAP poller honors it.
+export function injectUnsubscribeMailto(html: string): string {
+  const linkHtml = `<div style="margin-top:32px;padding-top:16px;border-top:1px solid #eee;font-size:12px;color:#999;text-align:center;">Si no deseas recibir más comunicaciones, responde a este correo con "baja" y te quitaremos de la lista.</div>`;
+  if (html.includes("</body>")) return html.replace("</body>", `${linkHtml}</body>`);
+  return html + linkHtml;
+}
+
+export function appendUnsubscribeMailtoText(text: string): string {
+  return `${text}\n\n---\nSi no deseas recibir más comunicaciones, responde a este correo con "baja".`;
+}
