@@ -121,8 +121,8 @@ function ProposalCard({ p, onChanged, allowSubmit }: { p: ProposalRow; onChanged
     <div className="py-4 border-t border-border first:border-t-0">
       <div className="flex items-start justify-between gap-3 mb-3">
         <div className="min-w-0">
-          <span className="text-sm text-text-display">{p.projectTitle || "—"}</span>
-          <div className="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-[11px] text-text-muted font-mono">
+          <span className="text-[15px] font-medium text-text-display">{p.projectTitle || "—"}</span>
+          <div className="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-xs text-text-secondary font-mono">
             {p.fitScore != null && <span>fit {p.fitScore}</span>}
             {p.confidence != null && <span>conf {p.confidence}</span>}
             {p.projectUrl && (
@@ -136,7 +136,7 @@ function ProposalCard({ p, onChanged, allowSubmit }: { p: ProposalRow; onChanged
       </div>
 
       <label className="nd-label block mb-1">{t("workana.coverLabel")}</label>
-      <Textarea value={cover} onChange={(e) => setCover(e.target.value)} rows={9} disabled={!editable} className="w-full" />
+      <Textarea value={cover} onChange={(e) => setCover(e.target.value)} rows={9} disabled={!editable} className="w-full max-w-[70ch] text-sm leading-relaxed" />
 
       <div className="flex flex-wrap gap-4 mt-3">
         <div>
@@ -205,9 +205,9 @@ function ProposalCard({ p, onChanged, allowSubmit }: { p: ProposalRow; onChanged
               {t("workana.reopen")}
             </Button>
           </div>
-          {p.status === "approved" && !allowSubmit && <p className="text-[10px] text-text-muted">{t("workana.sendDisabledHint")}</p>}
-          {p.status === "submitted" && <p className="text-[11px] text-success font-mono">{t("workana.submittedNote")}</p>}
-          {submitMsg && <p className="text-[11px] text-text-muted font-mono">{submitMsg}</p>}
+          {p.status === "approved" && !allowSubmit && <p className="text-xs text-text-muted">{t("workana.sendDisabledHint")}</p>}
+          {p.status === "submitted" && <p className="text-xs text-success font-mono">{t("workana.submittedNote")}</p>}
+          {submitMsg && <p className="text-xs text-text-muted font-mono">{submitMsg}</p>}
         </div>
       )}
     </div>
@@ -415,14 +415,14 @@ export default function WorkanaPage() {
           }
         />
       ) : (
-        <div className="space-y-4">
-          {/* Re-auth banner */}
+        <div className="space-y-5">
+          {/* Re-auth banner — full width */}
           {authState === "needs_reauth" && (
             <Card dots className="border-warning/40">
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div className="min-w-0">
                   <p className="text-sm text-warning">{t("workana.reauthTitle")}</p>
-                  <p className="mt-1 text-[11px] text-text-muted">{t("workana.reauthDesc")}</p>
+                  <p className="mt-1 text-xs text-text-muted">{t("workana.reauthDesc")}</p>
                 </div>
                 <Button size="sm" onClick={startConnect} disabled={busy || connectPhase === "awaiting_login"}>
                   {t("workana.connect")}
@@ -431,57 +431,12 @@ export default function WorkanaPage() {
             </Card>
           )}
 
-          {/* Session */}
-          <Card title={t("workana.connection")} dots>
-            <div className="flex items-center justify-between py-3">
-              <span className="nd-label">{t("workana.status")}</span>
-              <Badge color={authColor} dot>
-                {authLabel}
-              </Badge>
-            </div>
-            <div className="flex items-center justify-between py-3 border-t border-border">
-              <span className="nd-label">{t("workana.weeklyConnections")}</span>
-              <span className="text-sm text-text-display font-mono">
-                {usage.used} / {cfg.weeklyConnections}
-              </span>
-            </div>
-            <div className="flex flex-wrap items-center gap-3 pt-4 mt-1 border-t border-border">
-              {showConnect ? (
-                <Button size="sm" onClick={startConnect} disabled={busy || connectPhase === "awaiting_login"}>
-                  {t("workana.connect")}
-                </Button>
-              ) : (
-                <>
-                  <Button size="sm" variant="secondary" onClick={checkSession} disabled={checking}>
-                    {checking ? t("workana.checking") : t("workana.check")}
-                  </Button>
-                  <Button size="sm" variant="ghost" onClick={disconnectSession} disabled={busy}>
-                    {t("workana.disconnectSession")}
-                  </Button>
-                </>
-              )}
-            </div>
-            {connectPhase === "awaiting_login" && <p className="mt-3 text-[11px] text-accent font-mono">{t("workana.awaitingLogin")}</p>}
-            {(connectPhase === "timeout" || connectPhase === "error") && connectMsg && <p className="mt-3 text-[11px] text-text-muted font-mono">{connectMsg}</p>}
-            <p className="mt-3 text-[11px] text-text-muted leading-relaxed">{t("workana.connectHint")}</p>
-          </Card>
-
-          {/* Scan */}
-          <Card title={t("workana.scanTitle")} dots>
-            <p className="text-xs text-text-muted leading-relaxed mb-4 max-w-prose">{t("workana.scanDesc")}</p>
-            <Button size="sm" onClick={runScan} disabled={scanning}>
-              {scanning ? t("workana.scanningNow") : t("workana.scanNow")}
-            </Button>
-            {scanning && <p className="mt-3 text-[11px] text-text-muted font-mono">{t("workana.scanSlow")}</p>}
-            {scanResult && !scanResult.skipped && (
-              <p className="mt-3 text-sm text-text-display font-mono">
-                {scanResult.scraped ?? 0} {t("workana.scanScraped")} · {scanResult.evaluated ?? 0} {t("workana.scanEvaluated")} · {scanResult.drafted ?? 0} {t("workana.scanDrafted")}
-              </p>
-            )}
-            {scanResult?.skipped && <p className="mt-3 text-[11px] text-text-muted font-mono">{scanResult.skipped}</p>}
-          </Card>
-
-          {/* Drafts (review + edit + approve) */}
+          {/* Two columns: the work (drafts / replies / projects) on the left,
+              a compact controls rail (session / scan / config) on the right. */}
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-5 items-start">
+            {/* ── Main column: the actual work ── */}
+            <div className="lg:col-span-2 space-y-5">
+              {/* Drafts (review + edit + approve) */}
           {proposals.length > 0 && (
             <Card title={t("workana.draftsHeading")} meta={String(proposals.length)} dots>
               {proposals.map((p) => (
@@ -495,114 +450,174 @@ export default function WorkanaPage() {
             </Card>
           )}
 
-          {/* Client replies (actionable inbox) */}
-          <Card title={t("workana.repliesHeading")} meta={replies.length ? String(replies.length) : undefined} dots>
-            <p className="text-xs text-text-muted leading-relaxed mb-4 max-w-prose">{t("workana.repliesDesc")}</p>
-            <Button size="sm" variant="secondary" onClick={checkReplies} disabled={checkingReplies}>
-              {checkingReplies ? t("workana.checkingReplies") : t("workana.checkReplies")}
-            </Button>
-            {replies.length === 0 ? (
-              <p className="mt-4 text-[11px] text-text-muted">{t("workana.noReplies")}</p>
-            ) : (
-              <div className="divide-y divide-border mt-4">
-                {replies.map((r) => (
-                  <div key={r.id} className="py-3">
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="min-w-0 flex items-center gap-2">
-                        {isReplyIntent(r.intent) && <Badge color={intentBadgeColor(r.intent)}>{t(`intent.${r.intent}`)}</Badge>}
-                        <span className="text-sm text-text-display truncate">{r.fromName || r.projectTitle || "—"}</span>
-                      </div>
-                      <Button size="sm" variant="ghost" onClick={() => handleReply(r.id, r.status === "handled" ? "unhandle" : "handle")}>
-                        {r.status === "handled" ? t("workana.reopen") : t("workana.markHandled")}
+            </div>
+
+            {/* ── Controls rail: session, scan, config ── */}
+            <div className="space-y-5">
+              {/* Session */}
+              <Card title={t("workana.connection")} dots>
+                <div className="flex items-center justify-between py-3">
+                  <span className="nd-label">{t("workana.status")}</span>
+                  <Badge color={authColor} dot>
+                    {authLabel}
+                  </Badge>
+                </div>
+                <div className="flex items-center justify-between py-3 border-t border-border">
+                  <span className="nd-label">{t("workana.weeklyConnections")}</span>
+                  <span className="text-sm text-text-display font-mono">
+                    {usage.used} / {cfg.weeklyConnections}
+                  </span>
+                </div>
+                <div className="flex flex-wrap items-center gap-3 pt-4 mt-1 border-t border-border">
+                  {showConnect ? (
+                    <Button size="sm" onClick={startConnect} disabled={busy || connectPhase === "awaiting_login"}>
+                      {t("workana.connect")}
+                    </Button>
+                  ) : (
+                    <>
+                      <Button size="sm" variant="secondary" onClick={checkSession} disabled={checking}>
+                        {checking ? t("workana.checking") : t("workana.check")}
                       </Button>
-                    </div>
-                    {r.body && <p className="mt-2 text-[11px] text-text-secondary leading-relaxed line-clamp-3">{r.body}</p>}
-                    {r.suggestedReply && (
-                      <div className="mt-2 rounded-lg border border-border bg-surface-raised p-3">
-                        <p className="nd-label mb-1">{t("workana.suggestedReply")}</p>
-                        <p className="text-[11px] text-text-secondary leading-relaxed whitespace-pre-wrap">{r.suggestedReply}</p>
-                      </div>
-                    )}
-                  </div>
-                ))}
-              </div>
-            )}
-          </Card>
+                      <Button size="sm" variant="ghost" onClick={disconnectSession} disabled={busy}>
+                        {t("workana.disconnectSession")}
+                      </Button>
+                    </>
+                  )}
+                </div>
+                {connectPhase === "awaiting_login" && <p className="mt-3 text-xs text-accent font-mono">{t("workana.awaitingLogin")}</p>}
+                {(connectPhase === "timeout" || connectPhase === "error") && connectMsg && <p className="mt-3 text-xs text-text-muted font-mono">{connectMsg}</p>}
+                <p className="mt-3 text-xs text-text-muted leading-relaxed">{t("workana.connectHint")}</p>
+              </Card>
 
-          {/* Evaluated projects */}
-          {projects.length > 0 && (
-            <Card title={t("workana.projectsHeading")} meta={String(projects.length)} dots>
-              <div className="divide-y divide-border">
-                {projects.map((p) => (
-                  <div key={p.id} className="py-3 flex items-start justify-between gap-3">
-                    <div className="min-w-0">
-                      <div className="flex items-center gap-2">
-                        <Badge color={p.shouldBid ? "success" : "default"}>{p.shouldBid ? t("workana.recommended") : t("workana.skipped")}</Badge>
-                        <span className="text-sm text-text-display truncate">{p.title}</span>
-                      </div>
-                      {p.reason && <p className="mt-1 text-[11px] text-text-muted leading-relaxed line-clamp-2">{p.reason}</p>}
-                    </div>
-                    <span className="text-[11px] text-text-secondary font-mono shrink-0">fit {p.fitScore ?? "—"}</span>
-                  </div>
-                ))}
-              </div>
-            </Card>
-          )}
+              {/* Scan */}
+              <Card title={t("workana.scanTitle")} dots>
+                <p className="text-sm text-text-secondary leading-relaxed mb-4">{t("workana.scanDesc")}</p>
+                <Button size="sm" onClick={runScan} disabled={scanning}>
+                  {scanning ? t("workana.scanningNow") : t("workana.scanNow")}
+                </Button>
+                {scanning && <p className="mt-3 text-xs text-text-muted font-mono">{t("workana.scanSlow")}</p>}
+                {scanResult && !scanResult.skipped && (
+                  <p className="mt-3 text-sm text-text-display font-mono">
+                    {scanResult.scraped ?? 0} {t("workana.scanScraped")} · {scanResult.evaluated ?? 0} {t("workana.scanEvaluated")} · {scanResult.drafted ?? 0} {t("workana.scanDrafted")}
+                  </p>
+                )}
+                {scanResult?.skipped && <p className="mt-3 text-xs text-text-muted font-mono">{scanResult.skipped}</p>}
+              </Card>
 
-          {/* Config */}
-          <Card title={t("workana.configTitle")} dots>
-            <div className="grid grid-cols-2 gap-x-6 gap-y-3">
-              <div>
-                <label className="nd-label block mb-1">{t("workana.weeklyConnections")}</label>
-                <Input value={cfg.weeklyConnections} onChange={(e) => setCfg({ ...cfg, weeklyConnections: e.target.value })} inputMode="numeric" />
-              </div>
-              <div>
-                <label className="nd-label block mb-1">{t("workana.scanInterval")}</label>
-                <Input value={cfg.scanIntervalHours} onChange={(e) => setCfg({ ...cfg, scanIntervalHours: e.target.value })} inputMode="numeric" />
-              </div>
-              <div>
-                <label className="nd-label block mb-1">{t("workana.maxEval")}</label>
-                <Input value={cfg.maxEval} onChange={(e) => setCfg({ ...cfg, maxEval: e.target.value })} inputMode="numeric" />
-              </div>
-              <div>
-                <label className="nd-label block mb-1">{t("workana.maxDrafts")}</label>
-                <Input value={cfg.maxDrafts} onChange={(e) => setCfg({ ...cfg, maxDrafts: e.target.value })} inputMode="numeric" />
-              </div>
-              <div>
-                <label className="nd-label block mb-1">{t("workana.styleExamples")}</label>
-                <Input value={cfg.styleExamples} onChange={(e) => setCfg({ ...cfg, styleExamples: e.target.value })} inputMode="numeric" />
-                <p className="mt-1 text-[10px] text-text-muted leading-relaxed">{t("workana.styleExamplesHint")}</p>
+              {/* Config */}
+              <Card title={t("workana.configTitle")} dots>
+                <div className="space-y-3">
+                  <div>
+                    <label className="nd-label block mb-1">{t("workana.weeklyConnections")}</label>
+                    <Input value={cfg.weeklyConnections} onChange={(e) => setCfg({ ...cfg, weeklyConnections: e.target.value })} inputMode="numeric" className="w-full" />
+                  </div>
+                  <div>
+                    <label className="nd-label block mb-1">{t("workana.scanInterval")}</label>
+                    <Input value={cfg.scanIntervalHours} onChange={(e) => setCfg({ ...cfg, scanIntervalHours: e.target.value })} inputMode="numeric" className="w-full" />
+                  </div>
+                  <div>
+                    <label className="nd-label block mb-1">{t("workana.maxEval")}</label>
+                    <Input value={cfg.maxEval} onChange={(e) => setCfg({ ...cfg, maxEval: e.target.value })} inputMode="numeric" className="w-full" />
+                  </div>
+                  <div>
+                    <label className="nd-label block mb-1">{t("workana.maxDrafts")}</label>
+                    <Input value={cfg.maxDrafts} onChange={(e) => setCfg({ ...cfg, maxDrafts: e.target.value })} inputMode="numeric" className="w-full" />
+                  </div>
+                  <div>
+                    <label className="nd-label block mb-1">{t("workana.styleExamples")}</label>
+                    <Input value={cfg.styleExamples} onChange={(e) => setCfg({ ...cfg, styleExamples: e.target.value })} inputMode="numeric" className="w-full" />
+                    <p className="mt-1 text-xs text-text-muted leading-relaxed">{t("workana.styleExamplesHint")}</p>
+                  </div>
+                </div>
+                <div className="mt-4">
+                  <label className="nd-label block mb-1">{t("workana.profileUrlLabel")}</label>
+                  <Input
+                    value={cfg.profileUrl}
+                    onChange={(e) => setCfg({ ...cfg, profileUrl: e.target.value })}
+                    placeholder="https://www.workana.com/freelancer/..."
+                    className="w-full"
+                  />
+                </div>
+                <div className="mt-4">
+                  <Toggle checked={cfg.headless !== "false"} onChange={(v) => setCfg({ ...cfg, headless: v ? "true" : "false" })} label={t("workana.headlessLabel")} />
+                </div>
+                <div className="mt-4 pt-4 border-t border-border">
+                  <Toggle checked={cfg.allowSubmit === "true"} onChange={(v) => setCfg({ ...cfg, allowSubmit: v ? "true" : "false" })} label={t("workana.allowSubmitLabel")} />
+                  <p className="mt-2 text-xs text-warning leading-relaxed">{t("workana.allowSubmitWarn")}</p>
+                </div>
+                <div className="mt-4">
+                  <Button size="sm" variant="secondary" onClick={saveCfg} disabled={savingCfg}>
+                    {savingCfg ? t("workana.saving") : t("workana.save")}
+                  </Button>
+                </div>
+              </Card>
+
+              {/* ToS + disable */}
+              <div className="space-y-3 pt-1">
+                <p className="text-xs text-text-muted leading-relaxed">{t("workana.tos")}</p>
+                <Button variant="ghost" size="sm" onClick={() => setEnabledSetting(false)} disabled={busy}>
+                  {t("workana.disable")}
+                </Button>
               </div>
             </div>
-            <div className="mt-4">
-              <label className="nd-label block mb-1">{t("workana.profileUrlLabel")}</label>
-              <Input
-                value={cfg.profileUrl}
-                onChange={(e) => setCfg({ ...cfg, profileUrl: e.target.value })}
-                placeholder="https://www.workana.com/freelancer/..."
-                className="w-full"
-              />
-            </div>
-            <div className="mt-4">
-              <Toggle checked={cfg.headless !== "false"} onChange={(v) => setCfg({ ...cfg, headless: v ? "true" : "false" })} label={t("workana.headlessLabel")} />
-            </div>
-            <div className="mt-4 pt-4 border-t border-border">
-              <Toggle checked={cfg.allowSubmit === "true"} onChange={(v) => setCfg({ ...cfg, allowSubmit: v ? "true" : "false" })} label={t("workana.allowSubmitLabel")} />
-              <p className="mt-2 text-[10px] text-warning leading-relaxed max-w-prose">{t("workana.allowSubmitWarn")}</p>
-            </div>
-            <div className="mt-4">
-              <Button size="sm" variant="secondary" onClick={saveCfg} disabled={savingCfg}>
-                {savingCfg ? t("workana.saving") : t("workana.save")}
+          </div>
+
+          {/* Replies + evaluated projects — full-width 2-up under the work/controls split */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 items-start">
+            {/* Client replies (actionable inbox) */}
+            <Card title={t("workana.repliesHeading")} meta={replies.length ? String(replies.length) : undefined} dots>
+              <p className="text-sm text-text-secondary leading-relaxed mb-4 max-w-prose">{t("workana.repliesDesc")}</p>
+              <Button size="sm" variant="secondary" onClick={checkReplies} disabled={checkingReplies}>
+                {checkingReplies ? t("workana.checkingReplies") : t("workana.checkReplies")}
               </Button>
-            </div>
-          </Card>
+              {replies.length === 0 ? (
+                <p className="mt-4 text-sm text-text-muted">{t("workana.noReplies")}</p>
+              ) : (
+                <div className="divide-y divide-border mt-4">
+                  {replies.map((r) => (
+                    <div key={r.id} className="py-3">
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0 flex items-center gap-2">
+                          {isReplyIntent(r.intent) && <Badge color={intentBadgeColor(r.intent)}>{t(`intent.${r.intent}`)}</Badge>}
+                          <span className="text-sm text-text-display truncate">{r.fromName || r.projectTitle || "—"}</span>
+                        </div>
+                        <Button size="sm" variant="ghost" onClick={() => handleReply(r.id, r.status === "handled" ? "unhandle" : "handle")}>
+                          {r.status === "handled" ? t("workana.reopen") : t("workana.markHandled")}
+                        </Button>
+                      </div>
+                      {r.body && <p className="mt-2 text-sm text-text-secondary leading-relaxed line-clamp-3 max-w-prose">{r.body}</p>}
+                      {r.suggestedReply && (
+                        <div className="mt-2 rounded-lg border border-border bg-surface-raised p-3 max-w-prose">
+                          <p className="nd-label mb-1">{t("workana.suggestedReply")}</p>
+                          <p className="text-[13px] text-text-secondary leading-relaxed whitespace-pre-wrap">{r.suggestedReply}</p>
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </Card>
 
-          {/* ToS disclaimer */}
-          <p className="text-[10px] text-text-muted leading-relaxed">{t("workana.tos")}</p>
-
-          <Button variant="ghost" size="sm" onClick={() => setEnabledSetting(false)} disabled={busy}>
-            {t("workana.disable")}
-          </Button>
+            {/* Evaluated projects */}
+            {projects.length > 0 && (
+              <Card title={t("workana.projectsHeading")} meta={String(projects.length)} dots>
+                <div className="divide-y divide-border">
+                  {projects.map((p) => (
+                    <div key={p.id} className="py-3 flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-2">
+                          <Badge color={p.shouldBid ? "success" : "default"}>{p.shouldBid ? t("workana.recommended") : t("workana.skipped")}</Badge>
+                          <span className="text-sm text-text-display truncate">{p.title}</span>
+                        </div>
+                        {p.reason && <p className="mt-1 text-xs text-text-muted leading-relaxed line-clamp-2 max-w-prose">{p.reason}</p>}
+                      </div>
+                      <span className="text-xs text-text-secondary font-mono shrink-0">fit {p.fitScore ?? "—"}</span>
+                    </div>
+                  ))}
+                </div>
+              </Card>
+            )}
+          </div>
         </div>
       )}
     </div>
