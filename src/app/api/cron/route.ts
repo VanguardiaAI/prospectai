@@ -6,6 +6,7 @@ import { processEmailGenerationJobs } from "@/lib/cron/email-generation";
 import { processWhatsAppGenerationJobs } from "@/lib/cron/wa-generation";
 import { processEmailSending, processAutopilotSendQueue } from "@/lib/cron/email-sending";
 import { processWhatsAppSending } from "@/lib/cron/wa-sending";
+import { processChannelFallback } from "@/lib/cron/channel-fallback";
 import { processSequences } from "@/lib/cron/sequences";
 import { setupWhatsAppReplyListener } from "@/lib/cron/wa-replies";
 import { processEmailReplies } from "@/lib/cron/email-replies";
@@ -44,6 +45,12 @@ export async function POST(req: NextRequest) {
   if (action === "all" || action === "send") {
     await processAutopilotSendQueue();
     results.emailsSent = await processEmailSending();
+  }
+
+  // Release parked WhatsApp fallbacks (email got no reply) before WA sending, so
+  // a released message can go out in the same tick.
+  if (action === "all" || action === "fallback") {
+    results.channelFallback = await processChannelFallback();
   }
 
   if (action === "all" || action === "send_wa") {

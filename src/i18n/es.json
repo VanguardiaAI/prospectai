@@ -398,7 +398,18 @@
     "messagesCount": "mensajes",
     "noMatch": "Ningun mensaje coincide con la busqueda",
     "recipient": "Destinatario",
-    "draftLabel": "Borrador"
+    "draftLabel": "Borrador",
+    "companiesCount": "empresas",
+    "primaryBadge": "PRINCIPAL",
+    "fallbackBadge": "RESPALDO",
+    "heldStatus": "En espera",
+    "heldNote": "Respaldo: solo se enviará por WhatsApp si el email no recibe respuesta en {{days}} días.",
+    "sendNow": "Enviar ahora",
+    "discardFallback": "Descartar",
+    "fallbackReleased": "Respaldo liberado; se enviará en breve",
+    "fallbackSent": "WhatsApp de respaldo enviado",
+    "waitingAuto": "Aprobado — se enviará automáticamente",
+    "companyChannels": "Canales"
   },
   "campaigns": {
     "title": "Campanas",

@@ -70,9 +70,10 @@ export const emails = sqliteTable("emails", {
   bodyHtml: text("body_html").notNull(),
   bodyText: text("body_text").notNull(),
   tone: text("tone").notNull().default("professional"),
-  // Status
+  // Status. "held" = parked fallback: a message kept out of the approve/send
+  // pools because the lead's primary channel goes first (see outreach-policy).
   status: text("status", {
-    enum: ["draft", "approved", "rejected", "sent", "failed"],
+    enum: ["draft", "approved", "rejected", "sent", "failed", "held"],
   }).notNull().default("draft"),
   // Tracking
   resendId: text("resend_id"),
@@ -99,8 +100,10 @@ export const whatsappMessages = sqliteTable("whatsapp_messages", {
   toPhone: text("to_phone").notNull(),
   body: text("body").notNull(),
   tone: text("tone").notNull().default("professional"),
+  // "held" = parked fallback: WhatsApp waits while email (the primary channel)
+  // goes first; released by the channel-fallback cron or manually. See outreach-policy.
   status: text("status", {
-    enum: ["draft", "approved", "rejected", "sent", "failed"],
+    enum: ["draft", "approved", "rejected", "sent", "failed", "held"],
   }).notNull().default("draft"),
   waMessageId: text("wa_message_id"),
   sentAt: text("sent_at"),

@@ -5,6 +5,7 @@ import { scrapeWebsite } from "@/lib/scraper";
 import { analyzeWebsite } from "@/lib/ai";
 import { calculateOpportunityScore } from "@/lib/scorer";
 import { logActivity } from "@/lib/activity";
+import { parseChannels } from "@/services/campaign.service";
 
 export async function processScrapeJobs(concurrency: number, delayMs: number, maxJobs?: number) {
   let processed = 0;
@@ -98,7 +99,12 @@ export async function processScrapeJobs(concurrency: number, delayMs: number, ma
           ? analysis.hasWebsite === true && (analysis.seoScore ?? 100) <= threshold
           : analysis.qualityScore <= threshold;
 
-        if (qualifies && contactEmail) {
+        // Only generate for the channels the campaign actually uses. Email is
+        // the primary channel; WhatsApp is generated as a held fallback (see
+        // wa-generation). Defaults to email-only when there's no campaign.
+        const channels = parseChannels(campaign?.channels);
+
+        if (qualifies && contactEmail && channels.includes("email")) {
           db.insert(jobQueue).values({
             type: "generate_email",
             leadId: lead.id,
@@ -106,8 +112,8 @@ export async function processScrapeJobs(concurrency: number, delayMs: number, ma
           }).run();
         }
 
-        // Queue WA generation if lead has phone
-        if (qualifies && lead.phone) {
+        // Queue WA generation if the campaign uses WhatsApp and the lead has a phone.
+        if (qualifies && lead.phone && channels.includes("whatsapp")) {
           db.insert(jobQueue).values({
             type: "generate_wa",
             leadId: lead.id,

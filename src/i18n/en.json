@@ -398,7 +398,18 @@
     "messagesCount": "messages",
     "noMatch": "No message matches your search",
     "recipient": "Recipient",
-    "draftLabel": "Draft"
+    "draftLabel": "Draft",
+    "companiesCount": "companies",
+    "primaryBadge": "PRIMARY",
+    "fallbackBadge": "FALLBACK",
+    "heldStatus": "On hold",
+    "heldNote": "Fallback: WhatsApp goes out only if the email gets no reply within {{days}} days.",
+    "sendNow": "Send now",
+    "discardFallback": "Discard",
+    "fallbackReleased": "Fallback released; sending shortly",
+    "fallbackSent": "Fallback WhatsApp sent",
+    "waitingAuto": "Approved — will send automatically",
+    "companyChannels": "Channels"
   },
   "campaigns": {
     "title": "Campaigns",

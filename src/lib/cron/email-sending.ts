@@ -6,6 +6,7 @@ import { logActivity } from "@/lib/activity";
 import { isUnsubscribed, generateUnsubscribeUrl, injectUnsubscribeLink, appendUnsubscribeText, injectUnsubscribeMailto, appendUnsubscribeMailtoText } from "@/lib/unsubscribe";
 import { injectTrackingPixel, wrapLinksWithTracking } from "@/lib/tracking";
 import { getEffectiveDailyLimit, isWithinSendWindow, incrementWarmupDay } from "./warmup";
+import { leadHasReplied } from "@/lib/outreach-policy";
 import { logger } from "@/lib/logger";
 
 function getBounceRate7d(): number {
@@ -64,6 +65,12 @@ export async function processEmailSending() {
   let sent = 0;
   for (const row of approvedEmails) {
     if (sent >= remaining) break;
+
+    // Safety net: never contact a lead that already replied on any channel.
+    if (leadHasReplied(row.email.leadId)) {
+      db.update(emails).set({ status: "rejected" }).where(eq(emails.id, row.email.id)).run();
+      continue;
+    }
 
     // RGPD: Check if unsubscribed
     if (isUnsubscribed(row.email.toEmail)) {

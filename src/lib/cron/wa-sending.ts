@@ -4,6 +4,7 @@ import { eq, and, sql } from "drizzle-orm";
 import { sendWhatsAppMessage, isWhatsAppReady } from "@/lib/whatsapp-client";
 import { logActivity } from "@/lib/activity";
 import { isWithinSendWindow } from "./warmup";
+import { leadHasReplied, whatsappIsFallback, whatsappFallbackDecision } from "@/lib/outreach-policy";
 
 export async function processWhatsAppSending() {
   if (!isWhatsAppReady()) {
@@ -35,6 +36,27 @@ export async function processWhatsAppSending() {
 
   let sent = 0;
   for (const msg of approvedMessages) {
+    // Safety net: never contact a lead that already replied on any channel.
+    if (leadHasReplied(msg.leadId)) {
+      db.update(whatsappMessages)
+        .set({ status: "rejected", updatedAt: new Date().toISOString() })
+        .where(eq(whatsappMessages.id, msg.id))
+        .run();
+      continue;
+    }
+
+    // Email-first guard: if WhatsApp is the fallback for this lead, only send
+    // once the primary email is done (sent ≥ delay days ago / exhausted). While
+    // the email is still pending or within the no-reply window, park it again —
+    // the two channels are never sent at the same time.
+    if (whatsappIsFallback(msg.leadId) && whatsappFallbackDecision(msg.leadId, msg.createdAt) === "wait") {
+      db.update(whatsappMessages)
+        .set({ status: "held", updatedAt: new Date().toISOString() })
+        .where(eq(whatsappMessages.id, msg.id))
+        .run();
+      continue;
+    }
+
     const result = await sendWhatsAppMessage(msg.toPhone, msg.body);
 
     if (result.success) {

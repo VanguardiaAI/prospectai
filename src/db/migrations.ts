@@ -416,4 +416,27 @@ export function runMigrations(): void {
       .prepare(`UPDATE agency_profile SET label = COALESCE(NULLIF(name, ''), 'Perfil principal') WHERE label IS NULL OR label = ''`)
       .run();
   } catch { /* table empty or columns just created on a fresh DB */ }
+
+  // One-time: park existing WhatsApp drafts/approveds as "held" when the same
+  // lead also has an email (draft/approved/sent). Under the new email-first
+  // policy WhatsApp is the fallback, so this prevents historical rows from
+  // double-sending on the next cron tick. Runs exactly once (settings marker).
+  try {
+    const done = sqlite
+      .prepare(`SELECT value FROM settings WHERE key = 'held_fallback_migrated'`)
+      .get() as { value: string } | undefined;
+    if (!done) {
+      sqlite.exec(`
+        UPDATE whatsapp_messages
+        SET status = 'held'
+        WHERE status IN ('draft', 'approved')
+          AND lead_id IN (
+            SELECT lead_id FROM emails WHERE status IN ('draft', 'approved', 'sent')
+          )
+      `);
+      sqlite
+        .prepare(`INSERT INTO settings (key, value) VALUES ('held_fallback_migrated', '1')`)
+        .run();
+    }
+  } catch { /* settings/whatsapp tables not ready on a brand-new DB — nothing to migrate */ }
 }

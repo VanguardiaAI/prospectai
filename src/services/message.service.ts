@@ -37,7 +37,7 @@ export function listEmails(filters: EmailFilters = {}) {
   const offset = (page - 1) * limit;
 
   const conditions = [];
-  if (status) conditions.push(eq(emails.status, status as "draft" | "approved" | "rejected" | "sent" | "failed"));
+  if (status) conditions.push(eq(emails.status, status as "draft" | "approved" | "rejected" | "sent" | "failed" | "held"));
   if (campaignId) conditions.push(eq(emails.campaignId, campaignId));
 
   const where = conditions.length > 0 ? and(...conditions) : undefined;
@@ -134,7 +134,7 @@ export function listWhatsAppMessages(filters: WhatsAppFilters = {}) {
     })
     .from(whatsappMessages)
     .leftJoin(leads, eq(whatsappMessages.leadId, leads.id))
-    .where(eq(whatsappMessages.status, status as "draft" | "approved" | "rejected" | "sent" | "failed"))
+    .where(eq(whatsappMessages.status, status as "draft" | "approved" | "rejected" | "sent" | "failed" | "held"))
     .orderBy(desc(whatsappMessages.createdAt))
     .limit(limit)
     .all();

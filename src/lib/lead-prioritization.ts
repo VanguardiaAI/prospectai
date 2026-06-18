@@ -2,6 +2,7 @@ import { db } from "@/db";
 import { leads } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import { logActivity } from "@/lib/activity";
+import { cancelPendingOutreachOnReply } from "@/lib/outreach-policy";
 
 /**
  * Automatically prioritize a lead when they reply via any channel.
@@ -12,6 +13,10 @@ import { logActivity } from "@/lib/activity";
 export function prioritizeLeadOnReply(leadId: number): void {
   const lead = db.select().from(leads).where(eq(leads.id, leadId)).get();
   if (!lead) return;
+
+  // A reply on any channel stops further outreach: cancel the parked WhatsApp
+  // fallback and any still-unsent draft/approved message for this lead.
+  cancelPendingOutreachOnReply(leadId);
 
   // Skip if already prioritized from a previous reply
   if (lead.status === "replied") return;

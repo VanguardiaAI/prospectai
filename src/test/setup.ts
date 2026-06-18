@@ -21,6 +21,9 @@ export function createTestDb() {
     quality_threshold INTEGER NOT NULL DEFAULT 40,
     autopilot INTEGER NOT NULL DEFAULT 0,
     default_tone TEXT NOT NULL DEFAULT 'professional',
+    strategy TEXT NOT NULL DEFAULT 'web_design',
+    channels TEXT NOT NULL DEFAULT 'email',
+    agency_profile_id INTEGER,
     status TEXT NOT NULL DEFAULT 'active',
     created_at TEXT NOT NULL DEFAULT (datetime('now')),
     updated_at TEXT NOT NULL DEFAULT (datetime('now'))
@@ -106,6 +109,9 @@ export function createTestDb() {
     channel TEXT NOT NULL,
     from_address TEXT NOT NULL,
     body TEXT,
+    status TEXT NOT NULL DEFAULT 'unread',
+    intent TEXT,
+    handled_at TEXT,
     received_at TEXT NOT NULL DEFAULT (datetime('now')),
     created_at TEXT NOT NULL DEFAULT (datetime('now'))
   );

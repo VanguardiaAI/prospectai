@@ -6,6 +6,7 @@ import type { WebAnalysis } from "@/lib/ai";
 import { logActivity } from "@/lib/activity";
 import { isBlacklisted } from "@/lib/blacklist";
 import { withStrategyDirective } from "@/lib/ai/strategy";
+import { parseChannels } from "@/services/campaign.service";
 
 export async function processWhatsAppGenerationJobs() {
   const jobs = db.select().from(jobQueue)
@@ -43,6 +44,14 @@ export async function processWhatsAppGenerationJobs() {
         ? db.select().from(campaigns).where(eq(campaigns.id, lead.campaignId)).get()
         : null;
 
+      // Email-first policy: when the campaign uses email AND this lead has an
+      // email address, WhatsApp is the FALLBACK. It's parked as "held" (kept out
+      // of the approve/send pools) and only released if the email gets no reply
+      // — never sent alongside the email. When WhatsApp is the only channel, it's
+      // a normal "draft" primary.
+      const leadEmail = lead.contactEmail || lead.extractedEmail || lead.email;
+      const isFallback = parseChannels(campaign?.channels).includes("email") && !!leadEmail;
+
       let tone = campaign?.defaultTone || getSetting("default_tone") || "professional";
       const fromName = getSetting("from_name") || getSetting("agency_name") || "ProspectAI";
 
@@ -77,7 +86,7 @@ export async function processWhatsAppGenerationJobs() {
         toPhone: lead.phone,
         body: generated.message,
         tone,
-        status: "draft",
+        status: isFallback ? "held" : "draft",
       }).run();
 
       // Record A/B test assignment for WA
@@ -97,17 +106,20 @@ export async function processWhatsAppGenerationJobs() {
         }
       }
 
-      // Guard: don't overwrite email-track statuses
+      // Guard: don't overwrite email-track statuses. For a held fallback the
+      // lead's state is driven by the email (primary) track, so leave it alone.
       const currentLead = db.select().from(leads).where(eq(leads.id, lead.id)).get();
-      if (currentLead && !["email_generated", "email_approved", "email_sent"].includes(currentLead.status)) {
+      if (!isFallback && currentLead && !["email_generated", "email_approved", "email_sent"].includes(currentLead.status)) {
         db.update(leads).set({ status: "wa_generated" }).where(eq(leads.id, lead.id)).run();
       }
 
-      // Autopilot: auto-approve
+      // Autopilot: auto-approve — but NEVER the held fallback. The fallback is
+      // released later (by the channel-fallback cron or manually) only if the
+      // email got no reply, so it can't be sent alongside the email.
       const autopilotGlobal = getSetting("autopilot_global") === "true";
       const autopilotCampaign = campaign?.autopilot ?? false;
 
-      if (autopilotGlobal || autopilotCampaign) {
+      if (!isFallback && (autopilotGlobal || autopilotCampaign)) {
         const waMsg = db.select().from(whatsappMessages)
           .where(and(eq(whatsappMessages.leadId, lead.id), eq(whatsappMessages.status, "draft")))
           .orderBy(sql`id DESC`)
@@ -122,7 +134,7 @@ export async function processWhatsAppGenerationJobs() {
         }
       }
 
-      logActivity("wa_generated", `WhatsApp generado para ${lead.name}`, {
+      logActivity("wa_generated", `WhatsApp ${isFallback ? "(respaldo) " : ""}generado para ${lead.name}`, {
         leadId: lead.id,
         campaignId: lead.campaignId ?? undefined,
         messageKey: "activityLog.waGeneratedFor",
