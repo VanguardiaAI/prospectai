@@ -270,6 +270,88 @@ export function runMigrations(): void {
 
   CREATE INDEX IF NOT EXISTS idx_replies_lead ON replies(lead_id);
 
+  -- Workana add-on (optional): saved searches, scraped projects, AI-drafted
+  -- proposals (draft -> approved -> submitted), and client message inbox.
+  CREATE TABLE IF NOT EXISTS workana_searches (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    label TEXT,
+    agency_profile_id INTEGER REFERENCES agency_profile(id),
+    strategy TEXT NOT NULL DEFAULT 'web_design',
+    filters TEXT,
+    language TEXT NOT NULL DEFAULT 'auto',
+    active INTEGER NOT NULL DEFAULT 1,
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+  );
+
+  CREATE TABLE IF NOT EXISTS workana_projects (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    workana_project_id TEXT NOT NULL UNIQUE,
+    search_id INTEGER REFERENCES workana_searches(id),
+    url TEXT,
+    title TEXT NOT NULL,
+    description TEXT,
+    category TEXT,
+    skills TEXT,
+    budget_type TEXT,
+    budget_min REAL,
+    budget_max REAL,
+    currency TEXT,
+    client_country TEXT,
+    client_info TEXT,
+    bids_count INTEGER,
+    language TEXT,
+    raw_text TEXT,
+    fit_score INTEGER,
+    should_bid INTEGER,
+    reason TEXT,
+    status TEXT NOT NULL DEFAULT 'new',
+    published_at TEXT,
+    scanned_at TEXT,
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+  );
+
+  CREATE TABLE IF NOT EXISTS workana_proposals (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    project_id INTEGER NOT NULL REFERENCES workana_projects(id),
+    agency_profile_id INTEGER REFERENCES agency_profile(id),
+    cover_letter TEXT NOT NULL,
+    bid_amount REAL,
+    currency TEXT,
+    delivery_days INTEGER,
+    screening_answers TEXT,
+    confidence INTEGER,
+    status TEXT NOT NULL DEFAULT 'draft',
+    submitted_at TEXT,
+    workana_proposal_ref TEXT,
+    error_message TEXT,
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+  );
+
+  CREATE TABLE IF NOT EXISTS workana_replies (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    project_id INTEGER REFERENCES workana_projects(id),
+    proposal_id INTEGER REFERENCES workana_proposals(id),
+    external_id TEXT,
+    from_name TEXT,
+    body TEXT,
+    suggested_reply TEXT,
+    status TEXT NOT NULL DEFAULT 'unread',
+    intent TEXT,
+    handled_at TEXT,
+    received_at TEXT NOT NULL DEFAULT (datetime('now')),
+    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_workana_projects_status ON workana_projects(status);
+  CREATE INDEX IF NOT EXISTS idx_workana_proposals_project ON workana_proposals(project_id);
+  CREATE INDEX IF NOT EXISTS idx_workana_proposals_status ON workana_proposals(status);
+  CREATE INDEX IF NOT EXISTS idx_workana_replies_project ON workana_replies(project_id);
+  CREATE INDEX IF NOT EXISTS idx_workana_replies_status ON workana_replies(status);
+  CREATE INDEX IF NOT EXISTS idx_workana_replies_external ON workana_replies(external_id);
+
   CREATE TABLE IF NOT EXISTS rate_limits (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     key TEXT NOT NULL,
@@ -310,6 +392,12 @@ export function runMigrations(): void {
   safeAddColumn(`ALTER TABLE agency_profile ADD COLUMN strategy TEXT NOT NULL DEFAULT 'web_design'`);
   safeAddColumn(`ALTER TABLE agency_profile ADD COLUMN is_default INTEGER NOT NULL DEFAULT 0`);
   safeAddColumn(`ALTER TABLE campaigns ADD COLUMN agency_profile_id INTEGER REFERENCES agency_profile(id)`);
+
+  // Workana replies inbox: belt-and-suspenders for an in-place upgrade of a
+  // workana_replies table that predates these columns (fresh installs already
+  // get them from the CREATE TABLE above; the index also lives there).
+  safeAddColumn(`ALTER TABLE workana_replies ADD COLUMN external_id TEXT`);
+  safeAddColumn(`ALTER TABLE workana_replies ADD COLUMN suggested_reply TEXT`);
 
   // Backfill: ensure exactly one default profile and a usable label.
   try {

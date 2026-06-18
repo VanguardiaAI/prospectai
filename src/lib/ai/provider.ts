@@ -53,6 +53,12 @@ export interface GenerateStructuredOptions {
   label?: string;
   /** Max output tokens for the API providers. Default 4096. */
   maxTokens?: number;
+  /**
+   * Override the model for this single call. For `claude_cli` it's the `--model`
+   * value (e.g. "claude-opus-4-8"); for `anthropic`/`gemini` it overrides their
+   * default. When unset, each provider uses its configured default.
+   */
+  model?: string;
 }
 
 /**
@@ -64,13 +70,13 @@ export async function generateStructured<T>(opts: GenerateStructuredOptions): Pr
   const provider = getAiProvider();
 
   if (provider === "claude_cli") {
-    return (await runClaudeCli({ prompt, jsonSchema, systemPrompt: opts.systemPrompt, label })) as T;
+    return (await runClaudeCli({ prompt, jsonSchema, systemPrompt: opts.systemPrompt, label, model: opts.model })) as T;
   }
 
   if (provider === "anthropic") {
     const client = getAnthropic();
     const res = await client.messages.create({
-      model: ANTHROPIC_MODEL,
+      model: opts.model ?? ANTHROPIC_MODEL,
       max_tokens: maxTokens,
       system: opts.systemPrompt ?? STRUCTURED_SYSTEM_PROMPT,
       messages: [{ role: "user", content: prompt }],
@@ -88,7 +94,7 @@ export async function generateStructured<T>(opts: GenerateStructuredOptions): Pr
   // gemini
   await geminiRateLimiter.acquire();
   const model = getGenAI().getGenerativeModel({
-    model: GEMINI_MODEL,
+    model: opts.model ?? GEMINI_MODEL,
     generationConfig: { responseMimeType: "application/json" },
   });
   const result = await model.generateContent(prompt);

@@ -67,6 +67,22 @@ const defaultSettings: Record<string, string> = {
   chatbot_provider: "gemini",
   // WhatsApp
   wa_daily_limit: "20",
+  // Workana add-on (optional) — opt-in browser automation for assisted bidding.
+  // workana_auth_state: disconnected | connected | needs_reauth
+  workana_enabled: "false",
+  workana_weekly_connections: "10",
+  workana_profile_url: "",
+  workana_auth_state: "disconnected",
+  workana_last_scan_at: "",
+  // headless background scans; the interactive connect always opens headful
+  workana_headless: "true",
+  workana_locale: "es-AR",
+  workana_timezone: "America/Argentina/Buenos_Aires",
+  workana_scan_interval_hours: "12",
+  workana_max_eval_per_scan: "15",
+  workana_max_drafts_per_scan: "5",
+  // Hard gate for REAL proposal submission. Stays "false" until the user opts in.
+  workana_allow_submit: "false",
 };
 
 export function initializeDefaultSettings(): void {

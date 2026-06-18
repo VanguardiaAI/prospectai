@@ -51,6 +51,9 @@ yarn-error.log*
 .wwebjs_auth/
 .wwebjs_cache/
 
+# Workana add-on — persistent browser profile holds the live login session (a credential)
+/data/workana-profile/
+
 # Claude Code IDE config (machine-specific paths)
 .claude/
 

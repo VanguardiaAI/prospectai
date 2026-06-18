@@ -306,3 +306,93 @@ export const replies = sqliteTable("replies", {
   receivedAt: text("received_at").notNull().default(sql`(datetime('now'))`),
   createdAt: text("created_at").notNull().default(sql`(datetime('now'))`),
 });
+
+// --- Workana add-on (optional) ---
+// Assisted bidding on Workana projects. Decoupled design: Playwright drives the
+// browser, `generateStructured` only reasons over extracted text. Opt-in via the
+// `workana_enabled` setting. See docs/workana-addon-plan.md.
+
+export const workanaSearches = sqliteTable("workana_searches", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  // Internal nickname for the saved search (e.g. "Diseño web" vs "SEO/visibilidad")
+  label: text("label"),
+  // Persona this search writes proposals as (reuses the agency profile model)
+  agencyProfileId: integer("agency_profile_id").references(() => agencyProfile.id),
+  strategy: text("strategy", { enum: ["web_design", "seo_visibility"] }).notNull().default("web_design"),
+  filters: text("filters"), // JSON: { categories, skills, keywords, minBudget, maxBudget, ... }
+  language: text("language").notNull().default("auto"), // auto | es | pt | en — draft language hint
+  active: integer("active", { mode: "boolean" }).notNull().default(true),
+  createdAt: text("created_at").notNull().default(sql`(datetime('now'))`),
+  updatedAt: text("updated_at").notNull().default(sql`(datetime('now'))`),
+});
+
+export const workanaProjects = sqliteTable("workana_projects", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  // Workana's own project id/slug — unique, used to dedup across scan runs
+  workanaProjectId: text("workana_project_id").notNull().unique(),
+  searchId: integer("search_id").references(() => workanaSearches.id),
+  url: text("url"),
+  title: text("title").notNull(),
+  description: text("description"),
+  category: text("category"),
+  skills: text("skills"), // JSON array
+  budgetType: text("budget_type"), // fixed | hourly | unknown
+  budgetMin: real("budget_min"),
+  budgetMax: real("budget_max"),
+  currency: text("currency"),
+  clientCountry: text("client_country"),
+  clientInfo: text("client_info"), // JSON: { name, rating, paymentVerified, hires, ... }
+  bidsCount: integer("bids_count"),
+  language: text("language"), // detected project language
+  rawText: text("raw_text"), // extracted page text fed to the AI evaluator
+  fitScore: integer("fit_score"), // 0-100
+  shouldBid: integer("should_bid", { mode: "boolean" }),
+  reason: text("reason"),
+  status: text("status", {
+    enum: ["new", "evaluated", "skipped", "drafted", "submitted", "replied", "closed", "error"],
+  }).notNull().default("new"),
+  publishedAt: text("published_at"),
+  scannedAt: text("scanned_at"),
+  createdAt: text("created_at").notNull().default(sql`(datetime('now'))`),
+  updatedAt: text("updated_at").notNull().default(sql`(datetime('now'))`),
+});
+
+export const workanaProposals = sqliteTable("workana_proposals", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  projectId: integer("project_id").notNull().references(() => workanaProjects.id),
+  agencyProfileId: integer("agency_profile_id").references(() => agencyProfile.id),
+  coverLetter: text("cover_letter").notNull(),
+  bidAmount: real("bid_amount"),
+  currency: text("currency"),
+  deliveryDays: integer("delivery_days"),
+  screeningAnswers: text("screening_answers"), // JSON array [{ question, answer }]
+  confidence: integer("confidence"), // 0-100
+  status: text("status", {
+    enum: ["draft", "approved", "rejected", "submitted", "failed"],
+  }).notNull().default("draft"),
+  submittedAt: text("submitted_at"),
+  workanaProposalRef: text("workana_proposal_ref"),
+  errorMessage: text("error_message"),
+  createdAt: text("created_at").notNull().default(sql`(datetime('now'))`),
+  updatedAt: text("updated_at").notNull().default(sql`(datetime('now'))`),
+});
+
+export const workanaReplies = sqliteTable("workana_replies", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  projectId: integer("project_id").references(() => workanaProjects.id),
+  proposalId: integer("proposal_id").references(() => workanaProposals.id),
+  // Stable dedup key (thread url + message hash) so re-scans don't duplicate.
+  externalId: text("external_id"),
+  fromName: text("from_name"),
+  body: text("body"),
+  // AI-suggested reply for the user to review/copy (never auto-sent).
+  suggestedReply: text("suggested_reply"),
+  // Same triage shape as `replies` (reuses classifyReply / INTENT_TONE helpers).
+  status: text("status", { enum: ["unread", "handled"] }).notNull().default("unread"),
+  intent: text("intent", {
+    enum: ["interested", "question", "not_interested", "auto_reply", "unsubscribe", "other"],
+  }),
+  handledAt: text("handled_at"),
+  receivedAt: text("received_at").notNull().default(sql`(datetime('now'))`),
+  createdAt: text("created_at").notNull().default(sql`(datetime('now'))`),
+});

@@ -164,6 +164,26 @@ WhatsApp uses [whatsapp-web.js](https://github.com/nicochulo2023/whatsapp-web.js
 
 > **Note:** Only one WhatsApp session is supported at a time.
 
+## Workana add-on (optional)
+
+An opt-in module for **assisted bidding on [Workana](https://www.workana.com)** freelance
+projects: it scrapes the project feed with Playwright, uses AI to decide whether a project
+fits your profile, drafts a tailored proposal, and lets you review/edit/approve it. A separate
+scan classifies inbound client messages into an actionable inbox.
+
+- **Off by default.** Enable it at **`/workana`** in the dashboard.
+- **Browser:** requires Chromium for Playwright — run `npx playwright install chromium` once.
+- **AI:** reuses your configured `ai_provider` (Claude CLI / Anthropic / Gemini). Drafting
+  defaults to Opus 4.8 (override with `WORKANA_DRAFT_MODEL`).
+- **One-time login:** click *Connect* on `/workana`; a real browser opens for you to sign in
+  to Workana once. The session is stored locally (gitignored).
+- **No real sending yet.** Approving a proposal only marks it ready; actual submission is
+  hard-gated behind `workana_allow_submit` (default `false`) and has no caller.
+
+> ⚠️ **Terms of Service:** automating Workana may violate its Terms (scraping and mass
+> proposals are prohibited). This add-on keeps a human in the loop (manual approval, no
+> auto-send) and is intended for personal, single-account use **at your own risk**.
+
 ## MCP Server
 
 ProspectAI includes a [Model Context Protocol](https://modelcontextprotocol.io) server with 25+ tools for managing campaigns via AI assistants like Claude.

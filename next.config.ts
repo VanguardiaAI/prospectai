@@ -49,7 +49,7 @@ const securityHeaders = [
 ];
 
 const nextConfig: NextConfig = {
-  serverExternalPackages: ["better-sqlite3", "whatsapp-web.js", "puppeteer"],
+  serverExternalPackages: ["better-sqlite3", "whatsapp-web.js", "puppeteer", "playwright", "playwright-core"],
   headers: async () => [
     {
       // Apply security headers to all routes

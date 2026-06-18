@@ -17,7 +17,7 @@ const SCHEMA = {
 // --json-schema which already forces the shape (see ai/provider.ts).
 export async function classifyReply(
   body: string | null | undefined,
-  channel: "email" | "whatsapp"
+  channel: "email" | "whatsapp" | "workana"
 ): Promise<ReplyIntent | null> {
   const text = (body || "").trim();
   if (!text) return null;

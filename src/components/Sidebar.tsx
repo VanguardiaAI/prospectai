@@ -10,16 +10,19 @@ import {
   LogOut,
   Menu,
   X,
+  Briefcase,
 } from "lucide-react";
 import { clsx } from "clsx";
 import { useT } from "@/i18n/LocaleProvider";
 
 export function Sidebar() {
   const { t } = useT();
+  const [workanaEnabled, setWorkanaEnabled] = useState(false);
 
   const nav = [
     { href: "/inicio", label: t("sidebar.home"), icon: Home },
     { href: "/review", label: t("sidebar.review"), icon: Inbox },
+    ...(workanaEnabled ? [{ href: "/workana", label: t("sidebar.workana"), icon: Briefcase }] : []),
     { href: "/settings", label: t("sidebar.config"), icon: Settings },
   ];
   const pathname = usePathname();
@@ -46,6 +49,20 @@ export function Sidebar() {
     return () => {
       cancelled = true;
       clearInterval(iv);
+    };
+  }, [pathname]);
+
+  // Workana is an opt-in add-on: only show its nav entry when enabled.
+  useEffect(() => {
+    let cancelled = false;
+    fetch("/api/settings")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => {
+        if (!cancelled && d) setWorkanaEnabled(d.workana_enabled === "true");
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
     };
   }, [pathname]);
 

@@ -164,6 +164,27 @@ WhatsApp usa [whatsapp-web.js](https://github.com/nicochulo2023/whatsapp-web.js)
 
 > **Nota:** Solo se soporta una sesion de WhatsApp a la vez.
 
+## Add-on de Workana (opcional)
+
+Modulo opt-in para **postulacion asistida en proyectos de [Workana](https://www.workana.com)**:
+lee el feed de proyectos con Playwright, usa IA para decidir si un proyecto encaja con tu perfil,
+redacta una propuesta a medida y te deja revisarla/editarla/aprobarla. Un escaneo aparte clasifica
+los mensajes entrantes de clientes en una bandeja accionable.
+
+- **Desactivado por defecto.** Actívalo en **`/workana`** dentro del dashboard.
+- **Navegador:** requiere Chromium para Playwright — ejecuta `npx playwright install chromium` una vez.
+- **IA:** reutiliza tu `ai_provider` (Claude CLI / Anthropic / Gemini). La redacción usa Opus 4.8
+  por defecto (configurable con `WORKANA_DRAFT_MODEL`).
+- **Login único:** pulsa *Conectar* en `/workana`; se abre un navegador real para iniciar sesión
+  en Workana una vez. La sesión se guarda localmente (gitignored).
+- **Aún sin envío real.** Aprobar una propuesta solo la deja lista; el envío está bloqueado tras
+  `workana_allow_submit` (por defecto `false`) y no tiene llamador.
+
+> ⚠️ **Términos de servicio:** automatizar Workana puede infringir sus Términos (el scraping y
+> las propuestas masivas están prohibidos). El add-on mantiene a una persona en el circuito
+> (aprobación manual, sin autoenvío) y es para uso personal de una sola cuenta, **bajo tu propia
+> responsabilidad**.
+
 ## Servidor MCP
 
 ProspectAI incluye un servidor [Model Context Protocol](https://modelcontextprotocol.io) con 25+ herramientas para gestionar campanas via asistentes de IA como Claude.

@@ -9,6 +9,8 @@ import { processWhatsAppSending } from "@/lib/cron/wa-sending";
 import { processSequences } from "@/lib/cron/sequences";
 import { setupWhatsAppReplyListener } from "@/lib/cron/wa-replies";
 import { processEmailReplies } from "@/lib/cron/email-replies";
+import { processWorkanaScans } from "@/lib/cron/workana-scan";
+import { processWorkanaReplies } from "@/lib/cron/workana-replies";
 
 export async function POST(req: NextRequest) {
   // Bearer auth — cron endpoint uses its own secret, not JWT session
@@ -54,6 +56,18 @@ export async function POST(req: NextRequest) {
 
   if (action === "all" || action === "replies") {
     results.emailReplies = await processEmailReplies();
+  }
+
+  if (action === "all" || action === "workana_scan") {
+    if (getSetting("workana_enabled") === "true") {
+      results.workanaScan = await processWorkanaScans();
+    }
+  }
+
+  if (action === "all" || action === "workana_replies") {
+    if (getSetting("workana_enabled") === "true") {
+      results.workanaReplies = await processWorkanaReplies();
+    }
   }
 
   return NextResponse.json({ success: true, ...results });

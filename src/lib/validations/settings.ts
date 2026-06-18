@@ -19,6 +19,12 @@ const ALLOWED_SETTINGS_KEYS = [
   "imap_enabled", "imap_host", "imap_port", "imap_user", "imap_password", "imap_last_uid",
   "tracking_base_url",
   "crm_webhook_url", "crm_webhook_on",
+  // Workana add-on (optional)
+  "workana_enabled", "workana_weekly_connections", "workana_profile_url",
+  "workana_auth_state", "workana_last_scan_at",
+  "workana_headless", "workana_locale", "workana_timezone",
+  "workana_scan_interval_hours", "workana_max_eval_per_scan", "workana_max_drafts_per_scan",
+  "workana_allow_submit",
 ] as const;
 
 export const updateSettingsSchema = z.record(z.string(), z.string()).refine(
