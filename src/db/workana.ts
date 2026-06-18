@@ -1,4 +1,4 @@
-import { db } from "@/db";
+import { db, getSetting } from "@/db";
 import { workanaProjects, workanaProposals, workanaSearches, workanaReplies, agencyProfile } from "@/db/schema";
 import { eq, desc, and, gte, like } from "drizzle-orm";
 import type { ScrapedProject, ScrapedInboxMessage } from "@/lib/workana/types";
@@ -251,6 +251,18 @@ export function countSubmittedSince(isoTs: string): number {
     .where(and(eq(workanaProposals.status, "submitted"), gte(workanaProposals.submittedAt, isoTs)))
     .all();
   return rows.length;
+}
+
+/** Connections spent this week (proposals submitted since Monday) vs the configured budget. */
+export function getWeeklyConnectionUsage(): { used: number; budget: number } {
+  const d = new Date();
+  const offset = (d.getDay() + 6) % 7; // 0 = Monday
+  d.setHours(0, 0, 0, 0);
+  d.setDate(d.getDate() - offset);
+  return {
+    used: countSubmittedSince(d.toISOString()),
+    budget: Number(getSetting("workana_weekly_connections")) || 0,
+  };
 }
 
 // ── Workana replies inbox ───────────────────────────────────────────

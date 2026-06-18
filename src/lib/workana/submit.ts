@@ -91,9 +91,23 @@ export async function submitProposal(input: SubmitInput): Promise<SubmitResult> 
     }
     if ((await submit.count().catch(() => 0)) === 0) return { ok: false, error: "submit button not found" };
     await submit.first().click();
-    await page.waitForTimeout(3000);
+    await page.waitForTimeout(3500);
 
-    logger.info({ slug: input.slug, url: page.url() }, "workana: proposal submitted");
-    return { ok: true, ref: page.url() };
+    // Success signal: Workana leaves the bid form (redirects to the conversation
+    // thread) when the proposal goes through. Still on /messages/bid/ → it did NOT
+    // submit (validation error, no connections, etc.) — never mark it "sent" then.
+    const after = page.url();
+    if (/\/messages\/bid\//i.test(after)) {
+      const errText = await page
+        .locator('.error, [class*="error"], [class*="alert"], [class*="message-error"]')
+        .first()
+        .innerText({ timeout: 1500 })
+        .catch(() => "");
+      logger.warn({ slug: input.slug, after, errText: errText.slice(0, 200) }, "workana: submit did not complete");
+      return { ok: false, error: errText ? errText.replace(/\s+/g, " ").trim().slice(0, 200) : "submission did not complete (still on bid form)" };
+    }
+
+    logger.info({ slug: input.slug, after }, "workana: proposal submitted");
+    return { ok: true, ref: after };
   });
 }

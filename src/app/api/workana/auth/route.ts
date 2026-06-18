@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getSetting } from "@/db";
 import { getAuthState, getConnectStatus, startConnect, checkSession, disconnect } from "@/lib/workana/auth";
 import { scrapeFeed } from "@/lib/workana/scraper";
+import { getWeeklyConnectionUsage } from "@/db/workana";
 
 // Spawns a real browser → must run on the Node.js runtime, never cached.
 // Auth is enforced by src/proxy.ts.
@@ -14,7 +15,7 @@ function enabled(): boolean {
 
 export async function GET() {
   if (!enabled()) return NextResponse.json({ error: "workana_disabled" }, { status: 403 });
-  return NextResponse.json({ authState: getAuthState(), connect: getConnectStatus() });
+  return NextResponse.json({ authState: getAuthState(), connect: getConnectStatus(), usage: getWeeklyConnectionUsage() });
 }
 
 export async function POST(req: NextRequest) {

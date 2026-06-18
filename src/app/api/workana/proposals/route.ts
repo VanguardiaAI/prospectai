@@ -6,6 +6,7 @@ import {
   getProjectRowForProposal,
   getProposalForSubmit,
   markProposalSubmitted,
+  getWeeklyConnectionUsage,
 } from "@/db/workana";
 import { draftProposal } from "@/lib/workana/ai";
 import { submitProposal } from "@/lib/workana/submit";
@@ -88,8 +89,19 @@ export async function PUT(req: NextRequest) {
       const p = getProposalForSubmit(id);
       if (!p) return NextResponse.json({ error: "proposal not found" }, { status: 404 });
       if (!p.slug) return NextResponse.json({ error: "project slug missing" }, { status: 400 });
-      if (!dryRun && p.status !== "approved") {
-        return NextResponse.json({ error: "proposal must be approved before sending" }, { status: 400 });
+      if (!dryRun) {
+        if (p.status !== "approved") {
+          return NextResponse.json({ error: "proposal must be approved before sending" }, { status: 400 });
+        }
+        // Workana requires the bid amount (field "Valor total").
+        if (p.bidAmount == null) {
+          return NextResponse.json({ error: "bid amount required (edit the proposal first)" }, { status: 400 });
+        }
+        // Weekly connection budget — never spend more than the configured allowance.
+        const { used, budget } = getWeeklyConnectionUsage();
+        if (budget > 0 && used >= budget) {
+          return NextResponse.json({ error: "weekly connection budget reached", used, budget }, { status: 429 });
+        }
       }
       const res = await submitProposal({ slug: p.slug, coverLetter: p.coverLetter, bidAmount: p.bidAmount, dryRun });
       if (res.ok && !res.dryRun) markProposalSubmitted(id, res.ref ?? null);

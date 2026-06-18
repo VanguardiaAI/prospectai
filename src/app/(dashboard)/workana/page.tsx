@@ -195,6 +195,7 @@ export default function WorkanaPage() {
   const [connectPhase, setConnectPhase] = useState<ConnectPhase>("idle");
   const [connectMsg, setConnectMsg] = useState("");
   const [checking, setChecking] = useState(false);
+  const [usage, setUsage] = useState<{ used: number; budget: number }>({ used: 0, budget: 0 });
   const [scanning, setScanning] = useState(false);
   const [scanResult, setScanResult] = useState<{ scraped?: number; evaluated?: number; drafted?: number; skipped?: string } | null>(null);
   const [projects, setProjects] = useState<ProjectRow[]>([]);
@@ -210,6 +211,7 @@ export default function WorkanaPage() {
       setAuthState(d.authState ?? "disconnected");
       if (d.connect?.phase) setConnectPhase(d.connect.phase);
       if (d.connect?.message) setConnectMsg(d.connect.message);
+      if (d.usage) setUsage(d.usage);
     }
   };
 
@@ -398,7 +400,9 @@ export default function WorkanaPage() {
             </div>
             <div className="flex items-center justify-between py-3 border-t border-border">
               <span className="nd-label">{t("workana.weeklyConnections")}</span>
-              <span className="text-sm text-text-display font-mono">{cfg.weeklyConnections}</span>
+              <span className="text-sm text-text-display font-mono">
+                {usage.used} / {cfg.weeklyConnections}
+              </span>
             </div>
             <div className="flex flex-wrap items-center gap-3 pt-4 mt-1 border-t border-border">
               {showConnect ? (
