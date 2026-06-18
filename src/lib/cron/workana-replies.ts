@@ -17,8 +17,17 @@ export interface RepliesResult {
  * promising ones) draft a suggested reply. Stored in `workana_replies` as an
  * actionable inbox. Nothing is auto-sent — suggestions are for the user.
  */
-export async function processWorkanaReplies(): Promise<RepliesResult> {
+export async function processWorkanaReplies(opts: { force?: boolean } = {}): Promise<RepliesResult> {
   if (getSetting("workana_enabled") !== "true") return { skipped: "disabled" };
+
+  // Time-gate (the manual "check now" passes force): avoid hitting the inbox every
+  // cron tick — frequent visits look bot-like (ToS/pacing). Default every 2 hours.
+  const intervalH = Number(getSetting("workana_replies_interval_hours")) || 2;
+  const last = getSetting("workana_last_replies_at");
+  if (!opts.force && last) {
+    const elapsedH = (Date.now() - new Date(last).getTime()) / 3_600_000;
+    if (elapsedH < intervalH) return { skipped: "interval" };
+  }
 
   // Confirm the session is still valid; flip to needs_reauth so the UI can nudge.
   const loggedIn = await probeLoggedIn();
@@ -49,6 +58,7 @@ export async function processWorkanaReplies(): Promise<RepliesResult> {
     logger.warn({ err: (e as Error).message }, "workana-replies: failed");
   }
 
+  setSetting("workana_last_replies_at", new Date().toISOString());
   logger.info({ scanned, added }, "workana-replies: complete");
   return { scanned, added };
 }

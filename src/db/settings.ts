@@ -83,6 +83,8 @@ const defaultSettings: Record<string, string> = {
   workana_max_drafts_per_scan: "5",
   // Hard gate for REAL proposal submission. Stays "false" until the user opts in.
   workana_allow_submit: "false",
+  workana_replies_interval_hours: "2",
+  workana_last_replies_at: "",
 };
 
 export function initializeDefaultSettings(): void {

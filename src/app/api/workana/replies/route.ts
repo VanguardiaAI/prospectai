@@ -20,7 +20,7 @@ export async function GET() {
 export async function POST() {
   if (!enabled()) return NextResponse.json({ error: "workana_disabled" }, { status: 403 });
   try {
-    const result = await processWorkanaReplies();
+    const result = await processWorkanaReplies({ force: true });
     return NextResponse.json({ ok: true, ...result });
   } catch (e) {
     return NextResponse.json({ error: (e as Error).message }, { status: 500 });

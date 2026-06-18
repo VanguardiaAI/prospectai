@@ -24,7 +24,7 @@ const ALLOWED_SETTINGS_KEYS = [
   "workana_auth_state", "workana_last_scan_at",
   "workana_headless", "workana_locale", "workana_timezone",
   "workana_scan_interval_hours", "workana_max_eval_per_scan", "workana_max_drafts_per_scan",
-  "workana_allow_submit",
+  "workana_allow_submit", "workana_replies_interval_hours", "workana_last_replies_at",
 ] as const;
 
 export const updateSettingsSchema = z.record(z.string(), z.string()).refine(
