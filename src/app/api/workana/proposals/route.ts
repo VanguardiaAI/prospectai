@@ -7,8 +7,9 @@ import {
   getProposalForSubmit,
   markProposalSubmitted,
   getWeeklyConnectionUsage,
+  getStyleExamples,
 } from "@/db/workana";
-import { draftProposal } from "@/lib/workana/ai";
+import { draftProposal, PROPOSAL_TONE_DIRECTIVES } from "@/lib/workana/ai";
 import { submitProposal } from "@/lib/workana/submit";
 import type { ScrapedProject } from "@/lib/workana/types";
 
@@ -21,6 +22,19 @@ function enabled(): boolean {
 
 const VALID_STATUS = ["draft", "approved", "rejected"] as const;
 type EditableStatus = (typeof VALID_STATUS)[number];
+
+/**
+ * Compose the rewrite directive from a tone preset + free-form user instructions.
+ * Both are operator-provided (trusted), so no fencing is needed; we just bound length.
+ */
+function composeDirective(tone: unknown, instructions: unknown): string | undefined {
+  const parts: string[] = [];
+  const toneDir = typeof tone === "string" ? PROPOSAL_TONE_DIRECTIVES[tone] : undefined;
+  if (toneDir) parts.push(toneDir);
+  const custom = typeof instructions === "string" ? instructions.trim().slice(0, 500) : "";
+  if (custom) parts.push(`Instrucciones específicas del usuario: ${custom}`);
+  return parts.length ? parts.join("\n") : undefined;
+}
 
 // Single-flight guard for REAL submits: serializes them so the budget check and the
 // spend can't race across concurrent requests (two tabs / retry / two proposals).
@@ -59,10 +73,13 @@ export async function PUT(req: NextRequest) {
         publishedText: null,
         rawText: p.rawText ?? p.description ?? "",
       };
+      const directive = composeDirective(body?.tone, body?.instructions);
+      const examples = getStyleExamples({ skills: project.skills, excludeProjectId: p.id });
       const draft = await draftProposal(
         project,
         { shouldBid: true, fitScore: p.fitScore ?? 50, reason: p.reason ?? "", language: p.language ?? "es" },
-        row.agencyProfileId
+        row.agencyProfileId,
+        { directive, examples }
       );
       updateProposal(id, {
         coverLetter: draft.coverLetter,

@@ -125,49 +125,91 @@ export async function evaluateProject(
 }
 
 const DRAFT_SYSTEM =
-  "Eres un freelancer real escribiendo una propuesta para un proyecto en Workana. Escribes como una " +
-  "persona, rápido y natural, nunca como una IA y nunca con plantillas. No inventas casos ni datos. " +
+  "Eres un freelancer real que sabe resolver el proyecto y se lo propone directo al cliente para ganarlo en Workana. " +
+  "Escribes como una persona concreta, no como una IA ni con plantillas. No es un anuncio: es alguien ofreciendo cómo " +
+  "resolver lo que el cliente pide. No inventas casos, datos ni resultados. " +
   "PROHIBIDO usar em-dash o guion largo (el carácter —): usa coma, punto, dos puntos o paréntesis. " +
   "Nunca incluyes contacto fuera de la plataforma (email, teléfono, WhatsApp). Respondes solo con el objeto solicitado.";
 
 /**
+ * Predefined tone presets for the "Regenerate" control. Each value is appended to
+ * the draft prompt as a requested adjustment. `balanced` is the no-op default.
+ * Keep keys in sync with the UI tone selector and the API validation.
+ */
+export const PROPOSAL_TONE_DIRECTIVES: Record<string, string> = {
+  balanced: "",
+  direct:
+    "Más directo y al grano: menos rodeos, frases más cortas, ve directo a cómo resuelves el problema y recorta cualquier relleno.",
+  technical:
+    "Más técnico: explica brevemente tu enfoque concreto para este proyecto (cómo lo abordarías, pasos o stack), para un cliente que valora el cómo, sin perder naturalidad.",
+  results:
+    "Centrado en resultados: conecta lo que harías con un impacto de negocio concreto (más ventas, mejor visibilidad, ahorro de tiempo) y, si encaja de verdad, apóyate en un caso con resultado real.",
+};
+
+export interface DraftOptions {
+  /** Tone preset directive + custom instructions, already composed. Steers the rewrite. */
+  directive?: string;
+  /** Past approved/sent cover letters, used as style references (imitate, never copy). */
+  examples?: string[];
+}
+
+function examplesBlock(examples?: string[]): string {
+  const picked = (examples || []).map((e) => (e || "").trim()).filter(Boolean);
+  if (!picked.length) return "";
+  return [
+    "PROPUESTAS TUYAS QUE YA APROBASTE Y ENVIASTE (referencia de TU estilo, ritmo y forma de proponer):",
+    "Imita el tono y la estructura, NUNCA copies frases ni el contenido. Cada propuesta es única para su proyecto.",
+    picked.map((e, i) => `--- Ejemplo ${i + 1} ---\n${e}`).join("\n\n"),
+  ].join("\n");
+}
+
+/**
  * Second-stage drafting with Opus 4.8: a tailored cover letter + proposed bid +
  * delivery estimate, written in the project's language. Answers any screening
- * questions found in the brief.
+ * questions found in the brief. `opts.directive` lets the user steer a rewrite
+ * (tone preset + free instructions); `opts.examples` seeds the writing with past
+ * approved proposals so the style stays consistent and improves over time.
  */
 export async function draftProposal(
   project: ScrapedProject,
   evaluation: ProjectEvaluation,
-  agencyProfileId?: number | null
+  agencyProfileId?: number | null,
+  opts: DraftOptions = {}
 ): Promise<ProposalDraft> {
   const ctx = getAgencyContext(agencyProfileId);
   const langLabel =
     evaluation.language === "pt" ? "portugués" : evaluation.language === "en" ? "inglés" : "español neutro";
+  const directive = (opts.directive || "").trim();
+  const exBlock = examplesBlock(opts.examples);
   const prompt = [
     "PERFIL DEL FREELANCER / AGENCIA (escribe como este perfil, en primera persona):",
     formatAgencyContextBlock(ctx),
     "",
     fenced("PROYECTO AL QUE POSTULAS", projectBlock(project)),
     "",
+    ...(exBlock ? [exBlock, ""] : []),
     `Redacta la propuesta en ${langLabel} (el idioma del proyecto).`,
     "",
-    ANTI_AI_RULES,
+    "CÓMO ESCRIBIR LA PROPUESTA (lo más importante):",
+    "Habla como alguien que de verdad puede resolver esto y se lo propone al cliente. No vendas, propón.",
+    "1. Abre conectando con SU problema o necesidad concreta (algo del brief que demuestre que lo entendiste). No empieces hablando de ti.",
+    "2. Di en una o dos frases CÓMO lo resolverías: tu enfoque concreto para este proyecto, no genérico.",
+    "3. Respalda con UN proyecto real parecido de tu portafolio (los casos de éxito del perfil). Menciónalo natural, sin presumir. Si ninguno encaja de verdad, no lo fuerces ni inventes.",
+    "4. Cierra con una pregunta concreta o un siguiente paso claro que invite a responder.",
     "",
-    "TONO HUMANO (CRÍTICO): debe leerse como algo que escribió una persona, no una IA.",
-    "- PROHIBIDO el em-dash o guion largo (el carácter —). Usa coma, punto, dos puntos o paréntesis.",
-    "- Frases de largo variado, alguna corta. Nada de estructura perfecta ni listas dentro de la carta.",
-    "- Si una frase suena a copy automatizado o a relleno, reescríbela o bórrala.",
+    "NATURALIDAD (que se lea humano, no rebuscado):",
+    "- Primera persona, cercano y directo. Frases de largo variado, alguna corta.",
+    "- Sin guion largo (—). Sin listas ni viñetas dentro de la carta. Sin clichés de venta ni relleno.",
+    "- Evita el vocabulario que delata IA (potenciar, robusto, holístico, sinergias, optimizar en exceso). Pero no te retuerzas por evitar palabras: prioriza que suene natural por encima de cualquier prohibición.",
+    "- No suene a plantilla ni a folleto. Si una frase no aporta, bórrala.",
+    ...(directive ? ["", `AJUSTE PEDIDO POR EL USUARIO (respétalo sin perder naturalidad): ${directive}`] : []),
     "",
-    "Instrucciones:",
-    "- coverLetter: carta breve y específica (120-180 palabras), en primera persona. Conecta el problema",
-    "  real del cliente con tu experiencia concreta. Cercana y natural, sin clichés ni relleno.",
-    "  Termina con una pregunta o un siguiente paso claro. No incluyas datos de contacto externos.",
+    "Instrucciones de salida:",
+    "- coverLetter: carta breve y específica (110-170 palabras), en primera persona y en el idioma del proyecto. Sin datos de contacto externos.",
     "- bidAmount: monto propuesto, coherente con el presupuesto indicado y la moneda del proyecto (número, o null si no hay base).",
     "- deliveryDays: plazo realista en días (entero, o null).",
     "- screeningAnswers: si el proyecto incluye preguntas para el postulante, respóndelas una a una; si no hay, devuelve lista vacía.",
     "- confidence: 0-100, qué tan fuerte es esta propuesta para ganar el proyecto.",
-    "",
-    "Antes de responder, relee la carta y elimina cualquier em-dash (—), conector de IA o frase que delate automatización.",
   ].join("\n");
 
   return withRetry(

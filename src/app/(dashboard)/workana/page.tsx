@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Card, Button, EmptyState, Spinner, Badge, Input, Textarea, Toggle, StatusBadge } from "@/components/ui";
+import { Card, Button, EmptyState, Spinner, Badge, Input, Textarea, Toggle, StatusBadge, Segment } from "@/components/ui";
+import type { SegmentOption } from "@/components/ui";
 import type { BadgeColor } from "@/components/ui/Badge";
 import { Briefcase } from "lucide-react";
 import { useT } from "@/i18n/LocaleProvider";
@@ -47,6 +48,8 @@ interface ProposalRow {
   status: string;
 }
 
+type ToneKey = "balanced" | "direct" | "technical" | "results";
+
 function ProposalCard({ p, onChanged, allowSubmit }: { p: ProposalRow; onChanged: () => void; allowSubmit: boolean }) {
   const { t } = useT();
   const [cover, setCover] = useState(p.coverLetter);
@@ -55,7 +58,17 @@ function ProposalCard({ p, onChanged, allowSubmit }: { p: ProposalRow; onChanged
   const [busy, setBusy] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [submitMsg, setSubmitMsg] = useState("");
+  const [regenOpen, setRegenOpen] = useState(false);
+  const [tone, setTone] = useState<ToneKey>("balanced");
+  const [instructions, setInstructions] = useState("");
   const editable = p.status === "draft";
+
+  const TONES: SegmentOption<ToneKey>[] = [
+    { value: "balanced", label: t("workana.toneBalanced") },
+    { value: "direct", label: t("workana.toneDirect") },
+    { value: "technical", label: t("workana.toneTechnical") },
+    { value: "results", label: t("workana.toneResults") },
+  ];
 
   const doSubmit = async (dry: boolean) => {
     setSubmitting(true);
@@ -92,7 +105,7 @@ function ProposalCard({ p, onChanged, allowSubmit }: { p: ProposalRow; onChanged
   };
   const regenerate = async () => {
     setBusy(true);
-    const res = await put({ action: "regenerate" });
+    const res = await put({ action: "regenerate", tone, instructions });
     const d = await res.json().catch(() => ({}));
     if (d?.draft) {
       setCover(d.draft.coverLetter ?? "");
@@ -100,6 +113,7 @@ function ProposalCard({ p, onChanged, allowSubmit }: { p: ProposalRow; onChanged
       setDays(d.draft.deliveryDays != null ? String(d.draft.deliveryDays) : "");
     }
     setBusy(false);
+    setRegenOpen(false);
     onChanged();
   };
 
@@ -136,20 +150,44 @@ function ProposalCard({ p, onChanged, allowSubmit }: { p: ProposalRow; onChanged
       </div>
 
       {editable ? (
-        <div className="flex flex-wrap items-center gap-3 mt-4">
-          <Button size="sm" variant="secondary" onClick={save} disabled={busy}>
-            {busy ? t("workana.saving") : t("workana.save")}
-          </Button>
-          <Button size="sm" variant="success" onClick={() => setStatus("approved")} disabled={busy}>
-            {t("workana.approve")}
-          </Button>
-          <Button size="sm" variant="ghost" onClick={() => setStatus("rejected")} disabled={busy}>
-            {t("workana.reject")}
-          </Button>
-          <Button size="sm" variant="ghost" onClick={regenerate} disabled={busy}>
-            {busy ? t("workana.regenerating") : t("workana.regenerate")}
-          </Button>
-        </div>
+        <>
+          <div className="flex flex-wrap items-center gap-3 mt-4">
+            <Button size="sm" variant="secondary" onClick={save} disabled={busy}>
+              {busy ? t("workana.saving") : t("workana.save")}
+            </Button>
+            <Button size="sm" variant="success" onClick={() => setStatus("approved")} disabled={busy}>
+              {t("workana.approve")}
+            </Button>
+            <Button size="sm" variant="ghost" onClick={() => setStatus("rejected")} disabled={busy}>
+              {t("workana.reject")}
+            </Button>
+            <Button size="sm" variant="ghost" onClick={() => setRegenOpen((v) => !v)} disabled={busy}>
+              {t("workana.regenerate")}
+            </Button>
+          </div>
+
+          {regenOpen && (
+            <div className="mt-3 rounded-lg border border-border bg-surface-raised p-3 nd-enter">
+              <p className="nd-label mb-2">{t("workana.regenTitle")}</p>
+              <Segment options={TONES} value={tone} onChange={setTone} className="mb-3" />
+              <Textarea
+                value={instructions}
+                onChange={(e) => setInstructions(e.target.value)}
+                rows={2}
+                placeholder={t("workana.regenInstructionsPlaceholder")}
+                className="w-full"
+              />
+              <div className="flex flex-wrap items-center gap-3 mt-3">
+                <Button size="sm" onClick={regenerate} disabled={busy}>
+                  {busy ? t("workana.regenerating") : t("workana.regenApply")}
+                </Button>
+                <Button size="sm" variant="ghost" onClick={() => setRegenOpen(false)} disabled={busy}>
+                  {t("workana.regenCancel")}
+                </Button>
+              </div>
+            </div>
+          )}
+        </>
       ) : (
         <div className="mt-4 space-y-2">
           <div className="flex flex-wrap items-center gap-3">
@@ -186,6 +224,7 @@ export default function WorkanaPage() {
     scanIntervalHours: "12",
     maxEval: "15",
     maxDrafts: "5",
+    styleExamples: "3",
     headless: "true",
     profileUrl: "",
     allowSubmit: "false",
@@ -256,6 +295,7 @@ export default function WorkanaPage() {
           scanIntervalHours: s?.workana_scan_interval_hours || "12",
           maxEval: s?.workana_max_eval_per_scan || "15",
           maxDrafts: s?.workana_max_drafts_per_scan || "5",
+          styleExamples: s?.workana_style_examples ?? "3",
           headless: s?.workana_headless || "true",
           profileUrl: s?.workana_profile_url || "",
           allowSubmit: s?.workana_allow_submit || "false",
@@ -332,6 +372,7 @@ export default function WorkanaPage() {
         workana_scan_interval_hours: cfg.scanIntervalHours,
         workana_max_eval_per_scan: cfg.maxEval,
         workana_max_drafts_per_scan: cfg.maxDrafts,
+        workana_style_examples: cfg.styleExamples,
         workana_headless: cfg.headless,
         workana_profile_url: cfg.profileUrl,
         workana_allow_submit: cfg.allowSubmit,
@@ -526,6 +567,11 @@ export default function WorkanaPage() {
               <div>
                 <label className="nd-label block mb-1">{t("workana.maxDrafts")}</label>
                 <Input value={cfg.maxDrafts} onChange={(e) => setCfg({ ...cfg, maxDrafts: e.target.value })} inputMode="numeric" />
+              </div>
+              <div>
+                <label className="nd-label block mb-1">{t("workana.styleExamples")}</label>
+                <Input value={cfg.styleExamples} onChange={(e) => setCfg({ ...cfg, styleExamples: e.target.value })} inputMode="numeric" />
+                <p className="mt-1 text-[10px] text-text-muted leading-relaxed">{t("workana.styleExamplesHint")}</p>
               </div>
             </div>
             <div className="mt-4">

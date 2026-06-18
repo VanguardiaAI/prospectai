@@ -1,6 +1,6 @@
 import { db, getSetting } from "@/db";
 import { workanaProjects, workanaProposals, workanaSearches, workanaReplies, agencyProfile } from "@/db/schema";
-import { eq, desc, and, gte, like } from "drizzle-orm";
+import { eq, desc, and, gte, like, inArray } from "drizzle-orm";
 import type { ScrapedProject, ScrapedInboxMessage } from "@/lib/workana/types";
 import type { ProjectEvaluation, ProposalDraft } from "@/lib/workana/ai";
 import type { ReplyIntent } from "@/lib/reply-intent";
@@ -241,6 +241,64 @@ export function getProjectRowForProposal(proposalId: number) {
   if (!prop) return null;
   const project = db.select().from(workanaProjects).where(eq(workanaProjects.id, prop.projectId)).get();
   return project ? { project, agencyProfileId: prop.agencyProfileId } : null;
+}
+
+/**
+ * Style examples for drafting: recent cover letters the user already approved or
+ * submitted, ranked by skill overlap with the target project (so the style matches
+ * the kind of project) and recency. Returns just the cover-letter texts.
+ *
+ * Limit comes from `workana_style_examples` (default 3); set it to "0" to disable.
+ */
+export function getStyleExamples(opts: {
+  skills?: string[];
+  excludeProjectId?: number | null;
+  limit?: number;
+} = {}): string[] {
+  let limit = opts.limit;
+  if (limit == null) {
+    const raw = getSetting("workana_style_examples");
+    const n = raw == null || raw === "" ? 3 : Number(raw);
+    limit = Number.isFinite(n) ? n : 3;
+  }
+  if (limit <= 0) return [];
+
+  const rows = db
+    .select({
+      coverLetter: workanaProposals.coverLetter,
+      projectId: workanaProposals.projectId,
+      updatedAt: workanaProposals.updatedAt,
+      skills: workanaProjects.skills,
+    })
+    .from(workanaProposals)
+    .leftJoin(workanaProjects, eq(workanaProjects.id, workanaProposals.projectId))
+    .where(inArray(workanaProposals.status, ["approved", "submitted"]))
+    .orderBy(desc(workanaProposals.updatedAt))
+    .limit(40)
+    .all();
+
+  const target = new Set(
+    (opts.skills ?? []).map((s) => s.toLowerCase().trim()).filter(Boolean)
+  );
+  const scored = rows
+    .filter((r) => r.coverLetter && r.coverLetter.trim() && r.projectId !== opts.excludeProjectId)
+    .map((r) => {
+      let overlap = 0;
+      if (target.size && r.skills) {
+        try {
+          const rs = JSON.parse(r.skills) as unknown;
+          if (Array.isArray(rs)) {
+            for (const s of rs) if (target.has(String(s).toLowerCase().trim())) overlap++;
+          }
+        } catch {
+          /* ignore malformed skills JSON */
+        }
+      }
+      return { text: r.coverLetter, overlap, updatedAt: r.updatedAt ?? "" };
+    });
+  // Best skill overlap first, then most recent.
+  scored.sort((a, b) => b.overlap - a.overlap || (a.updatedAt < b.updatedAt ? 1 : -1));
+  return scored.slice(0, limit).map((s) => s.text);
 }
 
 /** Count proposals submitted since the given ISO timestamp (weekly-budget accounting). */

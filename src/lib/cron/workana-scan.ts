@@ -9,6 +9,7 @@ import {
   insertProposal,
   getDefaultProfileId,
   projectHasProposal,
+  getStyleExamples,
 } from "@/db/workana";
 import type { ScrapedProject, WorkanaSearchFilters } from "@/lib/workana/types";
 
@@ -116,7 +117,9 @@ export async function processWorkanaScans(opts: ScanOptions = {}): Promise<ScanR
       // Enrich with the full brief from the detail page for a better proposal.
       const detail = await scrapeProjectDetail(i.p.url).catch(() => null);
       const source = detail && detail.rawText.length > i.p.rawText.length ? { ...i.p, ...detail } : i.p;
-      const draft = await draftProposal(source, i.evaluation, i.profileId);
+      // Seed with the user's own approved/sent proposals (style learning), prioritizing same-type projects.
+      const examples = getStyleExamples({ skills: source.skills, excludeProjectId: i.projectId });
+      const draft = await draftProposal(source, i.evaluation, i.profileId, { examples });
       insertProposal(i.projectId, i.profileId, draft, null);
       drafted++;
     } catch (e) {
