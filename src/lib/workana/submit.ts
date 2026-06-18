@@ -91,23 +91,32 @@ export async function submitProposal(input: SubmitInput): Promise<SubmitResult> 
     }
     if ((await submit.count().catch(() => 0)) === 0) return { ok: false, error: "submit button not found" };
     await submit.first().click();
-    await page.waitForTimeout(3500);
 
-    // Success signal: Workana leaves the bid form (redirects to the conversation
-    // thread) when the proposal goes through. Still on /messages/bid/ → it did NOT
-    // submit (validation error, no connections, etc.) — never mark it "sent" then.
+    // POSITIVE success signal: on acceptance Workana redirects to the conversation
+    // thread (/messages/index/...). Wait for that navigation (not a blind timeout),
+    // so we neither (a) mark a failure as "sent" because the URL merely left the bid
+    // form (e.g. a /login bounce), nor (b) mark a slow-but-successful redirect as failed.
+    const ok = await page
+      .waitForURL(/\/messages\/index\//i, { timeout: 12000 })
+      .then(() => true)
+      .catch(() => false);
     const after = page.url();
-    if (/\/messages\/bid\//i.test(after)) {
-      const errText = await page
-        .locator('.error, [class*="error"], [class*="alert"], [class*="message-error"]')
-        .first()
-        .innerText({ timeout: 1500 })
-        .catch(() => "");
-      logger.warn({ slug: input.slug, after, errText: errText.slice(0, 200) }, "workana: submit did not complete");
-      return { ok: false, error: errText ? errText.replace(/\s+/g, " ").trim().slice(0, 200) : "submission did not complete (still on bid form)" };
+    if (ok) {
+      logger.info({ slug: input.slug, after }, "workana: proposal submitted");
+      return { ok: true, ref: after };
     }
-
-    logger.info({ slug: input.slug, after }, "workana: proposal submitted");
-    return { ok: true, ref: after };
+    if (/\/login|\/signin/i.test(after)) {
+      return { ok: false, error: "session lost during submit — reconnect Workana and retry" };
+    }
+    const errText = await page
+      .locator('.error, [class*="error"], [class*="alert"], [class*="message-error"]')
+      .first()
+      .innerText({ timeout: 1500 })
+      .catch(() => "");
+    logger.warn({ slug: input.slug, after, errText: errText.slice(0, 200) }, "workana: submit did not complete");
+    return {
+      ok: false,
+      error: errText ? errText.replace(/\s+/g, " ").trim().slice(0, 200) : "submission did not complete (no thread redirect)",
+    };
   });
 }

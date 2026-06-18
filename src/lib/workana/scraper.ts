@@ -196,7 +196,10 @@ export async function scrapeInbox(): Promise<ScrapedInboxMessage[]> {
           const title = (parts[0] || it.title).trim();
           const body = (parts.slice(1).join("|").trim() || it.text).slice(0, 1500);
           return {
-            externalId: hashId((slug || it.href) + "|" + body.slice(0, 200)),
+            // Dedup on the STABLE thread URL only (one row per conversation). Do NOT
+            // fold in the preview/relative-time text — it changes as time ages and
+            // would re-insert + re-classify the same thread on later scans.
+            externalId: hashId(it.href || slug || body.slice(0, 80)),
             threadUrl: it.href,
             projectSlug: slug,
             projectTitle: title.length >= 4 ? title.slice(0, 120) : null,

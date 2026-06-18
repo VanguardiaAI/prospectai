@@ -54,11 +54,13 @@ export async function processWorkanaReplies(opts: { force?: boolean } = {}): Pro
       insertReply(m, intent, suggested, projectId);
       added++;
     }
+    // Only advance the gate after a genuinely completed scrape, so a transient
+    // failure is retried on the next tick instead of being suppressed for the interval.
+    setSetting("workana_last_replies_at", new Date().toISOString());
+    logger.info({ scanned, added }, "workana-replies: complete");
+    return { scanned, added };
   } catch (e) {
     logger.warn({ err: (e as Error).message }, "workana-replies: failed");
+    return { skipped: "error", scanned, added };
   }
-
-  setSetting("workana_last_replies_at", new Date().toISOString());
-  logger.info({ scanned, added }, "workana-replies: complete");
-  return { scanned, added };
 }

@@ -22,6 +22,10 @@ function enabled(): boolean {
 const VALID_STATUS = ["draft", "approved", "rejected"] as const;
 type EditableStatus = (typeof VALID_STATUS)[number];
 
+// Single-flight guard for REAL submits: serializes them so the budget check and the
+// spend can't race across concurrent requests (two tabs / retry / two proposals).
+let realSubmitInFlight = false;
+
 export async function GET() {
   if (!enabled()) return NextResponse.json({ error: "workana_disabled" }, { status: 403 });
   return NextResponse.json({ proposals: getProposalsDetailed(60) });
@@ -84,12 +88,25 @@ export async function PUT(req: NextRequest) {
 
     // Real submission (or dry-run fill). Submitting requires an approved proposal;
     // submitProposal itself is hard-gated behind workana_allow_submit.
-    if (body?.action === "submit" || body?.action === "submit_dry") {
-      const dryRun = body.action === "submit_dry";
+    // Dry-run: fill the form only, no lock, no budget (safe, never submits).
+    if (body?.action === "submit_dry") {
       const p = getProposalForSubmit(id);
       if (!p) return NextResponse.json({ error: "proposal not found" }, { status: 404 });
       if (!p.slug) return NextResponse.json({ error: "project slug missing" }, { status: 400 });
-      if (!dryRun) {
+      const res = await submitProposal({ slug: p.slug, coverLetter: p.coverLetter, bidAmount: p.bidAmount, dryRun: true });
+      return NextResponse.json(res);
+    }
+
+    // Real submit: serialized so the budget check and the spend can't race.
+    if (body?.action === "submit") {
+      if (realSubmitInFlight) {
+        return NextResponse.json({ error: "another submission is in progress, try again in a moment" }, { status: 409 });
+      }
+      realSubmitInFlight = true;
+      try {
+        const p = getProposalForSubmit(id);
+        if (!p) return NextResponse.json({ error: "proposal not found" }, { status: 404 });
+        if (!p.slug) return NextResponse.json({ error: "project slug missing" }, { status: 400 });
         if (p.status !== "approved") {
           return NextResponse.json({ error: "proposal must be approved before sending" }, { status: 400 });
         }
@@ -97,15 +114,17 @@ export async function PUT(req: NextRequest) {
         if (p.bidAmount == null) {
           return NextResponse.json({ error: "bid amount required (edit the proposal first)" }, { status: 400 });
         }
-        // Weekly connection budget — never spend more than the configured allowance.
+        // Weekly connection budget — re-read inside the lock so it's never overshot.
         const { used, budget } = getWeeklyConnectionUsage();
         if (budget > 0 && used >= budget) {
           return NextResponse.json({ error: "weekly connection budget reached", used, budget }, { status: 429 });
         }
+        const res = await submitProposal({ slug: p.slug, coverLetter: p.coverLetter, bidAmount: p.bidAmount });
+        if (res.ok) markProposalSubmitted(id, res.ref ?? null);
+        return NextResponse.json(res);
+      } finally {
+        realSubmitInFlight = false;
       }
-      const res = await submitProposal({ slug: p.slug, coverLetter: p.coverLetter, bidAmount: p.bidAmount, dryRun });
-      if (res.ok && !res.dryRun) markProposalSubmitted(id, res.ref ?? null);
-      return NextResponse.json(res);
     }
 
     const status: EditableStatus | undefined = VALID_STATUS.includes(body?.status) ? body.status : undefined;
