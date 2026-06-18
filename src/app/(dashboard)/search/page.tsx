@@ -67,16 +67,16 @@ export default function SearchPage() {
   const [history, setHistory] = useState<SearchJob[]>([]);
   const [showHistory, setShowHistory] = useState(false);
 
-  useEffect(() => {
-    fetch("/api/campaigns").then((r) => r.json()).then(setCampaigns);
-    fetchHistory();
-  }, []);
-
-  const fetchHistory = async () => {
+  const fetchHistory = useCallback(async () => {
     const res = await fetch("/api/search");
     const data = await res.json();
     setHistory(data.jobs || []);
-  };
+  }, []);
+
+  useEffect(() => {
+    fetch("/api/campaigns").then((r) => r.json()).then(setCampaigns);
+    fetchHistory();
+  }, [fetchHistory]);
 
   const startSearch = async () => {
     if (!keyword.trim()) return;
