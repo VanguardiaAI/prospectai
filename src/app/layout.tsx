@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Space_Grotesk, Space_Mono } from "next/font/google";
+import { Hanken_Grotesk, Space_Mono } from "next/font/google";
 import { ToastProvider } from "@/components/Toast";
 import { LocaleProvider } from "@/i18n/LocaleProvider";
 import { ThemeProvider } from "@/components/ThemeProvider";
@@ -11,16 +11,24 @@ const themeScript = `(function(){try{var t=localStorage.getItem('theme');if(t!==
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
 
-const spaceGrotesk = Space_Grotesk({
-  variable: "--font-space-grotesk",
+// Body/UI face. Highly legible humanist grotesk — built for reading long
+// prose (the email/WhatsApp/chat copy that is the core of this app), unlike
+// Space Grotesk (the proportional sibling of Space Mono, which made everything
+// read "mono-ish" and hurt the prose/data hierarchy).
+const hankenGrotesk = Hanken_Grotesk({
+  variable: "--font-hanken",
   subsets: ["latin"],
-  weight: ["300", "400", "500", "700"],
+  weight: ["400", "500", "600", "700"],
+  display: "swap",
 });
 
+// Data/label face — kept as the technical "Nothing" identity for mono
+// labels, table headers, chips and numbers.
 const spaceMono = Space_Mono({
   variable: "--font-space-mono",
   subsets: ["latin"],
   weight: ["400", "700"],
+  display: "swap",
 });
 
 export const metadata: Metadata = {
@@ -88,7 +96,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" suppressHydrationWarning className={`${spaceGrotesk.variable} ${spaceMono.variable} h-full`}>
+    <html lang="en" suppressHydrationWarning className={`${hankenGrotesk.variable} ${spaceMono.variable} h-full`}>
       <head>
         <script dangerouslySetInnerHTML={{ __html: themeScript }} />
         <script

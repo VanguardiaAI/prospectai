@@ -3,14 +3,14 @@
 :root {
   /* Nothing × soft-pastel — Color Tokens (Light Mode) */
   --black: #FFFFFF;
-  --surface: #F7F7F8;
-  --surface-raised: #F0F0F2;
-  --border: #ECECEE;
-  --border-visible: #DADADD;
-  --text-disabled: #A0A0A6;
-  --text-secondary: #6E6E76;
-  --text-primary: #2B2B30;
-  --text-display: #121214;
+  --surface: #F3F3F5;
+  --surface-raised: #E9E9EC;
+  --border: #E3E3E6;
+  --border-visible: #CECED3;
+  --text-disabled: #8A8A91;
+  --text-secondary: #56565E;
+  --text-primary: #25252A;
+  --text-display: #0E0E10;
 
   /* Orange-led, grayscale-supported palette (original direction) */
   --accent: #E8632B;            /* orange — hero */
@@ -74,8 +74,8 @@
   --label: 11px;
 
   /* Font Families */
-  --font-display: "Doto", "Space Mono", monospace;
-  --font-body: "Space Grotesk", "DM Sans", system-ui, sans-serif;
+  --font-display: "Hanken Grotesk", system-ui, -apple-system, sans-serif;
+  --font-body: "Hanken Grotesk", system-ui, -apple-system, sans-serif;
   --font-data: "Space Mono", "JetBrains Mono", "SF Mono", monospace;
 
   /* Motion */
@@ -133,16 +133,18 @@
 /* ─── Dark Mode ─── */
 
 [data-theme="dark"] {
-  /* Pure-black canvas, flat near-black panels (reference look) */
-  --black: #060607;
-  --surface: #0F0F11;
-  --surface-raised: #17171A;
-  --border: #1E1E22;
-  --border-visible: #2C2C32;
-  --text-disabled: #585860;
-  --text-secondary: #8C8C94;
-  --text-primary: #CFCFD5;
-  --text-display: #F5F5F7;
+  /* Near-black canvas, flat panels lifted enough to read as cards.
+     Surfaces step up clearly from the canvas and borders are visible so
+     containers no longer melt into the background. */
+  --black: #050506;
+  --surface: #131316;
+  --surface-raised: #1D1D22;
+  --border: #2A2A30;
+  --border-visible: #3B3B43;
+  --text-disabled: #7B7B82;   /* floor raised so even "muted" text is readable */
+  --text-secondary: #A3A3AC;  /* body-dim / descriptions — now comfortably legible */
+  --text-primary: #E8E8EC;    /* crisp body copy */
+  --text-display: #FBFBFC;
 
   /* Orange-led, grayscale-supported palette (original direction) */
   --accent: #ED6A35;            /* orange — hero (pops on black) */
@@ -260,10 +262,11 @@ body {
 
 /* ─── Nothing Design — Typography Classes ─── */
 
-/* Display: Doto font, hero moments only */
+/* Display: legible grotesk at heavy weight, hero moments only */
 .nd-display {
   font-family: var(--font-display);
-  letter-spacing: -0.02em;
+  font-weight: 600;
+  letter-spacing: -0.022em;
   line-height: 1.05;
   color: var(--text-display);
 }
@@ -431,7 +434,8 @@ body {
 .nd-page-header h1 {
   font-family: var(--font-display);
   font-size: var(--display-md);
-  letter-spacing: -0.02em;
+  font-weight: 600;
+  letter-spacing: -0.022em;
   line-height: 1.1;
   color: var(--text-display);
 }
@@ -742,11 +746,12 @@ body {
   border-bottom: 1px solid var(--border-visible);
   border-bottom-left-radius: 4px;
 }
-/* Email "letter" frame */
+/* Email "letter" frame — the focal reading surface, lifted above its card
+   (was --black, i.e. darker than the card it sits in, which buried the body). */
 .rv-letter {
-  border: 1px solid var(--border);
+  border: 1px solid var(--border-visible);
   border-radius: 14px;
-  background: var(--black);
+  background: var(--surface-raised);
   box-shadow: var(--shadow-sm);
 }
 

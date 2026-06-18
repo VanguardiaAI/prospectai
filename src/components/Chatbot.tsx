@@ -189,7 +189,7 @@ function MessageParts({ message }: { message: UIMessage }) {
           )}
           <div
             className={clsx(
-              "max-w-[85%] rounded-2xl px-3.5 py-2.5 text-[13px] leading-relaxed",
+              "max-w-[85%] rounded-2xl px-3.5 py-2.5 text-sm leading-relaxed",
               message.role === "user"
                 ? "bg-accent text-white rounded-br-md"
                 : "bg-bg-tertiary text-text-primary border border-border rounded-bl-md"
