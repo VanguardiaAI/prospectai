@@ -70,6 +70,19 @@ function validatePositiveInt(value: string): string | null {
 }
 
 type Validator = (v: string) => string | null;
+
+// Bounded positive int: positive AND at most `max` (the absolute safety ceiling,
+// mirrored from the server). Stops a typo like 100000 from looking valid; the
+// server clamps regardless — this is just immediate feedback.
+function validateBoundedInt(max: number): Validator {
+  return (value: string) => {
+    if (!value) return null;
+    const n = Number(value);
+    if (!Number.isInteger(n) || n <= 0) return "validation.mustBePositiveInt";
+    return n <= max ? null : "validation.exceedsSafeMax";
+  };
+}
+
 const FIELD_VALIDATORS: Record<string, Validator> = {
   from_email: validateEmail,
   reply_to_email: validateEmail,
@@ -78,16 +91,20 @@ const FIELD_VALIDATORS: Record<string, Validator> = {
   gmaps_scraper_url: validateUrl,
   crm_webhook_url: validateUrl,
   unsubscribe_url: validateUrl,
-  global_daily_limit: validatePositiveInt,
-  warmup_start_limit: validatePositiveInt,
-  warmup_increment: validatePositiveInt,
-  warmup_max_limit: validatePositiveInt,
+  global_daily_limit: validateBoundedInt(500),
+  warmup_start_limit: validateBoundedInt(200),
+  warmup_increment: validateBoundedInt(200),
+  warmup_max_limit: validateBoundedInt(500),
   warmup_day: validatePositiveInt,
   send_window_start: validatePositiveInt,
   send_window_end: validatePositiveInt,
   scrape_concurrency: validatePositiveInt,
   scrape_delay_ms: validatePositiveInt,
-  wa_daily_limit: validatePositiveInt,
+  wa_daily_limit: validateBoundedInt(50),
+  wa_warmup_day: validatePositiveInt,
+  wa_warmup_start_limit: validateBoundedInt(50),
+  wa_warmup_increment: validateBoundedInt(50),
+  wa_warmup_max_limit: validateBoundedInt(50),
 };
 
 export default function SettingsPage() {
@@ -256,11 +273,20 @@ export default function SettingsPage() {
 
   // Warmup effective limit calculation
   const warmupEffective = Math.min(
-    parseInt(settings.warmup_start_limit || "5") + (parseInt(settings.warmup_day || "1") - 1) * parseInt(settings.warmup_increment || "5"),
-    parseInt(settings.warmup_max_limit || "50")
+    parseInt(settings.warmup_start_limit || "5") + (parseInt(settings.warmup_day || "1") - 1) * parseInt(settings.warmup_increment || "3"),
+    parseInt(settings.warmup_max_limit || "45")
   );
-  const warmupPct = parseInt(settings.warmup_max_limit || "50") > 0
-    ? Math.round((warmupEffective / parseInt(settings.warmup_max_limit || "50")) * 100)
+  const warmupPct = parseInt(settings.warmup_max_limit || "45") > 0
+    ? Math.round((warmupEffective / parseInt(settings.warmup_max_limit || "45")) * 100)
+    : 0;
+
+  // WhatsApp warmup effective limit calculation (mirrors email, gentler ramp)
+  const waWarmupEffective = Math.min(
+    parseInt(settings.wa_warmup_start_limit || "5") + (parseInt(settings.wa_warmup_day || "1") - 1) * parseInt(settings.wa_warmup_increment || "3"),
+    parseInt(settings.wa_warmup_max_limit || "20")
+  );
+  const waWarmupPct = parseInt(settings.wa_warmup_max_limit || "20") > 0
+    ? Math.round((waWarmupEffective / parseInt(settings.wa_warmup_max_limit || "20")) * 100)
     : 0;
 
   if (loading) return <div className="flex justify-center py-20"><Spinner /></div>;
@@ -586,6 +612,44 @@ export default function SettingsPage() {
               {getError("wa_daily_limit") && <p className="text-[11px] text-accent mt-1 font-mono">{getError("wa_daily_limit")}</p>}
               <p className="text-[11px] text-text-muted mt-1 font-mono">{t("settings.waDailyLimitDesc")}</p>
             </div>
+
+            <div className="mt-4 pt-4 border-t border-border">
+              <Toggle
+                checked={settings.wa_warmup_enabled === "true"}
+                onChange={(v: boolean) => setSettings({ ...settings, wa_warmup_enabled: String(v) })}
+                label={t("settings.waWarmupTitle")}
+              />
+              <p className="text-[11px] text-text-muted mt-2 font-mono">{t("settings.waWarmupDesc")}</p>
+
+              {settings.wa_warmup_enabled === "true" && (
+                <div className="space-y-4 pl-4 border-l-2 border-border mt-3">
+                  <div className="flex items-center gap-3">
+                    <div>
+                      <label className="nd-label block mb-1">{t("settings.day")}</label>
+                      <Input type="number" value={settings.wa_warmup_day || "1"} onChange={(e: React.ChangeEvent<HTMLInputElement>) => setSettings({ ...settings, wa_warmup_day: e.target.value })} className={`w-16 ${getError("wa_warmup_day") ? "border-accent" : ""}`} onBlur={() => markTouched("wa_warmup_day")} />
+                    </div>
+                    <div>
+                      <label className="nd-label block mb-1">{t("settings.start")}</label>
+                      <Input type="number" value={settings.wa_warmup_start_limit || "5"} onChange={(e: React.ChangeEvent<HTMLInputElement>) => setSettings({ ...settings, wa_warmup_start_limit: e.target.value })} className={`w-16 ${getError("wa_warmup_start_limit") ? "border-accent" : ""}`} onBlur={() => markTouched("wa_warmup_start_limit")} />
+                    </div>
+                    <div>
+                      <label className="nd-label block mb-1">{t("settings.perDay")}</label>
+                      <Input type="number" value={settings.wa_warmup_increment || "3"} onChange={(e: React.ChangeEvent<HTMLInputElement>) => setSettings({ ...settings, wa_warmup_increment: e.target.value })} className={`w-16 ${getError("wa_warmup_increment") ? "border-accent" : ""}`} onBlur={() => markTouched("wa_warmup_increment")} />
+                    </div>
+                    <div>
+                      <label className="nd-label block mb-1">{t("settings.max")}</label>
+                      <Input type="number" value={settings.wa_warmup_max_limit || "20"} onChange={(e: React.ChangeEvent<HTMLInputElement>) => setSettings({ ...settings, wa_warmup_max_limit: e.target.value })} className={`w-16 ${getError("wa_warmup_max_limit") ? "border-accent" : ""}`} onBlur={() => markTouched("wa_warmup_max_limit")} />
+                    </div>
+                  </div>
+                  <ProgressBar
+                    value={waWarmupPct}
+                    label={t("settings.waWarmupLabel", { day: settings.wa_warmup_day || "1", limit: String(waWarmupEffective) })}
+                    color={waWarmupPct >= 100 ? "success" : "warning"}
+                    size="sm"
+                  />
+                </div>
+              )}
+            </div>
           </div>
         </Card>
       </div>
@@ -662,11 +726,11 @@ export default function SettingsPage() {
                   </div>
                   <div>
                     <label className="nd-label block mb-1">{t("settings.perDay")}</label>
-                    <Input type="number" value={settings.warmup_increment || "5"} onChange={(e) => setSettings({ ...settings, warmup_increment: e.target.value })} className={`w-16 ${getError("warmup_increment") ? "border-red-500" : ""}`} onBlur={() => markTouched("warmup_increment")} />
+                    <Input type="number" value={settings.warmup_increment || "3"} onChange={(e) => setSettings({ ...settings, warmup_increment: e.target.value })} className={`w-16 ${getError("warmup_increment") ? "border-red-500" : ""}`} onBlur={() => markTouched("warmup_increment")} />
                   </div>
                   <div>
                     <label className="nd-label block mb-1">{t("settings.max")}</label>
-                    <Input type="number" value={settings.warmup_max_limit || "50"} onChange={(e) => setSettings({ ...settings, warmup_max_limit: e.target.value })} className={`w-16 ${getError("warmup_max_limit") ? "border-red-500" : ""}`} onBlur={() => markTouched("warmup_max_limit")} />
+                    <Input type="number" value={settings.warmup_max_limit || "45"} onChange={(e) => setSettings({ ...settings, warmup_max_limit: e.target.value })} className={`w-16 ${getError("warmup_max_limit") ? "border-red-500" : ""}`} onBlur={() => markTouched("warmup_max_limit")} />
                   </div>
                 </div>
                 {(getError("warmup_day") || getError("warmup_start_limit") || getError("warmup_increment") || getError("warmup_max_limit")) && (
@@ -681,21 +745,43 @@ export default function SettingsPage() {
               </div>
             )}
 
-            <div className="flex items-center gap-3">
-              <div>
-                <label className="nd-label block mb-1">{t("settings.from")}</label>
-                <Input type="number" value={settings.send_window_start || "9"} onChange={(e) => setSettings({ ...settings, send_window_start: e.target.value })} className={`w-16 ${getError("send_window_start") ? "border-red-500" : ""}`} onBlur={() => markTouched("send_window_start")} />
+            <div className="pt-4 border-t border-border">
+              <label className="nd-label block mb-2">{t("settings.sendWindow")}</label>
+              <div className="flex items-center gap-3">
+                <div>
+                  <label className="nd-label block mb-1">{t("settings.from")}</label>
+                  <Input type="number" value={settings.send_window_start || "10"} onChange={(e) => setSettings({ ...settings, send_window_start: e.target.value })} className={`w-16 ${getError("send_window_start") ? "border-red-500" : ""}`} onBlur={() => markTouched("send_window_start")} />
+                </div>
+                <span className="text-text-muted mt-5">--</span>
+                <div>
+                  <label className="nd-label block mb-1">{t("settings.to")}</label>
+                  <Input type="number" value={settings.send_window_end || "12"} onChange={(e) => setSettings({ ...settings, send_window_end: e.target.value })} className={`w-16 ${getError("send_window_end") ? "border-red-500" : ""}`} onBlur={() => markTouched("send_window_end")} />
+                </div>
+                <span className="text-[11px] text-text-muted mt-5">{t("settings.hours")}</span>
               </div>
-              <span className="text-text-muted mt-5">--</span>
-              <div>
-                <label className="nd-label block mb-1">{t("settings.to")}</label>
-                <Input type="number" value={settings.send_window_end || "18"} onChange={(e) => setSettings({ ...settings, send_window_end: e.target.value })} className={`w-16 ${getError("send_window_end") ? "border-red-500" : ""}`} onBlur={() => markTouched("send_window_end")} />
-              </div>
-              <span className="text-[11px] text-text-muted mt-5">{t("settings.hours")}</span>
+              {(getError("send_window_start") || getError("send_window_end")) && (
+                <p className="text-[11px] text-accent mt-1">{t("settings.hoursValidation")}</p>
+              )}
+              <p className="text-[11px] text-text-muted mt-2">{t("settings.sendWindowHint")}</p>
             </div>
-            {(getError("send_window_start") || getError("send_window_end")) && (
-              <p className="text-[11px] text-accent">{t("settings.hoursValidation")}</p>
-            )}
+
+            <div>
+              <Toggle
+                checked={settings.send_next_day !== "false"}
+                onChange={(v) => setSettings({ ...settings, send_next_day: String(v) })}
+                label={t("settings.sendNextDay")}
+              />
+              <p className="text-[11px] text-text-muted mt-2">{t("settings.sendNextDayHint")}</p>
+            </div>
+
+            <div>
+              <Toggle
+                checked={settings.send_skip_weekends !== "false"}
+                onChange={(v) => setSettings({ ...settings, send_skip_weekends: String(v) })}
+                label={t("settings.skipWeekends")}
+              />
+              <p className="text-[11px] text-text-muted mt-2">{t("settings.skipWeekendsHint")}</p>
+            </div>
           </div>
         </Card>
 

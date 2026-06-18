@@ -47,6 +47,7 @@ interface EmailRow {
     tone: string;
     status: string;
     createdAt: string;
+    scheduledFor: string | null;
   };
   leadName: string | null;
   leadCategory: string | null;
@@ -67,6 +68,7 @@ interface WARow {
     tone: string;
     status: string;
     createdAt: string;
+    scheduledFor: string | null;
     waMessageId: string | null;
   };
   leadName: string | null;
@@ -97,6 +99,7 @@ interface InboxItem {
   status: string;
   tone: string;
   createdAt: string;
+  scheduledFor: string | null; // when an approved message is queued to send
   recipient: string;
   title: string;   // subject (email) or first line (whatsapp)
   preview: string; // body snippet for the list
@@ -148,6 +151,7 @@ function toItemFromEmail(r: EmailRow): InboxItem {
     status: r.email.status,
     tone: r.email.tone,
     createdAt: r.email.createdAt,
+    scheduledFor: r.email.scheduledFor,
     recipient: r.email.toEmail,
     title: r.email.subject,
     preview: r.email.bodyText,
@@ -174,12 +178,31 @@ function toItemFromWA(r: WARow): InboxItem {
     status: r.message.status,
     tone: r.message.tone,
     createdAt: r.message.createdAt,
+    scheduledFor: r.message.scheduledFor,
     recipient: r.message.toPhone,
     title: r.message.body.split("\n")[0],
     preview: r.message.body,
     bodyHtml: null,
     bodyText: r.message.body,
   };
+}
+
+/** Human label for an approved message's scheduled slot, e.g. "se enviará mañana ~10:42". */
+function formatScheduledFor(
+  iso: string | null,
+  t: (key: string, vars?: Record<string, string | number>) => string,
+): string | null {
+  if (!iso) return null;
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return null;
+  const startOfDay = (x: Date) => new Date(x.getFullYear(), x.getMonth(), x.getDate()).getTime();
+  const dayDiff = Math.round((startOfDay(d) - startOfDay(new Date())) / 86_400_000);
+  const time = d.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" });
+  const when =
+    dayDiff <= 0 ? t("review.today")
+    : dayDiff === 1 ? t("review.tomorrow")
+    : d.toLocaleDateString(undefined, { weekday: "short", day: "numeric", month: "short" });
+  return t("review.willSendAt", { when, time });
 }
 
 function ChannelGlyph({ channel, size = 17 }: { channel: Channel; size?: number }) {
@@ -447,24 +470,27 @@ function MessageCard({ item, fallbackDays, onChanged, onSendNow }: { item: Inbox
         </div>
       )}
 
-      {/* Action bar — approved WhatsApp (send) */}
+      {/* Action bar — approved WhatsApp (auto-sent at the scheduled slot; manual override available) */}
       {!editMode && item.status === "approved" && item.channel === "whatsapp" && (
-        <div className="flex flex-wrap gap-2 mt-5 pt-4 border-t border-border">
+        <div className="mt-5 pt-4 border-t border-border space-y-3">
+          <p className="flex items-center gap-2 text-[12px] text-text-secondary">
+            <Check className="h-3.5 w-3.5 text-success" strokeWidth={1.6} /> {formatScheduledFor(item.scheduledFor, t) ?? t("review.waitingAuto")}
+          </p>
           <Button variant="success" size="sm" onClick={sendWA} disabled={busy}>
             {busy ? (
               <><RefreshCw className="h-3.5 w-3.5 animate-spin" strokeWidth={1.6} /> {t("review.sending")}</>
             ) : (
-              <><Send className="h-3.5 w-3.5" strokeWidth={1.6} /> {t("review.sendWa")}</>
+              <><Send className="h-3.5 w-3.5" strokeWidth={1.6} /> {t("review.sendWaNow")}</>
             )}
           </Button>
         </div>
       )}
 
-      {/* Action bar — approved email (auto-sent by cron) */}
+      {/* Action bar — approved email (auto-sent by cron at the scheduled slot) */}
       {!editMode && item.status === "approved" && item.channel === "email" && (
         <div className="mt-5 pt-4 border-t border-border">
           <p className="flex items-center gap-2 text-[12px] text-text-secondary">
-            <Check className="h-3.5 w-3.5 text-success" strokeWidth={1.6} /> {t("review.waitingAuto")}
+            <Check className="h-3.5 w-3.5 text-success" strokeWidth={1.6} /> {formatScheduledFor(item.scheduledFor, t) ?? t("review.waitingAuto")}
           </p>
         </div>
       )}

@@ -1,13 +1,26 @@
-import { db, getSetting } from "@/db";
+import { db } from "@/db";
 import { whatsappMessages, leads } from "@/db/schema";
-import { eq, and, sql } from "drizzle-orm";
+import { eq, and, sql, or, isNull, lte } from "drizzle-orm";
 import { sendWhatsAppMessage, isWhatsAppReady } from "@/lib/whatsapp-client";
 import { logActivity } from "@/lib/activity";
-import { isWithinSendWindow } from "./warmup";
+import { isWithinSendWindow, getWhatsAppDailyLimit, incrementWhatsAppWarmupDay } from "./warmup";
+import { withSendLock } from "./send-lock";
 import { leadHasReplied, whatsappIsFallback, whatsappFallbackDecision } from "@/lib/outreach-policy";
 import { wasCompanyContacted } from "@/lib/contact-history";
 
-export async function processWhatsAppSending() {
+type WaSendResult = { sent: number; reason?: string };
+
+export async function processWhatsAppSending(): Promise<WaSendResult> {
+  // Single-writer lock: never let two passes run at once, or they would both
+  // read the same "sent today" count and each send up to the remaining cap.
+  return withSendLock<WaSendResult>(
+    "send_wa",
+    { sent: 0, reason: "Another WhatsApp send pass is already running" },
+    runWhatsAppSending,
+  );
+}
+
+async function runWhatsAppSending(): Promise<WaSendResult> {
   if (!isWhatsAppReady()) {
     return { sent: 0, reason: "WhatsApp not connected" };
   }
@@ -16,7 +29,21 @@ export async function processWhatsAppSending() {
     return { sent: 0, reason: "Outside send window" };
   }
 
-  const waLimit = parseInt(getSetting("wa_daily_limit") || "20");
+  // Only act on approved messages whose scheduled time is due (NULL = legacy/asap).
+  const nowIso = new Date().toISOString();
+  const dueApproved = and(
+    eq(whatsappMessages.status, "approved"),
+    or(isNull(whatsappMessages.scheduledFor), lte(whatsappMessages.scheduledFor, nowIso)),
+  );
+
+  // Advance the WhatsApp warm-up ramp for a new active sending day before reading
+  // the limit (gated on there being DUE approved messages), so a fresh number
+  // ramps gently and the limit never jumps mid-day.
+  const hasApproved = !!db.select({ id: whatsappMessages.id }).from(whatsappMessages)
+    .where(dueApproved).limit(1).get();
+  if (hasApproved) incrementWhatsAppWarmupDay();
+
+  const waLimit = getWhatsAppDailyLimit();
   const today = new Date().toISOString().split("T")[0];
 
   const sentToday = db.select({ count: sql<number>`count(*)` }).from(whatsappMessages)
@@ -31,7 +58,7 @@ export async function processWhatsAppSending() {
 
   const approvedMessages = db.select()
     .from(whatsappMessages)
-    .where(eq(whatsappMessages.status, "approved"))
+    .where(dueApproved)
     .limit(remaining)
     .all();
 

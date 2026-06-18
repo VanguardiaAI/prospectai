@@ -71,6 +71,7 @@ export function createTestDb() {
     tone TEXT NOT NULL DEFAULT 'professional',
     status TEXT NOT NULL DEFAULT 'draft',
     dup_ack INTEGER NOT NULL DEFAULT 0,
+    scheduled_for TEXT,
     resend_id TEXT,
     sent_at TEXT,
     opened_at TEXT,
@@ -126,6 +127,7 @@ export function createTestDb() {
     tone TEXT NOT NULL DEFAULT 'professional',
     status TEXT NOT NULL DEFAULT 'draft',
     dup_ack INTEGER NOT NULL DEFAULT 0,
+    scheduled_for TEXT,
     wa_message_id TEXT,
     sent_at TEXT,
     created_at TEXT NOT NULL DEFAULT (datetime('now')),
@@ -247,6 +249,16 @@ export function createTestDb() {
     error_message TEXT,
     created_at TEXT NOT NULL DEFAULT (datetime('now')),
     processed_at TEXT
+  );
+
+  CREATE TABLE IF NOT EXISTS workana_proposals (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    project_id INTEGER NOT NULL,
+    cover_letter TEXT NOT NULL,
+    status TEXT NOT NULL DEFAULT 'draft',
+    submitted_at TEXT,
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    updated_at TEXT NOT NULL DEFAULT (datetime('now'))
   );
   `);
 

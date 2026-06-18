@@ -374,6 +374,10 @@ export function runMigrations(): void {
   // Conscious-override flag for the already-contacted guard (see contact-history).
   safeAddColumn(`ALTER TABLE emails ADD COLUMN dup_ack INTEGER NOT NULL DEFAULT 0`);
   safeAddColumn(`ALTER TABLE whatsapp_messages ADD COLUMN dup_ack INTEGER NOT NULL DEFAULT 0`);
+  // Scheduled send instant: approvals are deferred to the configured window
+  // instead of going out on the next cron tick (see lib/cron/send-schedule).
+  safeAddColumn(`ALTER TABLE emails ADD COLUMN scheduled_for TEXT`);
+  safeAddColumn(`ALTER TABLE whatsapp_messages ADD COLUMN scheduled_for TEXT`);
   safeAddColumn(`ALTER TABLE email_templates ADD COLUMN channel TEXT NOT NULL DEFAULT 'email'`);
   safeAddColumn(`ALTER TABLE ab_variants ADD COLUMN channel TEXT NOT NULL DEFAULT 'email'`);
   safeAddColumn(`ALTER TABLE ab_results ADD COLUMN whatsapp_message_id INTEGER`);
@@ -442,4 +446,27 @@ export function runMigrations(): void {
         .run();
     }
   } catch { /* settings/whatsapp tables not ready on a brand-new DB — nothing to migrate */ }
+
+  // One-time: move the send window to the new 10-12 default and seed the
+  // scheduling keys, but ONLY if the window is still at the legacy 9-18 default
+  // (so a deliberate custom window is never clobbered). Runs once (settings marker).
+  try {
+    const done = sqlite
+      .prepare(`SELECT value FROM settings WHERE key = 'send_schedule_defaults_migrated'`)
+      .get() as { value: string } | undefined;
+    if (!done) {
+      const start = sqlite.prepare(`SELECT value FROM settings WHERE key = 'send_window_start'`).get() as { value: string } | undefined;
+      const end = sqlite.prepare(`SELECT value FROM settings WHERE key = 'send_window_end'`).get() as { value: string } | undefined;
+      if (start?.value === "9" && end?.value === "18") {
+        sqlite.prepare(`UPDATE settings SET value = '10' WHERE key = 'send_window_start'`).run();
+        sqlite.prepare(`UPDATE settings SET value = '12' WHERE key = 'send_window_end'`).run();
+      }
+      // Seed the new scheduling keys if absent (idempotent).
+      sqlite.prepare(`INSERT OR IGNORE INTO settings (key, value) VALUES ('send_next_day', 'true')`).run();
+      sqlite.prepare(`INSERT OR IGNORE INTO settings (key, value) VALUES ('send_skip_weekends', 'true')`).run();
+      sqlite
+        .prepare(`INSERT INTO settings (key, value) VALUES ('send_schedule_defaults_migrated', '1')`)
+        .run();
+    }
+  } catch { /* settings table not ready on a brand-new DB — defaults seed it instead */ }
 }

@@ -482,7 +482,7 @@ export function Chatbot() {
 
   // ─── Bar mode: always-present bottom bar + upward panel ───
   return (
-    <div className="fixed bottom-0 left-0 right-0 lg:left-60 z-40 pointer-events-none">
+    <div className="nd-chatdock fixed bottom-0 left-0 right-0 z-40 pointer-events-none">
       <div className="mx-auto max-w-[1100px] px-4 lg:px-8 pb-4 pointer-events-auto">
         {/* Expanded conversation panel (grows upward) */}
         <div

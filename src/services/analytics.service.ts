@@ -8,8 +8,11 @@ import {
   whatsappMessages,
   activityLog,
   sequenceEnrollments,
+  workanaProposals,
 } from "@/db/schema";
-import { eq, and, sql, desc, isNotNull, type Column } from "drizzle-orm";
+import { eq, and, sql, desc, isNotNull, inArray, type Column } from "drizzle-orm";
+import { getEffectiveDailyLimit, getWhatsAppDailyLimit, isWithinSendWindow } from "@/lib/cron/warmup";
+import { isWhatsAppReady } from "@/lib/whatsapp-client";
 
 // ─── Types ──────────────────────────────────────────────────────────
 
@@ -380,18 +383,9 @@ export function getTodayMetrics(): TodayMetrics {
     .where(and(eq(whatsappMessages.status, "sent"), sql`date(${whatsappMessages.sentAt}) = ${today}`))
     .get()?.count ?? 0;
 
-  const globalDailyLimit = parseInt(getSetting("global_daily_limit") || "50");
-
-  // Warmup effective limit
-  const warmupEnabled = getSetting("warmup_enabled") === "true";
-  let effectiveLimit = globalDailyLimit;
-  if (warmupEnabled) {
-    const warmupDay = parseInt(getSetting("warmup_day") || "1");
-    const startLimit = parseInt(getSetting("warmup_start_limit") || "5");
-    const increment = parseInt(getSetting("warmup_increment") || "5");
-    const maxLimit = parseInt(getSetting("warmup_max_limit") || "50");
-    effectiveLimit = Math.min(startLimit + (warmupDay - 1) * increment, maxLimit, globalDailyLimit);
-  }
+  // Effective email limit (warm-up ramp ∩ caps ∩ absolute ceiling) — the single
+  // source of truth, the same value the sender enforces.
+  const effectiveLimit = getEffectiveDailyLimit();
 
   // Pending jobs
   const pendingJobs = db.select({ count: sql<number>`count(*)` })
@@ -409,6 +403,118 @@ export function getTodayMetrics(): TodayMetrics {
     waSentToday,
     effectiveLimit,
     pendingJobs,
+  };
+}
+
+// ─── Sending quota (the always-visible "how much can I still send today") ──────
+
+export interface ChannelQuota {
+  /** Effective cap for today — warm-up ramp ∩ configured cap ∩ absolute ceiling. */
+  limit: number;
+  /** Sent so far today. */
+  sent: number;
+  /** Safe remaining today (never negative). */
+  remaining: number;
+  /** Warm-up snapshot when the ramp is enabled, else null. */
+  warmup: { day: number; max: number; complete: boolean } | null;
+}
+
+export interface SendingQuota {
+  window: { start: number; end: number; within: boolean };
+  email: ChannelQuota & { paused: boolean };
+  whatsapp: ChannelQuota & { connected: boolean };
+  /** Present only when the Workana add-on is enabled. Budget is weekly (connections). */
+  workana: {
+    weeklyLimit: number;
+    submitted: number;
+    remaining: number;
+    pending: number;
+    allowSubmit: boolean;
+  } | null;
+}
+
+function warmupSnapshot(
+  enabledKey: string,
+  dayKey: string,
+  startKey: string,
+  incKey: string,
+  maxKey: string,
+  defStart: number,
+  defInc: number,
+  defMax: number,
+): ChannelQuota["warmup"] {
+  if (getSetting(enabledKey) !== "true") return null;
+  const day = parseInt(getSetting(dayKey) || "1");
+  const start = parseInt(getSetting(startKey) || String(defStart));
+  const inc = parseInt(getSetting(incKey) || String(defInc));
+  const max = parseInt(getSetting(maxKey) || String(defMax));
+  const current = Math.min(start + (day - 1) * inc, max);
+  return { day, max, complete: current >= max };
+}
+
+/**
+ * Today's sending budget per channel — the data behind the persistent quota
+ * widget. Limits come from the SAME getters the sender enforces (warm-up +
+ * caps + absolute ceiling), so what the user sees is exactly what will be sent.
+ */
+export function getSendingQuota(): SendingQuota {
+  const today = new Date().toISOString().split("T")[0];
+
+  // Email
+  const emailLimit = getEffectiveDailyLimit();
+  const emailSent = db.select({ count: sql<number>`count(*)` }).from(emails)
+    .where(and(eq(emails.status, "sent"), sql`date(${emails.sentAt}) = ${today}`)).get()?.count ?? 0;
+
+  // Bounce auto-pause mirrors the sender's rule (≥5% bounced over the last 7 days).
+  const sent7 = db.select({ count: sql<number>`count(*)` }).from(emails)
+    .where(and(eq(emails.status, "sent"), sql`${emails.sentAt} >= datetime('now', '-7 days')`)).get()?.count ?? 0;
+  const bounced7 = db.select({ count: sql<number>`count(*)` }).from(emails)
+    .where(and(eq(emails.status, "failed"), sql`${emails.sentAt} >= datetime('now', '-7 days')`)).get()?.count ?? 0;
+  const emailPaused = sent7 + bounced7 > 0 && (bounced7 / (sent7 + bounced7)) * 100 >= 5;
+
+  // WhatsApp
+  const waLimit = getWhatsAppDailyLimit();
+  const waSent = db.select({ count: sql<number>`count(*)` }).from(whatsappMessages)
+    .where(and(eq(whatsappMessages.status, "sent"), sql`date(${whatsappMessages.sentAt}) = ${today}`)).get()?.count ?? 0;
+
+  // Workana — only touch its tables when the add-on is enabled.
+  let workana: SendingQuota["workana"] = null;
+  if (getSetting("workana_enabled") === "true") {
+    const weeklyLimit = parseInt(getSetting("workana_weekly_connections") || "10");
+    const submitted = db.select({ count: sql<number>`count(*)` }).from(workanaProposals)
+      .where(and(eq(workanaProposals.status, "submitted"), sql`${workanaProposals.submittedAt} >= datetime('now', '-7 days')`)).get()?.count ?? 0;
+    const pending = db.select({ count: sql<number>`count(*)` }).from(workanaProposals)
+      .where(inArray(workanaProposals.status, ["draft", "approved"])).get()?.count ?? 0;
+    workana = {
+      weeklyLimit,
+      submitted,
+      remaining: Math.max(0, weeklyLimit - submitted),
+      pending,
+      allowSubmit: getSetting("workana_allow_submit") === "true",
+    };
+  }
+
+  return {
+    window: {
+      start: parseInt(getSetting("send_window_start") || "9"),
+      end: parseInt(getSetting("send_window_end") || "18"),
+      within: isWithinSendWindow(),
+    },
+    email: {
+      limit: emailLimit,
+      sent: emailSent,
+      remaining: Math.max(0, emailLimit - emailSent),
+      warmup: warmupSnapshot("warmup_enabled", "warmup_day", "warmup_start_limit", "warmup_increment", "warmup_max_limit", 5, 3, 45),
+      paused: emailPaused,
+    },
+    whatsapp: {
+      limit: waLimit,
+      sent: waSent,
+      remaining: Math.max(0, waLimit - waSent),
+      warmup: warmupSnapshot("wa_warmup_enabled", "wa_warmup_day", "wa_warmup_start_limit", "wa_warmup_increment", "wa_warmup_max_limit", 5, 3, 20),
+      connected: isWhatsAppReady(),
+    },
+    workana,
   };
 }
 

@@ -4,6 +4,8 @@ import { logActivity } from "@/lib/activity";
 import { checkFullConfig } from "@/mcp/helpers/validators";
 import { getChannelsInUse } from "@/services/campaign.service";
 import { isWhatsAppReady } from "@/lib/whatsapp-client";
+import { clampLimitSetting } from "@/lib/cron/warmup";
+import { logger } from "@/lib/logger";
 
 // ─── Service Functions ──────────────────────────────────────────────
 
@@ -22,14 +24,24 @@ const SECRET_KEYS = new Set(["gemini_api_key", "anthropic_api_key", "resend_api_
 
 export function updateSettings(updates: Record<string, string>) {
   const changed: string[] = [];
+  const clamped: string[] = [];
 
   for (const [key, value] of Object.entries(updates)) {
     if (SECRET_KEYS.has(key) && !String(value).trim()) continue;
+    // Hard safety clamp: a limit value can never be persisted above its absolute
+    // ceiling, whoever the writer is (UI, MCP, chatbot). Defense in depth — the
+    // send-time getters clamp again.
+    const safeValue = clampLimitSetting(key, String(value));
+    if (safeValue !== String(value)) clamped.push(`${key}: ${value} → ${safeValue}`);
     const oldValue = getSetting(key);
-    setSetting(key, String(value));
-    if (oldValue !== String(value)) {
+    setSetting(key, safeValue);
+    if (oldValue !== safeValue) {
       changed.push(key);
     }
+  }
+
+  if (clamped.length > 0) {
+    logger.warn(`[settings] Límite(s) recortado(s) al techo de seguridad — ${clamped.join("; ")}`);
   }
 
   if (changed.length > 0) {

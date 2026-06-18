@@ -3,6 +3,7 @@ import { whatsappMessages, leads } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import { logActivity } from "@/lib/activity";
 import { whatsappFallbackDecision } from "@/lib/outreach-policy";
+import { computeScheduledFor } from "./send-schedule";
 
 /**
  * Channel fallback: release parked ("held") WhatsApp messages to the send queue
@@ -34,8 +35,9 @@ export async function processChannelFallback() {
       continue;
     }
 
-    // decision === "send": release the fallback.
-    db.update(whatsappMessages).set({ status: "approved", updatedAt: now }).where(eq(whatsappMessages.id, msg.id)).run();
+    // decision === "send": release the fallback into the scheduled send window
+    // (not instantly — it rides the same 10-12 slot as everything else).
+    db.update(whatsappMessages).set({ status: "approved", scheduledFor: computeScheduledFor(), updatedAt: now }).where(eq(whatsappMessages.id, msg.id)).run();
 
     // Reflect the now-active channel on the lead (without clobbering a reply).
     const lead = db.select().from(leads).where(eq(leads.id, msg.leadId)).get();

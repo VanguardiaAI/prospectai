@@ -2,6 +2,7 @@ import { db } from "@/db";
 import { emails, leads, whatsappMessages } from "@/db/schema";
 import { eq, and, desc } from "drizzle-orm";
 import { logActivity } from "@/lib/activity";
+import { computeScheduledFor } from "@/lib/cron/send-schedule";
 import { NotFoundError } from "./errors";
 
 // ─── Types ──────────────────────────────────────────────────────────
@@ -66,7 +67,7 @@ export function listEmails(filters: EmailFilters = {}) {
 export function approveEmails(ids: number[]) {
   for (const id of ids) {
     db.update(emails)
-      .set({ status: "approved", updatedAt: new Date().toISOString() })
+      .set({ status: "approved", scheduledFor: computeScheduledFor(), updatedAt: new Date().toISOString() })
       .where(eq(emails.id, id))
       .run();
 
@@ -91,6 +92,8 @@ export function updateEmail(id: number, updates: EmailUpdate) {
   if (updates.bodyHtml !== undefined) setData.bodyHtml = updates.bodyHtml;
   if (updates.bodyText !== undefined) setData.bodyText = updates.bodyText;
   if (updates.status !== undefined) setData.status = updates.status;
+  // Stamp the scheduled send slot when approving (deferred to the send window).
+  if (updates.status === "approved") setData.scheduledFor = computeScheduledFor();
 
   const result = db.update(emails).set(setData).where(eq(emails.id, id)).returning().get();
   if (!result) throw new NotFoundError("Email", id);
@@ -145,7 +148,7 @@ export function listWhatsAppMessages(filters: WhatsAppFilters = {}) {
 export function approveWhatsApp(ids: number[]) {
   for (const id of ids) {
     db.update(whatsappMessages)
-      .set({ status: "approved", updatedAt: new Date().toISOString() })
+      .set({ status: "approved", scheduledFor: computeScheduledFor(), updatedAt: new Date().toISOString() })
       .where(eq(whatsappMessages.id, id))
       .run();
   }
@@ -157,6 +160,9 @@ export function updateWhatsApp(id: number, updates: WhatsAppUpdate) {
   const setData: Record<string, unknown> = { updatedAt: new Date().toISOString() };
   if (updates.body !== undefined) setData.body = updates.body;
   if (updates.status !== undefined) setData.status = updates.status;
+  // Stamp the scheduled send slot when approving (deferred to the send window).
+  // A manual "send now" override flips this row straight to "sent" afterwards.
+  if (updates.status === "approved") setData.scheduledFor = computeScheduledFor();
 
   db.update(whatsappMessages).set(setData).where(eq(whatsappMessages.id, id)).run();
 

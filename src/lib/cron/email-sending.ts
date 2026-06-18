@@ -1,11 +1,13 @@
 import { db, getSetting } from "@/db";
 import { emails, leads, campaigns, jobQueue, sendingDomains } from "@/db/schema";
-import { eq, and, sql, ne } from "drizzle-orm";
+import { eq, and, sql, ne, or, isNull, lte } from "drizzle-orm";
 import { sendEmail } from "@/lib/email-sender";
+import { computeScheduledFor } from "./send-schedule";
 import { logActivity } from "@/lib/activity";
 import { isUnsubscribed, generateUnsubscribeUrl, injectUnsubscribeLink, appendUnsubscribeText, injectUnsubscribeMailto, appendUnsubscribeMailtoText } from "@/lib/unsubscribe";
 import { injectTrackingPixel, wrapLinksWithTracking } from "@/lib/tracking";
 import { getEffectiveDailyLimit, isWithinSendWindow, incrementWarmupDay } from "./warmup";
+import { withSendLock } from "./send-lock";
 import { leadHasReplied } from "@/lib/outreach-policy";
 import { wasCompanyContacted } from "@/lib/contact-history";
 import { logger } from "@/lib/logger";
@@ -21,7 +23,19 @@ function getBounceRate7d(): number {
   return total > 0 ? (bouncedLast7 / total) * 100 : 0;
 }
 
-export async function processEmailSending() {
+type EmailSendResult = { sent: number; reason?: string; limit?: number; sentToday?: number };
+
+export async function processEmailSending(): Promise<EmailSendResult> {
+  // Single-writer lock: never let two passes run at once, or they would both
+  // read the same "sent today" count and each send up to the remaining cap.
+  return withSendLock<EmailSendResult>(
+    "send_email",
+    { sent: 0, reason: "Another email send pass is already running" },
+    runEmailSending,
+  );
+}
+
+async function runEmailSending(): Promise<EmailSendResult> {
   if (!isWithinSendWindow()) {
     return { sent: 0, reason: "Outside send window" };
   }
@@ -32,6 +46,22 @@ export async function processEmailSending() {
     logger.warn(`[cron] Bounce rate ${bounceRate.toFixed(1)}% >= 5% — envíos pausados automáticamente`);
     return { sent: 0, reason: `Bounce rate too high (${bounceRate.toFixed(1)}%)` };
   }
+
+  // Only act on approved mail whose scheduled time is due (NULL = legacy/asap).
+  const nowIso = new Date().toISOString();
+  const dueApproved = and(
+    eq(emails.status, "approved"),
+    or(isNull(emails.scheduledFor), lte(emails.scheduledFor, nowIso)),
+  );
+
+  // Advance the warm-up ramp for a new active sending day BEFORE reading the
+  // limit, so the first tick of the day already uses today's allowance and the
+  // effective limit never jumps between ticks. Gated on there being DUE approved
+  // mail to send, so idle days (and days where nothing is due yet) don't spend
+  // warm-up progress.
+  const hasApproved = !!db.select({ id: emails.id }).from(emails)
+    .where(dueApproved).limit(1).get();
+  if (hasApproved) incrementWarmupDay();
 
   const effectiveLimit = getEffectiveDailyLimit();
   const today = new Date().toISOString().split("T")[0];
@@ -44,11 +74,6 @@ export async function processEmailSending() {
     return { sent: 0, reason: `Daily limit reached (${sentToday}/${effectiveLimit})` };
   }
 
-  // Increment warmup day on first send of the day
-  if (sentToday === 0) {
-    incrementWarmupDay();
-  }
-
   const remaining = effectiveLimit - sentToday;
 
   const approvedEmails = db.select({
@@ -57,7 +82,7 @@ export async function processEmailSending() {
   })
     .from(emails)
     .leftJoin(campaigns, eq(emails.campaignId, campaigns.id))
-    .where(eq(emails.status, "approved"))
+    .where(dueApproved)
     .limit(remaining)
     .all();
 
@@ -259,7 +284,7 @@ export async function processAutopilotSendQueue() {
     if (!job.leadId) continue;
     const email = db.select().from(emails).where(and(eq(emails.leadId, job.leadId), eq(emails.status, "draft"))).get();
     if (email) {
-      db.update(emails).set({ status: "approved" }).where(eq(emails.id, email.id)).run();
+      db.update(emails).set({ status: "approved", scheduledFor: computeScheduledFor() }).where(eq(emails.id, email.id)).run();
     }
     db.update(jobQueue).set({ status: "completed", processedAt: new Date().toISOString() }).where(eq(jobQueue.id, job.id)).run();
   }

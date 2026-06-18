@@ -302,6 +302,41 @@ body {
   transition: all var(--duration-micro) var(--ease-out);
 }
 
+/* ─── Sidebar collapse (desktop) ───
+   The whole shell — sidebar slide, content margin, chat-dock position and the
+   top padding that clears the floating reopen button — is driven by a single
+   data-sidebar attribute on <html>. An inline script in app/layout.tsx sets it
+   before paint so a stored "collapsed" preference never flashes the expanded
+   layout on load; the Sidebar buttons flip the same attribute at runtime.
+   Collapsing is desktop-only — on mobile the slide-in drawer keeps its own
+   state-driven behavior. */
+.nd-sidebar-reopen { display: none; }
+/* The reopen button shows whenever the bar is collapsed, at ANY width — so there
+   is always a way to bring the sidebar back and you can never get stuck. The
+   mobile hamburger hides while collapsed so the two triggers never overlap. */
+html[data-sidebar="collapsed"] .nd-sidebar-reopen { display: inline-flex; }
+html[data-sidebar="collapsed"] .nd-sidebar-burger { display: none; }
+.nd-chatdock { transition: left var(--duration-transition) var(--ease-out); }
+.nd-shell-content { transition: padding-top var(--duration-transition) var(--ease-out); }
+
+@media (min-width: 1024px) {
+  /* Expanded (base). html-prefixed so they outrank the mobile utilities React
+     still renders on the same elements. NOTE: Tailwind v4 translate utilities
+     (-translate-x-full) set the `translate` PROPERTY, not `transform`. We must
+     override with `translate` too — `transform: translateX(0)` does NOT cancel
+     a `translate: -100%`, which would leave the bar off-canvas while the
+     content keeps its margin (a blank gap). */
+  html .nd-sidebar    { translate: 0; }
+  html .nd-shell-main { margin-left: 15rem; }   /* clears the w-60 sidebar */
+  html .nd-chatdock   { left: 15rem; }
+
+  /* Collapsed: slide the bar off-canvas and reclaim its width. */
+  html[data-sidebar="collapsed"] .nd-sidebar        { translate: -100%; }
+  html[data-sidebar="collapsed"] .nd-shell-main     { margin-left: 0; }
+  html[data-sidebar="collapsed"] .nd-chatdock       { left: 0; }
+  html[data-sidebar="collapsed"] .nd-shell-content  { padding-top: 4rem; } /* room for reopen button */
+}
+
 /* ─── Nothing Design — Table ─── */
 
 .nd-table {

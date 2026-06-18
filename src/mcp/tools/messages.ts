@@ -4,6 +4,7 @@ import { db, getSetting, getApiKey } from "@/db";
 import { emails, whatsappMessages, leads, jobQueue, campaigns } from "@/db/schema";
 import { eq, and, sql, desc } from "drizzle-orm";
 import { logActivity } from "@/lib/activity";
+import { computeScheduledFor } from "@/lib/cron/send-schedule";
 import { formatEmailSummary, formatEmailPreview, formatWASummary, formatWAPreview } from "../helpers/formatters.js";
 import { paginationParams } from "../helpers/pagination.js";
 
@@ -195,7 +196,7 @@ export function registerMessageTools(server: McpServer) {
         for (const id of emailIds) {
           const email = db.select().from(emails).where(and(eq(emails.id, id), eq(emails.status, "draft"))).get();
           if (email) {
-            db.update(emails).set({ status: "approved", updatedAt: new Date().toISOString() }).where(eq(emails.id, id)).run();
+            db.update(emails).set({ status: "approved", scheduledFor: computeScheduledFor(), updatedAt: new Date().toISOString() }).where(eq(emails.id, id)).run();
             db.update(leads).set({ status: "email_approved" }).where(eq(leads.id, email.leadId)).run();
             db.insert(jobQueue).values({ type: "send_email", leadId: email.leadId, campaignId: email.campaignId }).run();
             logActivity("email_approved", `Email approved via MCP for lead ID ${email.leadId}`, { leadId: email.leadId, campaignId: email.campaignId ?? undefined, messageKey: "activityLog.emailApprovedForLead", messageVars: { id: email.leadId } });
@@ -208,7 +209,7 @@ export function registerMessageTools(server: McpServer) {
         for (const id of whatsappIds) {
           const msg = db.select().from(whatsappMessages).where(and(eq(whatsappMessages.id, id), eq(whatsappMessages.status, "draft"))).get();
           if (msg) {
-            db.update(whatsappMessages).set({ status: "approved", updatedAt: new Date().toISOString() }).where(eq(whatsappMessages.id, id)).run();
+            db.update(whatsappMessages).set({ status: "approved", scheduledFor: computeScheduledFor(), updatedAt: new Date().toISOString() }).where(eq(whatsappMessages.id, id)).run();
             db.update(leads).set({ status: "wa_approved" }).where(eq(leads.id, msg.leadId)).run();
             db.insert(jobQueue).values({ type: "send_wa", leadId: msg.leadId, campaignId: msg.campaignId }).run();
             logActivity("wa_approved", `WhatsApp approved via MCP for lead ID ${msg.leadId}`, { leadId: msg.leadId, campaignId: msg.campaignId ?? undefined, messageKey: "activityLog.waApproved" });

@@ -78,6 +78,10 @@ export const emails = sqliteTable("emails", {
   // Conscious override: this company was already contacted elsewhere, but the
   // user approved sending anyway. See contact-history / the duplicate guard.
   dupAck: integer("dup_ack", { mode: "boolean" }).notNull().default(false),
+  // Scheduled send instant (ISO-UTC). Set on approval to defer sending to the
+  // configured window (see lib/cron/send-schedule). NULL = send asap (legacy
+  // rows + manual overrides). The sender only picks up rows whose time is due.
+  scheduledFor: text("scheduled_for"),
   // Tracking
   resendId: text("resend_id"),
   sentAt: text("sent_at"),
@@ -110,6 +114,8 @@ export const whatsappMessages = sqliteTable("whatsapp_messages", {
   }).notNull().default("draft"),
   // Conscious override for the already-contacted guard (see contact-history).
   dupAck: integer("dup_ack", { mode: "boolean" }).notNull().default(false),
+  // Scheduled send instant (ISO-UTC). See emails.scheduledFor.
+  scheduledFor: text("scheduled_for"),
   waMessageId: text("wa_message_id"),
   sentAt: text("sent_at"),
   createdAt: text("created_at").notNull().default(sql`(datetime('now'))`),

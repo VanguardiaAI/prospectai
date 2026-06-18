@@ -17,7 +17,7 @@ const defaultSettings: Record<string, string> = {
   // Email settings
   from_email: "",
   from_name: "",
-  global_daily_limit: "50",
+  global_daily_limit: "45",
   default_tone: "professional",
   // Compliance
   unsubscribe_url: "",
@@ -26,10 +26,18 @@ const defaultSettings: Record<string, string> = {
   warmup_enabled: "true",
   warmup_day: "1",
   warmup_start_limit: "5",
-  warmup_increment: "5",
-  warmup_max_limit: "50",
-  send_window_start: "9",
-  send_window_end: "18",
+  warmup_increment: "3",
+  warmup_max_limit: "45",
+  // Daily window (local hours) the senders are allowed to run in. Approvals are
+  // scheduled inside this window (see send_next_day / send-schedule).
+  send_window_start: "10",
+  send_window_end: "12",
+  // Scheduling: defer approved messages to the NEXT day's window (true) vs the
+  // soonest window (false), and skip weekends (roll Sat/Sun → Monday).
+  send_next_day: "true",
+  send_skip_weekends: "true",
+  // Days to wait after the primary email before the WhatsApp fallback is released.
+  fallback_delay_days: "3",
   // Scraping
   scrape_concurrency: "3",
   scrape_delay_ms: "2000",
@@ -67,6 +75,13 @@ const defaultSettings: Record<string, string> = {
   chatbot_provider: "gemini",
   // WhatsApp
   wa_daily_limit: "20",
+  // WhatsApp warm-up — ON by default. Unofficial whatsapp-web.js numbers ban
+  // easily, so ramp gently: 5 → +3/day → 20 (≈6 active days to steady state).
+  wa_warmup_enabled: "true",
+  wa_warmup_day: "1",
+  wa_warmup_start_limit: "5",
+  wa_warmup_increment: "3",
+  wa_warmup_max_limit: "20",
   // Workana add-on (optional) — opt-in browser automation for assisted bidding.
   // workana_auth_state: disconnected | connected | needs_reauth
   workana_enabled: "false",

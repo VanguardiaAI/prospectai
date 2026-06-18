@@ -9,6 +9,11 @@ import "./globals.css";
 // default; a stored preference (set from Settings → System) wins.
 const themeScript = `(function(){try{var t=localStorage.getItem('theme');if(t!=='light'&&t!=='dark')t='dark';document.documentElement.setAttribute('data-theme',t);}catch(e){document.documentElement.setAttribute('data-theme','dark');}})();`;
 
+// Same trick for the desktop sidebar: applied before paint so a stored
+// "collapsed" preference never flashes the expanded shell on load. The Sidebar
+// buttons flip the same data-sidebar attribute; globals.css does the layout.
+const sidebarScript = `(function(){try{var c=localStorage.getItem('sidebar-collapsed')==='1';document.documentElement.setAttribute('data-sidebar',c?'collapsed':'expanded');}catch(e){document.documentElement.setAttribute('data-sidebar','expanded');}})();`;
+
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
 
 // Body/UI face. Highly legible humanist grotesk — built for reading long
@@ -99,6 +104,7 @@ export default function RootLayout({
     <html lang="en" suppressHydrationWarning className={`${hankenGrotesk.variable} ${spaceMono.variable} h-full`}>
       <head>
         <script dangerouslySetInnerHTML={{ __html: themeScript }} />
+        <script dangerouslySetInnerHTML={{ __html: sidebarScript }} />
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}

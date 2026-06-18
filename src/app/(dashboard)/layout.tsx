@@ -50,14 +50,14 @@ function ShellMain({ children }: { children: React.ReactNode }) {
   return (
     <main
       className={clsx(
-        "relative lg:ml-60 min-h-screen transition-[margin] duration-300 ease-out",
+        "nd-shell-main relative min-h-screen transition-[margin] duration-[250ms] ease-out",
         mode === "panel" && "lg:mr-[420px]"
       )}
     >
       {/* pb-28 leaves room for the always-present chat bar docked at the bottom.
           mx-auto + wider cap so content fills external monitors instead of
           hugging the sidebar with a dead band on the right. */}
-      <div className="px-4 pt-16 pb-28 lg:px-10 lg:pt-8 lg:pb-28 max-w-[1600px] mx-auto">
+      <div className="nd-shell-content px-4 pt-16 pb-28 lg:px-10 lg:pt-8 lg:pb-28 max-w-[1600px] mx-auto">
         <TranslatedErrorBoundary>{children}</TranslatedErrorBoundary>
       </div>
     </main>

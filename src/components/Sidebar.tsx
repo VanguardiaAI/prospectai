@@ -11,9 +11,12 @@ import {
   Menu,
   X,
   Briefcase,
+  PanelLeftClose,
+  PanelLeftOpen,
 } from "lucide-react";
 import { clsx } from "clsx";
 import { useT } from "@/i18n/LocaleProvider";
+import { SendingQuota } from "@/components/SendingQuota";
 
 export function Sidebar() {
   const { t } = useT();
@@ -28,6 +31,23 @@ export function Sidebar() {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
   const [unreadReplies, setUnreadReplies] = useState(0);
+
+  // Desktop collapse lives as a data-sidebar attr on <html> (mirrored to
+  // localStorage), not React state: CSS reacts to the attr to slide the bar,
+  // shift the content and reposition the chat dock (see globals.css), and an
+  // inline script in the root layout applies it before paint so a collapsed
+  // state never flashes the expanded shell on load.
+  const setCollapsed = (collapsed: boolean) => {
+    try {
+      localStorage.setItem("sidebar-collapsed", collapsed ? "1" : "0");
+    } catch {
+      /* storage disabled — the attribute still drives this session */
+    }
+    document.documentElement.setAttribute(
+      "data-sidebar",
+      collapsed ? "collapsed" : "expanded",
+    );
+  };
 
   // Close sidebar on route change (mobile)
   useEffect(() => {
@@ -71,10 +91,24 @@ export function Sidebar() {
       {/* Mobile hamburger button */}
       <button
         onClick={() => setOpen(true)}
-        className="fixed top-4 left-4 z-[60] lg:hidden p-2 rounded-lg bg-bg-secondary border border-border"
+        className="nd-sidebar-burger fixed top-4 left-4 z-[60] lg:hidden p-2 rounded-lg bg-bg-secondary border border-border"
         aria-label={t("sidebar.openMenu")}
       >
         <Menu className="h-5 w-5 text-text-primary" strokeWidth={1.5} />
+      </button>
+
+      {/* Reopen button — shown via CSS whenever the sidebar is collapsed (any width).
+          Opens both mechanisms so it works on desktop (attr) and mobile (drawer). */}
+      <button
+        onClick={() => {
+          setCollapsed(false);
+          setOpen(true);
+        }}
+        className="nd-sidebar-reopen fixed top-4 left-4 z-[60] p-2 rounded-lg bg-bg-secondary border border-border text-text-primary hover:text-accent transition-colors duration-150 items-center justify-center"
+        aria-label={t("sidebar.expand")}
+        title={t("sidebar.expand")}
+      >
+        <PanelLeftOpen className="h-5 w-5" strokeWidth={1.5} />
       </button>
 
       {/* Mobile overlay */}
@@ -87,10 +121,12 @@ export function Sidebar() {
 
       <aside
         className={clsx(
-          "fixed left-0 top-0 h-full w-60 border-r border-border flex flex-col z-[70]",
+          "nd-sidebar fixed left-0 top-0 h-full w-60 border-r border-border flex flex-col z-[70]",
           "bg-bg-primary",
-          "transition-transform duration-200 ease-out",
-          "lg:translate-x-0",
+          "transition-[translate] duration-[250ms] ease-out",
+          // Desktop translate is owned by CSS (data-sidebar on <html>); on mobile
+          // the drawer still slides via this state-driven utility. Both use the
+          // `translate` property (Tailwind v4), so they compose correctly.
           open ? "translate-x-0" : "-translate-x-full"
         )}
       >
@@ -109,13 +145,25 @@ export function Sidebar() {
               </p>
             </div>
           </Link>
-          <button
-            onClick={() => setOpen(false)}
-            className="lg:hidden p-1 rounded text-text-muted hover:text-text-primary"
-            aria-label={t("sidebar.closeMenu")}
-          >
-            <X className="h-4 w-4" strokeWidth={1.5} />
-          </button>
+          <div className="flex items-center gap-1">
+            {/* Collapse the bar (desktop) */}
+            <button
+              onClick={() => setCollapsed(true)}
+              className="hidden lg:inline-flex p-1 rounded text-text-muted hover:text-text-primary transition-colors duration-150"
+              aria-label={t("sidebar.collapse")}
+              title={t("sidebar.collapse")}
+            >
+              <PanelLeftClose className="h-4 w-4" strokeWidth={1.5} />
+            </button>
+            {/* Close the drawer (mobile) */}
+            <button
+              onClick={() => setOpen(false)}
+              className="lg:hidden p-1 rounded text-text-muted hover:text-text-primary"
+              aria-label={t("sidebar.closeMenu")}
+            >
+              <X className="h-4 w-4" strokeWidth={1.5} />
+            </button>
+          </div>
         </div>
 
         {/* Navigation */}
@@ -152,6 +200,9 @@ export function Sidebar() {
             })}
           </div>
         </nav>
+
+        {/* Always-visible sending budget for today */}
+        <SendingQuota />
 
         {/* Footer */}
         <div className="px-5 py-4 border-t border-border space-y-3">
