@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { extractEmails } from "@/lib/scraper";
+import { extractEmails, isContactEmail } from "@/lib/scraper";
 
 describe("extractEmails", () => {
   it("rejects retina asset filenames that look like emails", () => {
@@ -44,5 +44,24 @@ describe("extractEmails", () => {
   it("deduplicates repeated emails", () => {
     const content = "info@acme.com info@acme.com info@acme.com";
     expect(extractEmails(content)).toEqual(["info@acme.com"]);
+  });
+});
+
+describe("isContactEmail", () => {
+  it("rejects the asset filenames that poisoned imported leads", () => {
+    // Exact values captured by the Google Maps scraper before the fix.
+    expect(isContactEmail("bg-info@2x.png")).toBe(false);
+    expect(isContactEmail("close_side_menu@2x.png")).toBe(false);
+    expect(isContactEmail("logo-degradado-comprimido@0.25x.png")).toBe(false);
+  });
+
+  it("rejects telemetry and placeholder domains", () => {
+    expect(isContactEmail("test@example.com")).toBe(false);
+    expect(isContactEmail("user@wixpress.com")).toBe(false);
+  });
+
+  it("accepts real contact addresses", () => {
+    expect(isContactEmail("contacto@dentistaqueretaro.com.mx")).toBe(true);
+    expect(isContactEmail("laboratoriocmjadq@gmail.com")).toBe(true);
   });
 });

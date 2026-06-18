@@ -15,17 +15,26 @@ const ASSET_EXT =
 const RETINA_SUFFIX = /@\d+x\./i;
 
 /**
+ * True if a string is a plausible contact address rather than a telemetry/
+ * placeholder domain or an asset filename (e.g. `bg-info@2x.png`) that the loose
+ * email regex captures as a false positive. Shared by `extractEmails` and the
+ * Google Maps import path so both apply the exact same filter.
+ */
+export function isContactEmail(email: string): boolean {
+  return (
+    !IGNORED_DOMAINS.some((d) => email.includes(d)) &&
+    !ASSET_EXT.test(email) &&
+    !RETINA_SUFFIX.test(email)
+  );
+}
+
+/**
  * Extract contact emails from raw page content, filtering out telemetry/placeholder
  * domains and asset filenames (e.g. retina images) that the loose email regex
  * would otherwise capture as false positives.
  */
 export function extractEmails(content: string): string[] {
-  return [...new Set(content.match(EMAIL_REGEX) || [])].filter(
-    (e) =>
-      !IGNORED_DOMAINS.some((d) => e.includes(d)) &&
-      !ASSET_EXT.test(e) &&
-      !RETINA_SUFFIX.test(e)
-  );
+  return [...new Set(content.match(EMAIL_REGEX) || [])].filter(isContactEmail);
 }
 
 export interface ScrapeResult {

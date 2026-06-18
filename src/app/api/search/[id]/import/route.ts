@@ -4,6 +4,7 @@ import { searchJobs, leads, blacklist, jobQueue } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import { logActivity } from "@/lib/activity";
 import { validateBody, importSearchResultsSchema } from "@/lib/validations";
+import { isContactEmail } from "@/lib/scraper";
 
 interface PlaceResult {
   title?: string;
@@ -52,15 +53,29 @@ function extractCityState(completeAddress: string | undefined, plainAddress: str
 
 function parseEmails(emailsStr: string | undefined): string[] {
   if (!emailsStr || emailsStr === "[]") return [];
+  let candidates: string[] = [];
   try {
-    // Could be JSON array string like ["email@example.com"]
+    // Could be a JSON array string like ["email@example.com"]
     const parsed = JSON.parse(emailsStr);
-    if (Array.isArray(parsed)) return parsed;
+    if (Array.isArray(parsed)) candidates = parsed.map(String);
+    else if (typeof parsed === "string") candidates = [parsed];
   } catch {
-    // Could be comma-separated or single email
-    if (emailsStr.includes("@")) return [emailsStr.trim()];
+    // Could be comma-separated or a single email
+    candidates = [emailsStr];
   }
-  return [];
+  // The Google Maps scraper emits emails from the same loose regex our own scraper
+  // used to, so a single field can hold several addresses joined by commas AND
+  // asset filenames like `bg-info@2x.png`. Split on separators and drop anything
+  // that isn't a real contact address (see isContactEmail) before it reaches
+  // leads.email — otherwise those false positives become the lead's send target.
+  return [
+    ...new Set(
+      candidates
+        .flatMap((c) => c.split(/[\s,;]+/))
+        .map((e) => e.trim())
+        .filter((e) => e.includes("@") && isContactEmail(e))
+    ),
+  ];
 }
 
 // POST: Import selected results as leads
