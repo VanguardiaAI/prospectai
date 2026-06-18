@@ -5,6 +5,7 @@ import { sendWhatsAppMessage, isWhatsAppReady } from "@/lib/whatsapp-client";
 import { logActivity } from "@/lib/activity";
 import { isWithinSendWindow } from "./warmup";
 import { leadHasReplied, whatsappIsFallback, whatsappFallbackDecision } from "@/lib/outreach-policy";
+import { wasCompanyContacted } from "@/lib/contact-history";
 
 export async function processWhatsAppSending() {
   if (!isWhatsAppReady()) {
@@ -42,6 +43,12 @@ export async function processWhatsAppSending() {
         .set({ status: "rejected", updatedAt: new Date().toISOString() })
         .where(eq(whatsappMessages.id, msg.id))
         .run();
+      continue;
+    }
+
+    // Already-contacted guard: hold a second pitch to a company contacted via
+    // another lead/campaign unless consciously approved (surfaced in review).
+    if (!msg.dupAck && wasCompanyContacted(msg.leadId)) {
       continue;
     }
 

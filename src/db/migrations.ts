@@ -371,6 +371,9 @@ export function runMigrations(): void {
   safeAddColumn(`ALTER TABLE leads ADD COLUMN wa_sent_at TEXT`);
   safeAddColumn(`ALTER TABLE emails ADD COLUMN opened_at TEXT`);
   safeAddColumn(`ALTER TABLE emails ADD COLUMN clicked_at TEXT`);
+  // Conscious-override flag for the already-contacted guard (see contact-history).
+  safeAddColumn(`ALTER TABLE emails ADD COLUMN dup_ack INTEGER NOT NULL DEFAULT 0`);
+  safeAddColumn(`ALTER TABLE whatsapp_messages ADD COLUMN dup_ack INTEGER NOT NULL DEFAULT 0`);
   safeAddColumn(`ALTER TABLE email_templates ADD COLUMN channel TEXT NOT NULL DEFAULT 'email'`);
   safeAddColumn(`ALTER TABLE ab_variants ADD COLUMN channel TEXT NOT NULL DEFAULT 'email'`);
   safeAddColumn(`ALTER TABLE ab_results ADD COLUMN whatsapp_message_id INTEGER`);

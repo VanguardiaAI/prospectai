@@ -7,6 +7,7 @@ import { isUnsubscribed, generateUnsubscribeUrl, injectUnsubscribeLink, appendUn
 import { injectTrackingPixel, wrapLinksWithTracking } from "@/lib/tracking";
 import { getEffectiveDailyLimit, isWithinSendWindow, incrementWarmupDay } from "./warmup";
 import { leadHasReplied } from "@/lib/outreach-policy";
+import { wasCompanyContacted } from "@/lib/contact-history";
 import { logger } from "@/lib/logger";
 
 function getBounceRate7d(): number {
@@ -69,6 +70,13 @@ export async function processEmailSending() {
     // Safety net: never contact a lead that already replied on any channel.
     if (leadHasReplied(row.email.leadId)) {
       db.update(emails).set({ status: "rejected" }).where(eq(emails.id, row.email.id)).run();
+      continue;
+    }
+
+    // Already-contacted guard: don't auto-send a second pitch to a company that
+    // was already contacted via another lead/campaign (same email/phone/domain)
+    // unless the user consciously approved it. Stays approved; surfaced in review.
+    if (!row.email.dupAck && wasCompanyContacted(row.email.leadId)) {
       continue;
     }
 

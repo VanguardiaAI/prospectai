@@ -409,7 +409,18 @@
     "fallbackReleased": "Fallback released; sending shortly",
     "fallbackSent": "Fallback WhatsApp sent",
     "waitingAuto": "Approved — will send automatically",
-    "companyChannels": "Channels"
+    "companyChannels": "Channels",
+    "dupTitle": "Company already contacted",
+    "dupPendingTitle": "Same company in another campaign",
+    "dupRetained": "Its send is held so it doesn't receive two different services without your call.",
+    "dupSendAnyway": "Send anyway",
+    "dupAckToast": "Re-contact approved — will send",
+    "dupVia": "via",
+    "dupMatchEmail": "same email",
+    "dupMatchPhone": "same phone",
+    "dupMatchDomain": "same domain",
+    "serviceWeb": "web design",
+    "serviceSeo": "SEO/visibility"
   },
   "campaigns": {
     "title": "Campaigns",

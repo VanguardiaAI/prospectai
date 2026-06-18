@@ -409,7 +409,18 @@
     "fallbackReleased": "Respaldo liberado; se enviará en breve",
     "fallbackSent": "WhatsApp de respaldo enviado",
     "waitingAuto": "Aprobado — se enviará automáticamente",
-    "companyChannels": "Canales"
+    "companyChannels": "Canales",
+    "dupTitle": "Empresa ya contactada",
+    "dupPendingTitle": "Misma empresa en otra campaña",
+    "dupRetained": "Su envío está retenido para que no reciba dos servicios distintos sin que lo decidas.",
+    "dupSendAnyway": "Enviar de todos modos",
+    "dupAckToast": "Re-contacto aprobado — se enviará",
+    "dupVia": "por",
+    "dupMatchEmail": "mismo email",
+    "dupMatchPhone": "mismo teléfono",
+    "dupMatchDomain": "mismo dominio",
+    "serviceWeb": "diseño web",
+    "serviceSeo": "SEO/visibilidad"
   },
   "campaigns": {
     "title": "Campanas",

@@ -75,6 +75,9 @@ export const emails = sqliteTable("emails", {
   status: text("status", {
     enum: ["draft", "approved", "rejected", "sent", "failed", "held"],
   }).notNull().default("draft"),
+  // Conscious override: this company was already contacted elsewhere, but the
+  // user approved sending anyway. See contact-history / the duplicate guard.
+  dupAck: integer("dup_ack", { mode: "boolean" }).notNull().default(false),
   // Tracking
   resendId: text("resend_id"),
   sentAt: text("sent_at"),
@@ -105,6 +108,8 @@ export const whatsappMessages = sqliteTable("whatsapp_messages", {
   status: text("status", {
     enum: ["draft", "approved", "rejected", "sent", "failed", "held"],
   }).notNull().default("draft"),
+  // Conscious override for the already-contacted guard (see contact-history).
+  dupAck: integer("dup_ack", { mode: "boolean" }).notNull().default(false),
   waMessageId: text("wa_message_id"),
   sentAt: text("sent_at"),
   createdAt: text("created_at").notNull().default(sql`(datetime('now'))`),

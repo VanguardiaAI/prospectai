@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback, useMemo } from "react";
 import { Card, Button, Select, StatusBadge, QualityBar, EmptyState, Spinner, Textarea, Input, Segment } from "@/components/ui";
 import { useToast } from "@/components/Toast";
-import { Mail, Check, X, RefreshCw, CheckCheck, Globe, MapPin, Send, FileText, Inbox, Search, Clock } from "lucide-react";
+import { Mail, Check, X, RefreshCw, CheckCheck, Globe, MapPin, Send, FileText, Inbox, Search, Clock, AlertTriangle } from "lucide-react";
 import { WhatsAppIcon } from "@/components/icons/Brands";
 import { useT } from "@/i18n/LocaleProvider";
 import { clsx } from "clsx";
@@ -116,6 +116,16 @@ interface CompanyGroup {
   leadOpportunity: number | null;
   leadAnalysisSummary: string | null;
   messages: InboxItem[]; // email (primary) first, then WhatsApp (fallback)
+}
+
+/** A prior message to the same company (different lead/campaign). */
+interface PriorContact {
+  channel: Channel;
+  campaignName: string | null;
+  strategy: string | null;
+  status: string;
+  sentAt: string | null;
+  matchedOn: "email" | "phone" | "domain";
 }
 
 const TONES = ["professional", "friendly", "direct", "consultative", "casual"];
@@ -481,6 +491,55 @@ function MessageCard({ item, fallbackDays, onChanged, onSendNow }: { item: Inbox
   );
 }
 
+/** Warns that this company was already contacted (or is queued) elsewhere. */
+function DupBanner({ items, onAck, busy }: { items: PriorContact[]; onAck: () => void; busy: boolean }) {
+  const { t } = useT();
+  const sent = items.filter((i) => i.status === "sent");
+  const pending = items.filter((i) => i.status !== "sent");
+  const isSent = sent.length > 0;
+  const show = (isSent ? sent : pending).slice(0, 4);
+
+  const serviceLabel = (s: string | null) =>
+    s === "seo_visibility" ? t("review.serviceSeo") : s === "web_design" ? t("review.serviceWeb") : null;
+  const matchLabel = (m: string) =>
+    m === "phone" ? t("review.dupMatchPhone") : m === "domain" ? t("review.dupMatchDomain") : t("review.dupMatchEmail");
+
+  return (
+    <Card className={clsx("nd-enter-fade", isSent ? "border-accent/50" : "border-border-visible")}>
+      <div className="flex items-start gap-3">
+        <AlertTriangle className={clsx("h-5 w-5 flex-shrink-0 mt-0.5", isSent ? "text-accent" : "text-text-secondary")} strokeWidth={1.7} />
+        <div className="flex-1 min-w-0">
+          <h4 className="text-sm font-semibold text-text-display">{isSent ? t("review.dupTitle") : t("review.dupPendingTitle")}</h4>
+          {isSent && <p className="text-[12px] text-text-secondary mt-0.5">{t("review.dupRetained")}</p>}
+          <ul className="mt-2 space-y-1">
+            {show.map((c, i) => {
+              const svc = serviceLabel(c.strategy);
+              return (
+                <li key={i} className="flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-[12px] text-text-primary">
+                  <ChannelGlyph channel={c.channel} size={12} />
+                  <span className="font-medium">{c.channel === "whatsapp" ? "WhatsApp" : "Email"}</span>
+                  <span className="text-text-muted">{t("review.dupVia")}</span>
+                  <span>«{c.campaignName || "—"}»</span>
+                  {svc && <span className="rounded-full border border-border px-1.5 py-0.5 text-[10px] text-text-secondary">{svc}</span>}
+                  {c.sentAt && <span className="text-text-muted font-mono">· {c.sentAt.slice(0, 10)}</span>}
+                  <span className="text-text-muted">· {matchLabel(c.matchedOn)}</span>
+                </li>
+              );
+            })}
+          </ul>
+          {isSent && (
+            <div className="mt-3">
+              <Button size="sm" variant="secondary" onClick={onAck} disabled={busy}>
+                <Send className="h-3.5 w-3.5" strokeWidth={1.6} /> {t("review.dupSendAnyway")}
+              </Button>
+            </div>
+          )}
+        </div>
+      </div>
+    </Card>
+  );
+}
+
 export default function ReviewPage() {
   const { toast } = useToast();
   const { t } = useT();
@@ -494,6 +553,8 @@ export default function ReviewPage() {
   const [waMessages, setWaMessages] = useState<WARow[]>([]);
   const [loading, setLoading] = useState(true);
   const [fallbackDays, setFallbackDays] = useState(3);
+  const [history, setHistory] = useState<Record<number, PriorContact[]>>({});
+  const [ackBusy, setAckBusy] = useState(false);
 
   const [replyList, setReplyList] = useState<ReplyRow[]>([]);
   const [repliesLoading, setRepliesLoading] = useState(true);
@@ -625,6 +686,32 @@ export default function ReviewPage() {
     list.sort((a, b) => (latest(a) < latest(b) ? 1 : latest(a) > latest(b) ? -1 : 0));
     return list;
   }, [items]);
+
+  // Cross-campaign contact history for the companies on screen (already-contacted warning).
+  const leadIdsKey = useMemo(() => groups.map((g) => g.leadId).sort((a, b) => a - b).join(","), [groups]);
+  useEffect(() => {
+    if (!leadIdsKey) { setHistory({}); return; }
+    fetch(`/api/contact-history?leadIds=${leadIdsKey}`)
+      .then((r) => r.json())
+      .then((d) => setHistory(d.history || {}))
+      .catch(() => { /* keep prior */ });
+  }, [leadIdsKey]);
+
+  const ackDuplicate = useCallback(async (leadId: number) => {
+    setAckBusy(true);
+    try {
+      await fetch("/api/contact-history", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ leadId, action: "ack" }),
+      });
+      toast(t("review.dupAckToast"), "success");
+    } finally {
+      setAckBusy(false);
+      fetchMessages();
+      fetch(`/api/contact-history?leadIds=${leadIdsKey}`).then((r) => r.json()).then((d) => setHistory(d.history || {})).catch(() => {});
+    }
+  }, [toast, t, fetchMessages, leadIdsKey]);
 
   const emailCount = useMemo(() => campaignItems.filter((i) => i.channel === "email").length, [campaignItems]);
   const waCount = useMemo(() => campaignItems.filter((i) => i.channel === "whatsapp").length, [campaignItems]);
@@ -797,6 +884,7 @@ export default function ReviewPage() {
                       const active = !bulkMode && g.leadId === effectiveLeadId;
                       const primary = g.messages[0];
                       const hasHeld = g.messages.some((m) => m.status === "held");
+                      const dupContacted = (history[g.leadId] || []).some((c) => c.status === "sent");
                       return (
                         <div
                           key={g.leadId}
@@ -823,7 +911,10 @@ export default function ReviewPage() {
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center justify-between gap-2">
                               <span className="text-sm text-text-display font-medium truncate">{g.leadName || t("review.unknownLead")}</span>
-                              {hasHeld && <Clock className="h-3 w-3 flex-shrink-0 text-text-secondary" strokeWidth={1.7} />}
+                              <span className="flex items-center gap-1 flex-shrink-0">
+                                {dupContacted && <AlertTriangle className="h-3 w-3 text-accent" strokeWidth={1.8} />}
+                                {hasHeld && <Clock className="h-3 w-3 text-text-secondary" strokeWidth={1.7} />}
+                              </span>
                             </div>
                             <p className="text-[12.5px] text-text-secondary truncate mt-0.5">{primary.title || primary.preview}</p>
                             {/* Per-channel status chips — both channels shown linked */}
@@ -852,6 +943,11 @@ export default function ReviewPage() {
                   <EmptyState icon={<Mail className="h-10 w-10" strokeWidth={1.4} />} title={t("review.selectMessageTitle")} description={t("review.selectMessageDesc")} />
                 ) : (
                   <>
+                    {/* Already-contacted-elsewhere warning (cross-campaign dedup) */}
+                    {history[selectedGroup.leadId]?.length ? (
+                      <DupBanner items={history[selectedGroup.leadId]} onAck={() => ackDuplicate(selectedGroup.leadId)} busy={ackBusy} />
+                    ) : null}
+
                     {/* One card per message — primary email then held WhatsApp fallback */}
                     {selectedGroup.messages.map((m) => (
                       <MessageCard key={`${m.key}:${m.status}`} item={m} fallbackDays={fallbackDays} onChanged={fetchMessages} onSendNow={sendFallbackNow} />
