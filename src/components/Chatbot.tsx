@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { usePathname } from "next/navigation";
 import { useChat } from "@ai-sdk/react";
 import type { UIMessage } from "ai";
 import {
@@ -11,6 +12,7 @@ import {
   Wrench,
   Check,
   Sparkles,
+  Lightbulb,
   ChevronDown,
   Trash2,
   AlertCircle,
@@ -22,6 +24,8 @@ import { useT } from "@/i18n/LocaleProvider";
 import { useChatbot } from "./ChatbotProvider";
 import { useCampaign } from "./CampaignProvider";
 import { ChatbotShortcuts } from "./ChatbotShortcuts";
+import { useProactive } from "./useProactive";
+import { WhatsAppConnect } from "./WhatsAppConnect";
 
 // ─── Minimal Markdown Renderer ──────────────────────────────────────
 
@@ -143,6 +147,11 @@ function ToolIndicator({
 // ─── Message Parts Renderer ─────────────────────────────────────────
 
 function MessageParts({ message }: { message: UIMessage }) {
+  const { t } = useT();
+  // Proactive nudges are injected client-side with a `proactive-` id prefix so we
+  // can tag them as suggestions and set them apart from replies to the user.
+  const isProactive =
+    message.role === "assistant" && message.id.startsWith("proactive-");
   const toolParts: { toolName: string; state: string }[] = [];
   const textParts: string[] = [];
 
@@ -192,9 +201,19 @@ function MessageParts({ message }: { message: UIMessage }) {
               "max-w-[85%] rounded-2xl px-3.5 py-2.5 text-sm leading-relaxed",
               message.role === "user"
                 ? "bg-accent text-white rounded-br-md"
+                : isProactive
+                ? "bg-accent-subtle text-text-primary border border-accent/30 rounded-bl-md"
                 : "bg-bg-tertiary text-text-primary border border-border rounded-bl-md"
             )}
           >
+            {isProactive && (
+              <div className="flex items-center gap-1 mb-1 text-accent">
+                <Lightbulb className="w-3 h-3" />
+                <span className="nd-label">
+                  {t("chatbot.suggestion") || "Sugerencia"}
+                </span>
+              </div>
+            )}
             {message.role === "assistant"
               ? renderMarkdown(textParts.join("\n"))
               : textParts.join("\n")}
@@ -217,14 +236,21 @@ export function Chatbot() {
   const { isOpen, openChat, closeChat, mode, expand, collapseToBar, registerSender } =
     useChatbot();
   const { selectedId } = useCampaign();
-  // Keep the latest campaign scope reachable from the (stably-registered) sender.
+  const pathname = usePathname();
+  // Keep the latest campaign scope + page reachable from the (stably-registered) sender.
   const campaignIdRef = useRef<number | null>(selectedId);
   useEffect(() => {
     campaignIdRef.current = selectedId;
   }, [selectedId]);
+  const pathnameRef = useRef<string>(pathname || "/");
+  useEffect(() => {
+    pathnameRef.current = pathname || "/";
+  }, [pathname]);
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const [provider, setProvider] = useState<string | null>(null);
+  const [devMode, setDevMode] = useState(false);
+  const [proactiveEnabled, setProactiveEnabled] = useState(false);
 
   const { messages, sendMessage, status, setMessages, error } = useChat({
     onError: (err) => {
@@ -237,13 +263,17 @@ export function Chatbot() {
   // In panel mode the conversation is always shown; in bar mode it's gated by isOpen.
   const showConversation = isPanel || isOpen;
 
-  // Active AI provider, for the status label.
+  // Active AI provider (status label) + the two chat-mode flags (dev mode badge,
+  // proactive nudges).
   useEffect(() => {
     let cancelled = false;
     fetch("/api/settings")
       .then((r) => r.json())
       .then((d) => {
-        if (!cancelled) setProvider(d?.ai_provider || "claude_cli");
+        if (cancelled) return;
+        setProvider(d?.ai_provider || "claude_cli");
+        setDevMode(d?.chatbot_dev_mode === "true");
+        setProactiveEnabled(d?.proactive_chat_enabled !== "false");
       })
       .catch(() => {});
     return () => {
@@ -261,9 +291,49 @@ export function Chatbot() {
   // Register the sender for external use (command palette, shortcuts).
   useEffect(() => {
     registerSender((text: string) => {
-      sendMessage({ text }, { body: { campaignId: campaignIdRef.current } });
+      sendMessage(
+        { text },
+        { body: { campaignId: campaignIdRef.current, path: pathnameRef.current } }
+      );
     });
   }, [registerSender, sendMessage]);
+
+  // Inject a proactive nudge as an in-thread assistant message. The `proactive-`
+  // id prefix lets MessageParts tag it as a suggestion. (Stability isn't needed —
+  // useProactive reads this through a ref — so no useCallback.)
+  const proactiveSeq = useRef(0);
+  const injectProactive = (text: string) => {
+    const id = `proactive-${proactiveSeq.current++}-${text.length}`;
+    setMessages((prev) => [
+      ...prev,
+      { id, role: "assistant", parts: [{ type: "text", text }] } as UIMessage,
+    ]);
+    openChat();
+  };
+
+  useProactive({
+    pathname: pathname || "/",
+    active: provider === "claude_cli" && proactiveEnabled,
+    isLoading,
+    onMessage: injectProactive,
+  });
+
+  // Show the inline WhatsApp QR/status panel when the most recent assistant turn
+  // ran a WhatsApp connect/status tool. (Derived each render; the React Compiler
+  // handles memoization.)
+  const showWhatsAppConnect = (() => {
+    for (let i = messages.length - 1; i >= 0; i--) {
+      const m = messages[i];
+      if (m.role !== "assistant") continue;
+      return m.parts.some((p) => {
+        const name =
+          (p as { toolName?: string }).toolName ||
+          (p.type.startsWith("tool-") ? p.type.replace("tool-", "") : "");
+        return /connect_whatsapp|get_whatsapp_status/.test(name);
+      });
+    }
+    return false;
+  })();
 
   // Auto-scroll to bottom while the conversation is visible.
   useEffect(() => {
@@ -275,7 +345,10 @@ export function Chatbot() {
   const submitText = (text: string) => {
     const trimmed = text.trim();
     if (!trimmed || isLoading) return;
-    sendMessage({ text: trimmed }, { body: { campaignId: selectedId } });
+    sendMessage(
+      { text: trimmed },
+      { body: { campaignId: selectedId, path: pathname || "/" } }
+    );
     openChat();
   };
 
@@ -319,6 +392,14 @@ export function Chatbot() {
       <span className="nd-label text-text-secondary">
         {isLoading ? t("chatbot.thinking") || "Pensando…" : providerLabel}
       </span>
+      {devMode && (
+        <span
+          className="nd-label text-accent border border-accent/40 rounded px-1 leading-none"
+          title={t("chatbot.devModeHint") || "Modo desarrollador activo (localhost)"}
+        >
+          DEV
+        </span>
+      )}
     </div>
   );
 
@@ -357,6 +438,9 @@ export function Chatbot() {
       {messages.map((msg) => (
         <MessageParts key={msg.id} message={msg} />
       ))}
+
+      {/* Inline WhatsApp QR / connection status (after a connect tool runs) */}
+      {showWhatsAppConnect && <WhatsAppConnect />}
 
       {/* Loading indicator */}
       {isLoading &&

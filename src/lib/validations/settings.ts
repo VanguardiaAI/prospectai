@@ -17,6 +17,8 @@ const ALLOWED_SETTINGS_KEYS = [
   "wa_daily_limit",
   "wa_warmup_enabled", "wa_warmup_day", "wa_warmup_start_limit", "wa_warmup_increment", "wa_warmup_max_limit",
   "ai_provider", "chatbot_provider",
+  // Chatbot UX: proactive in-thread nudges (claude_cli only) + unrestricted dev mode.
+  "proactive_chat_enabled", "chatbot_dev_mode",
   "email_provider", "smtp_host", "smtp_port", "smtp_user", "smtp_password",
   "imap_enabled", "imap_host", "imap_port", "imap_user", "imap_password", "imap_last_uid",
   "tracking_base_url",

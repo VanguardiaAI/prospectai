@@ -9,6 +9,30 @@ import * as blacklistService from "@/services/blacklist.service";
 import * as searchService from "@/services/search.service";
 import * as agencyProfileService from "@/services/agency-profile.service";
 import { isSafeSetting, SAFE_SETTINGS_KEYS } from "@/mcp/helpers/validators";
+import { getSetting, setSetting } from "@/db";
+import { sqlite } from "@/db/connection";
+import {
+  initializeWhatsApp,
+  getWhatsAppStatus,
+  disconnectWhatsApp,
+} from "@/lib/whatsapp-client";
+import {
+  startConnect as workanaStartConnect,
+  checkSession as workanaCheckSession,
+  getAuthState as workanaGetAuthState,
+  getConnectStatus as workanaGetConnectStatus,
+} from "@/lib/workana/auth";
+import { processWorkanaScans } from "@/lib/cron/workana-scan";
+
+// Raw SQL + native file/shell tools are gated behind the chat's developer mode
+// (Settings → System). Localhost-only power switch; OFF by default.
+function requireDevMode(): void {
+  if (getSetting("chatbot_dev_mode") !== "true") {
+    throw new Error(
+      "Esta herramienta requiere el Modo desarrollador del chat (Configuración → Sistema). Está apagado; actívalo solo en localhost."
+    );
+  }
+}
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
@@ -548,6 +572,178 @@ const toolDefs = {
       }
 
       return res.json();
+    },
+  }),
+
+  // ─── WhatsApp connection ───────────────────────────────────────────
+  connect_whatsapp: zTool({
+    description:
+      "Start (or restart) the WhatsApp Web session and return its status. If a QR is pending, the chat shows it inline for the user to scan from their phone (WhatsApp → Linked devices). Use this to connect WhatsApp without leaving the chat.",
+    parameters: z.object({}),
+    execute: async () => {
+      await initializeWhatsApp();
+      const s = getWhatsAppStatus();
+      return {
+        status: s.status,
+        phone: s.phone,
+        qrPending: s.status === "qr_pending",
+        note:
+          s.status === "ready"
+            ? "WhatsApp ya está conectado."
+            : s.status === "qr_pending"
+            ? "Escanea el QR que aparece en el chat desde WhatsApp → Dispositivos vinculados."
+            : "Sesión iniciándose; consulta el estado con get_whatsapp_status en unos segundos.",
+      };
+    },
+  }),
+
+  get_whatsapp_status: zTool({
+    description:
+      "Get the current WhatsApp connection status (ready / qr_pending / authenticating / disconnected / error) and the linked phone if connected.",
+    parameters: z.object({}),
+    execute: async () => {
+      const s = getWhatsAppStatus();
+      return {
+        status: s.status,
+        phone: s.phone,
+        error: s.error,
+        qrPending: s.status === "qr_pending",
+      };
+    },
+  }),
+
+  disconnect_whatsapp: zTool({
+    description: "Disconnect the WhatsApp Web session and unlink the device.",
+    parameters: z.object({}),
+    execute: async () => {
+      await disconnectWhatsApp();
+      return { status: "disconnected" };
+    },
+  }),
+
+  // ─── Workana add-on ────────────────────────────────────────────────
+  get_workana_status: zTool({
+    description:
+      "Get the Workana add-on status: whether it's enabled, the auth state (disconnected/connected/needs_reauth), and the current connect phase.",
+    parameters: z.object({}),
+    execute: async () => {
+      if (getSetting("workana_enabled") !== "true") {
+        return {
+          enabled: false,
+          note: "El add-on de Workana está desactivado. Usa enable_workana_addon para activarlo.",
+        };
+      }
+      return {
+        enabled: true,
+        authState: workanaGetAuthState(),
+        connect: workanaGetConnectStatus(),
+      };
+    },
+  }),
+
+  enable_workana_addon: zTool({
+    description:
+      "Enable the opt-in Workana add-on (its section appears in the nav). After enabling, use connect_workana to log in.",
+    parameters: z.object({}),
+    execute: async () => {
+      setSetting("workana_enabled", "true");
+      return {
+        enabled: true,
+        authState: workanaGetAuthState(),
+        note: "Workana activado. Conéctate con connect_workana.",
+      };
+    },
+  }),
+
+  connect_workana: zTool({
+    description:
+      "Start the Workana login. Opens a visible browser for the user to sign in (including any 2FA), then confirms in the background. Returns the connect status.",
+    parameters: z.object({}),
+    execute: async () => {
+      if (getSetting("workana_enabled") !== "true") {
+        return {
+          error: "El add-on de Workana está desactivado. Actívalo primero con enable_workana_addon.",
+        };
+      }
+      return workanaStartConnect();
+    },
+  }),
+
+  check_workana_session: zTool({
+    description:
+      "Re-check whether the Workana session is still valid; returns the updated auth state.",
+    parameters: z.object({}),
+    execute: async () => {
+      if (getSetting("workana_enabled") !== "true") {
+        return { error: "El add-on de Workana está desactivado." };
+      }
+      return { authState: await workanaCheckSession() };
+    },
+  }),
+
+  run_workana_scan: zTool({
+    description:
+      "Run a Workana feed scan now: scrape projects, evaluate fit with AI, and draft proposals for review. Requires the add-on enabled and connected.",
+    parameters: z.object({
+      maxEval: z.number().int().optional().describe("Max projects to evaluate this scan"),
+      maxDrafts: z.number().int().optional().describe("Max proposals to draft this scan"),
+    }),
+    execute: async ({ maxEval, maxDrafts }) => {
+      if (getSetting("workana_enabled") !== "true") {
+        return { error: "El add-on de Workana está desactivado." };
+      }
+      return processWorkanaScans({
+        force: true,
+        ...(maxEval != null ? { maxEval } : {}),
+        ...(maxDrafts != null ? { maxDrafts } : {}),
+      });
+    },
+  }),
+
+  // ─── Raw database access (developer mode only) ─────────────────────
+  query_database: zTool({
+    description:
+      "Run a READ-ONLY SQL query (SELECT/PRAGMA/EXPLAIN/WITH) against the app's SQLite database and return the rows. Developer mode only. Use when no specific tool exposes the data you need.",
+    parameters: z.object({
+      sql: z.string().describe("A single read-only SQL statement"),
+      params: z
+        .array(z.union([z.string(), z.number(), z.null()]))
+        .optional()
+        .describe("Positional bind parameters (use 0/1 for booleans)"),
+    }),
+    execute: async ({ sql: query, params }) => {
+      requireDevMode();
+      const stmt = sqlite.prepare(query);
+      if (!stmt.readonly) {
+        throw new Error(
+          "query_database solo admite sentencias de solo lectura. Para escribir usa execute_sql."
+        );
+      }
+      const args = (params ?? []) as unknown[];
+      const rows = stmt.reader ? stmt.all(...args) : [stmt.run(...args)];
+      return { rowCount: Array.isArray(rows) ? rows.length : 0, rows };
+    },
+  }),
+
+  execute_sql: zTool({
+    description:
+      "Execute a WRITE SQL statement (INSERT/UPDATE/DELETE) or DDL (CREATE/ALTER/migrations) against the app's SQLite database. Developer mode only. Destructive — explain the change to the user first.",
+    parameters: z.object({
+      sql: z.string().describe("SQL to execute. With params, a single statement; without params, DDL or multiple statements are allowed."),
+      params: z
+        .array(z.union([z.string(), z.number(), z.null()]))
+        .optional()
+        .describe("Positional bind parameters for a single statement (use 0/1 for booleans)"),
+    }),
+    execute: async ({ sql: query, params }) => {
+      requireDevMode();
+      if (!params || params.length === 0) {
+        // exec() handles DDL and multiple statements; no bound params.
+        sqlite.exec(query);
+        return { ok: true };
+      }
+      const info = sqlite.prepare(query).run(...(params as unknown[]));
+      return { changes: info.changes, lastInsertRowid: Number(info.lastInsertRowid) };
     },
   }),
 };

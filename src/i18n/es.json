@@ -948,7 +948,13 @@
       "language": "Idioma",
       "languageHint": "Idioma de la interfaz del dashboard. Se detecta automáticamente del navegador en la primera visita.",
       "dark": "Oscuro",
-      "light": "Claro"
+      "light": "Claro",
+      "assistant": "Asistente",
+      "proactive": "Avisos proactivos",
+      "proactiveHint": "Con Claude CLI, el asistente comenta al cambiar de página y sugiere acciones. La IA decide si aporta algo o se mantiene en silencio.",
+      "devMode": "Modo desarrollador",
+      "devModeHint": "Solo con Claude CLI. Permite al chat editar archivos, ejecutar comandos y SQL para crear rutas o tocar la base de datos cuando no existe una herramienta exacta.",
+      "devModeWarning": "El agente podrá editar archivos y ejecutar comandos/SQL en este equipo. Úsalo solo en localhost y en un repositorio con control de versiones."
     },
     "apiKeys": {
       "section": "Claves API",
@@ -1142,6 +1148,8 @@
     "examples": "Puedo gestionar campanas, buscar leads, revisar emails y mas",
     "placeholder": "Escribe un mensaje...",
     "thinking": "Pensando...",
+    "suggestion": "Sugerencia",
+    "devModeHint": "Modo desarrollador activo (solo localhost)",
     "status": "Asistente IA",
     "shortcuts": {
       "title": "Que puedes hacer",

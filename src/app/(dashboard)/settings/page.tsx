@@ -1086,6 +1086,48 @@ export default function SettingsPage() {
             />
             <p className="text-[11px] text-text-muted mt-3">{t("settings.system.languageHint")}</p>
           </Card>
+
+          {/* Assistant / chat behaviour */}
+          <Card className="col-span-12">
+            <h3 className="nd-heading mb-3">
+              <MessageCircle className="h-4 w-4 inline mr-2" strokeWidth={1.5} />
+              {t("settings.system.assistant")}
+            </h3>
+
+            <div className="space-y-5">
+              <div>
+                <Toggle
+                  checked={settings.proactive_chat_enabled !== "false"}
+                  onChange={(v) =>
+                    setSettings({ ...settings, proactive_chat_enabled: String(v) })
+                  }
+                  label={t("settings.system.proactive")}
+                />
+                <p className="text-[11px] text-text-muted mt-2">
+                  {t("settings.system.proactiveHint")}
+                </p>
+              </div>
+
+              <div>
+                <Toggle
+                  checked={settings.chatbot_dev_mode === "true"}
+                  onChange={(v) =>
+                    setSettings({ ...settings, chatbot_dev_mode: String(v) })
+                  }
+                  label={t("settings.system.devMode")}
+                />
+                <p className="text-[11px] text-text-muted mt-2">
+                  {t("settings.system.devModeHint")}
+                </p>
+                {settings.chatbot_dev_mode === "true" && (
+                  <div className="mt-2 flex items-start gap-2 px-3 py-2 rounded-xl border border-accent/30 bg-accent-subtle text-[12px] text-text-primary">
+                    <Shield className="h-3.5 w-3.5 text-accent shrink-0 mt-0.5" strokeWidth={1.5} />
+                    <span>{t("settings.system.devModeWarning")}</span>
+                  </div>
+                )}
+              </div>
+            </div>
+          </Card>
         </div>
       )}
     </div>

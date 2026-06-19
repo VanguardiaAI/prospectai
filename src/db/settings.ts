@@ -73,6 +73,12 @@ const defaultSettings: Record<string, string> = {
   crm_webhook_on: "replied",
   // Chatbot
   chatbot_provider: "gemini",
+  // Proactive in-thread nudges on page change. Only fires with the claude_cli
+  // provider (Sonnet); the model itself decides whether a nudge is worthwhile.
+  proactive_chat_enabled: "true",
+  // Unrestricted "developer" mode: lets the claude_cli chat agent read/edit files,
+  // run shell and SQL like Claude Code. OFF by default — localhost only.
+  chatbot_dev_mode: "false",
   // WhatsApp
   wa_daily_limit: "20",
   // WhatsApp warm-up — ON by default. Unofficial whatsapp-web.js numbers ban
