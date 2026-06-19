@@ -8,6 +8,7 @@ import { triggerCrmWebhook } from "@/lib/crm-webhook";
 import { prioritizeLeadOnReply } from "@/lib/lead-prioritization";
 import { markUnsubscribed } from "@/lib/unsubscribe";
 import { classifyReply } from "@/lib/reply-classification";
+import { maybeSuggestReply } from "@/lib/cron/reply-suggest";
 import { logger } from "@/lib/logger";
 
 interface EmailRepliesResult {
@@ -48,6 +49,9 @@ export async function processEmailReplies(): Promise<EmailRepliesResult> {
 
   let processed = 0;
   let matched = 0;
+  // Replies to pre-generate a suggestion for, collected during the loop and run
+  // AFTER the IMAP session closes (keeps the mailbox lock short; AI is slow).
+  const toSuggest: Parameters<typeof maybeSuggestReply>[0][] = [];
 
   try {
     await client.connect();
@@ -91,7 +95,7 @@ export async function processEmailReplies(): Promise<EmailRepliesResult> {
           const isUnsub = /unsubscribe/.test(subject) || /\b(baja|darme de baja|no quiero recibir|remove me|unsubscribe)\b/i.test(body);
           const intent = isUnsub ? "unsubscribe" : await classifyReply(body, "email");
 
-          db.insert(replies).values({
+          const ins = db.insert(replies).values({
             leadId: lead.id,
             campaignId: lead.campaignId,
             channel: "email",
@@ -99,6 +103,16 @@ export async function processEmailReplies(): Promise<EmailRepliesResult> {
             body,
             intent: intent ?? undefined,
           }).run();
+          toSuggest.push({
+            replyId: Number(ins.lastInsertRowid),
+            leadId: lead.id,
+            channel: "email",
+            intent: intent ?? null,
+            body,
+            leadName: lead.name,
+            leadCategory: lead.category,
+            campaignId: lead.campaignId,
+          });
 
           // Stop active sequences for this lead
           db.update(sequenceEnrollments)
@@ -144,6 +158,11 @@ export async function processEmailReplies(): Promise<EmailRepliesResult> {
     return { processed, matched, reason: err instanceof Error ? err.message : "IMAP error" };
   } finally {
     try { await client.logout(); } catch { /* ignore */ }
+  }
+
+  // Pre-generate suggested replies after the IMAP session closes (best-effort).
+  for (const s of toSuggest) {
+    await maybeSuggestReply(s);
   }
 
   return { processed, matched };

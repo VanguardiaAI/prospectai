@@ -2,6 +2,8 @@ import { GoogleGenerativeAI } from "@google/generative-ai";
 import { db, getSetting, getApiKey } from "@/db";
 import { agencyProfile } from "@/db/schema";
 import { eq } from "drizzle-orm";
+import { getPortfolioProjects, getAnsweredKnowledge, type PortfolioProject } from "@/db/portfolio";
+import { rankProjectsByRelevance } from "./relevance";
 
 let _genAI: GoogleGenerativeAI | null = null;
 let _genAIKey = "";
@@ -82,6 +84,9 @@ export interface AgencyContext {
   customServices: { label: string; description: string }[];
   valueProps: string[];
   caseStudies: { client: string; result: string; snippet?: string }[];
+  // Structured portfolio projects (the rich "proof") + answered interview Q&A.
+  projects: PortfolioProject[];
+  knowledge: { question: string; answer: string; projectId: number | null }[];
   country: string;
   locale: string;
 }
@@ -116,8 +121,20 @@ function resolveProfileRow(profileId?: number | null): typeof agencyProfile.$inf
  */
 export function getAgencyContext(profileId?: number | null): AgencyContext {
   const profile = resolveProfileRow(profileId);
+  const resolvedId = profile?.id ?? null;
 
   const profileServices = servicesFromKeys(profile?.services);
+
+  // The knowledge base lives in its own tables; never let a read failure (e.g. a
+  // brand-new DB mid-migration) break copy generation — fall back to empty.
+  let projects: PortfolioProject[] = [];
+  let knowledge: AgencyContext["knowledge"] = [];
+  try {
+    projects = getPortfolioProjects(resolvedId);
+    knowledge = getAnsweredKnowledge(resolvedId);
+  } catch {
+    /* knowledge base unavailable — proceed with identity-only context */
+  }
 
   return {
     name: profile?.name || getSetting("agency_name") || "ProspectAI",
@@ -131,6 +148,8 @@ export function getAgencyContext(profileId?: number | null): AgencyContext {
     customServices: parseJsonArray(profile?.customServices ?? null),
     valueProps: parseJsonArray(profile?.valueProps ?? null),
     caseStudies: parseJsonArray(profile?.caseStudies ?? null),
+    projects,
+    knowledge,
     country: profile?.country || getSetting("target_country") || "US",
     locale: getSetting("locale") || "en-US",
   };
@@ -138,7 +157,31 @@ export function getAgencyContext(profileId?: number | null): AgencyContext {
 
 // --- Agency context formatting for prompts ---
 
-export function formatAgencyContextBlock(ctx: AgencyContext): string {
+/** One portfolio project rendered as a compact, prompt-friendly block. */
+function formatProjectEntry(p: PortfolioProject, knowledge: { question: string; answer: string }[]): string {
+  const head = [p.title, p.sector, p.client ? `cliente: ${p.client}` : ""].filter(Boolean).join(" · ");
+  const sub: string[] = [];
+  if (p.problem) sub.push(`Problema: ${p.problem}`);
+  if (p.solution) sub.push(`Solución: ${p.solution}`);
+  if (p.deliverables) sub.push(`Entregables: ${p.deliverables}`);
+  const resultLine = [p.result, p.metric].filter(Boolean).join(" · ");
+  if (resultLine) sub.push(`Resultado: ${resultLine}`);
+  if (p.stack.length) sub.push(`Stack: ${p.stack.join(", ")}`);
+  if (p.durationLabel) sub.push(`Duración: ${p.durationLabel}`);
+  if (p.testimonial) sub.push(`Testimonio: "${p.testimonial}"${p.testimonialAuthor ? ` — ${p.testimonialAuthor}` : ""}`);
+  if (p.projectUrl) sub.push(`URL: ${p.projectUrl}`);
+  for (const k of knowledge) sub.push(`${k.question} → ${k.answer}`);
+  return [`- ${head}`, ...sub.map((s) => `  ${s}`)].join("\n");
+}
+
+export interface AgencyContextFormatOptions {
+  /** Free-text hint (prospect category/sector, inbound message, brief) used to rank projects. */
+  relevanceHint?: string | null;
+  /** Max projects to include (keeps the prompt focused). Default 4. */
+  maxProjects?: number;
+}
+
+export function formatAgencyContextBlock(ctx: AgencyContext, opts: AgencyContextFormatOptions = {}): string {
   const lines: string[] = [];
   lines.push(`Nombre: ${ctx.name}`);
   if (ctx.tagline) lines.push(`Propuesta: ${ctx.tagline}`);
@@ -164,9 +207,27 @@ export function formatAgencyContextBlock(ctx: AgencyContext): string {
     lines.push(ctx.valueProps.map((v) => `- ${v}`).join("\n"));
   }
 
-  if (ctx.caseStudies.length) {
+  // Structured portfolio projects are the rich proof. Rank by relevance to the
+  // recipient and include only the top few so the prompt stays focused. Answered
+  // interview Q&A for a shown project is attached under that project.
+  const shown = rankProjectsByRelevance(ctx.projects, opts.relevanceHint, opts.maxProjects ?? 4);
+  if (shown.length) {
+    lines.push("Proyectos del portafolio (reales — cita el que MEJOR encaje con el destinatario, sin inventar ni exagerar):");
+    for (const p of shown) {
+      const k = ctx.knowledge.filter((x) => x.projectId === p.id).map((x) => ({ question: x.question, answer: x.answer }));
+      lines.push(formatProjectEntry(p, k));
+    }
+  } else if (ctx.caseStudies.length) {
+    // Fallback to legacy case studies only when there are no structured projects.
     lines.push("Casos de éxito (úsalos solo si el ángulo encaja, NO los inventes ni los exageres):");
     lines.push(ctx.caseStudies.map((c) => `- ${c.client}: ${c.result}${c.snippet ? ` — "${c.snippet}"` : ""}`).join("\n"));
+  }
+
+  // Agency-wide answered Q&A (not tied to a specific project).
+  const generalKnowledge = ctx.knowledge.filter((k) => k.projectId == null);
+  if (generalKnowledge.length) {
+    lines.push("Conocimiento adicional (datos reales que dio el usuario, úsalos con naturalidad):");
+    lines.push(generalKnowledge.map((k) => `- ${k.question} → ${k.answer}`).join("\n"));
   }
 
   return lines.join("\n");

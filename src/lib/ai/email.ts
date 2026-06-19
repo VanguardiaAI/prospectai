@@ -65,10 +65,13 @@ export async function generateEmail(
 
   const examplesBlock = formatEmailExamples(purpose, 3);
 
+  // Hint so the agency block surfaces the most relevant portfolio project to cite.
+  const relevanceHint = [businessCategory, city, (analysis.recommendedServices || []).join(" ")].filter(Boolean).join(" ");
+
   const prompt = `${PERSONA_BLOCK(fromName, ctx.name)}
 
 CONTEXTO DE LA AGENCIA QUE ESCRIBE (úsalo de forma natural, NO inventes datos que no estén aquí):
-${formatAgencyContextBlock(ctx)}
+${formatAgencyContextBlock(ctx, { relevanceHint })}
 
 DATOS DEL NEGOCIO AL QUE ESCRIBES:
 - Nombre: ${businessName}
@@ -100,7 +103,7 @@ Al destinatario NO le importan los problemas técnicos. Le importa tener MÁS CL
 ESTRUCTURA DEL EMAIL (4 bloques cortos):
 1. APERTURA específica (1-2 frases): observación concreta sobre ESTE negocio que demuestra que lo miraste de verdad. NO cumplidos genéricos.
 2. PUENTE AL PROBLEMA (1-2 frases): conecta lo que viste con clientes/ventas que están perdiendo o podrían capturar. NUNCA listes problemas técnicos sueltos.
-3. VALOR / SOCIAL PROOF breve (1 frase): cómo ayudas a negocios parecidos. Sin prometer resultados exactos.
+3. VALOR / PRUEBA CONCRETA (1 frase): si en el contexto hay un proyecto del portafolio que encaje con ESTE negocio, menciónalo natural y breve (qué resolviste para alguien parecido y el resultado). Es lo que más te diferencia de otros. Si ninguno encaja de verdad, di cómo ayudas a negocios parecidos sin inventar ni exagerar resultados.
 4. CTA suave (1 frase): pregunta abierta o "interest check". NUNCA pidas reunión directa, calendario o llamada en cold #1.
 
 LONGITUD: Cuerpo entre 75 y ${maxWords} palabras. Es un techo, no un objetivo. Si con 60 palabras dices todo, mejor.
@@ -158,13 +161,14 @@ export async function regenerateEmail(
   const writingRules = getLocaleWritingRules(effectiveCountry);
 
   const examplesBlock = formatEmailExamples("initial", 3);
+  const relevanceHint = [businessCategory, city, (analysis.recommendedServices || []).join(" ")].filter(Boolean).join(" ");
 
   const prompt = `${PERSONA_BLOCK(fromName, ctx.name)}
 
 Necesitas REGENERAR un email de prospección que ya tenías escrito, aplicando un nuevo tono o instrucciones.
 
 CONTEXTO DE LA AGENCIA QUE ESCRIBE (úsalo de forma natural, NO inventes datos que no estén aquí):
-${formatAgencyContextBlock(ctx)}
+${formatAgencyContextBlock(ctx, { relevanceHint })}
 
 DATOS DEL NEGOCIO:
 - Nombre: ${businessName}

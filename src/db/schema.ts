@@ -310,6 +310,10 @@ export const replies = sqliteTable("replies", {
   channel: text("channel", { enum: ["email", "whatsapp"] }).notNull(),
   fromAddress: text("from_address").notNull(), // email or phone
   body: text("body"),
+  // AI-drafted reply for the user to review, edit and approve. Sending it creates
+  // an outbound emails/whatsapp_messages row and marks this reply "handled".
+  suggestedReply: text("suggested_reply"),
+  suggestedReplyAt: text("suggested_reply_at"),
   // Triage state + AI-classified intent so replies become an actionable inbox,
   // not just a read-only log.
   status: text("status", { enum: ["unread", "handled"] }).notNull().default("unread"),
@@ -319,6 +323,55 @@ export const replies = sqliteTable("replies", {
   handledAt: text("handled_at"),
   receivedAt: text("received_at").notNull().default(sql`(datetime('now'))`),
   createdAt: text("created_at").notNull().default(sql`(datetime('now'))`),
+});
+
+// --- Portfolio knowledge base ---
+// Structured past projects (richer than agency_profile.case_studies) plus an
+// AI-driven "interview" that asks the user for missing proof. Both feed the
+// agency context block so proposals/emails/replies can cite concrete work.
+
+export const portfolioProjects = sqliteTable("portfolio_projects", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  // NULL = shared across every agency profile (the default). Otherwise scoped to
+  // one profile's angle so the relevance ranking can prefer it for that profile.
+  agencyProfileId: integer("agency_profile_id").references(() => agencyProfile.id),
+  title: text("title").notNull(),
+  client: text("client"), // client/company name (may be anonymized)
+  sector: text("sector"), // industry/vertical — used for relevance matching
+  problem: text("problem"), // the challenge/need the client had
+  solution: text("solution"), // what we built / our approach
+  services: text("services"), // JSON array of service keys involved
+  stack: text("stack"), // JSON array of tech/tools used
+  deliverables: text("deliverables"),
+  result: text("result"), // measurable outcome
+  metric: text("metric"), // headline metric ("3x tráfico", "+40% reservas")
+  testimonial: text("testimonial"), // client quote
+  testimonialAuthor: text("testimonial_author"),
+  projectUrl: text("project_url"), // live site / case-study page
+  durationLabel: text("duration_label"), // e.g. "6 semanas"
+  tags: text("tags"), // JSON array of free tags for matching
+  notes: text("notes"), // free-form extra context (captured via the interview)
+  highlight: integer("highlight", { mode: "boolean" }).notNull().default(false), // flagship pin
+  source: text("source", { enum: ["scraped", "manual", "enriched"] }).notNull().default("manual"),
+  sourceUrl: text("source_url"),
+  createdAt: text("created_at").notNull().default(sql`(datetime('now'))`),
+  updatedAt: text("updated_at").notNull().default(sql`(datetime('now'))`),
+});
+
+export const profileEnrichment = sqliteTable("profile_enrichment", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  // Either agency-wide (projectId NULL) or scoped to a specific project.
+  agencyProfileId: integer("agency_profile_id").references(() => agencyProfile.id),
+  projectId: integer("project_id").references(() => portfolioProjects.id),
+  question: text("question").notNull(),
+  answer: text("answer"), // NULL until the user answers
+  category: text("category", {
+    enum: ["proof", "process", "differentiation", "pricing", "logistics", "other"],
+  }).notNull().default("other"),
+  priority: integer("priority").notNull().default(3), // AI-assigned importance, lower = ask first
+  status: text("status", { enum: ["pending", "answered", "skipped"] }).notNull().default("pending"),
+  createdAt: text("created_at").notNull().default(sql`(datetime('now'))`),
+  answeredAt: text("answered_at"),
 });
 
 // --- Workana add-on (optional) ---

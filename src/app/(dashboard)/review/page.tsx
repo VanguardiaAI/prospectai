@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback, useMemo } from "react";
 import { Card, Button, Select, StatusBadge, QualityBar, EmptyState, Spinner, Textarea, Input, Segment } from "@/components/ui";
 import { useToast } from "@/components/Toast";
-import { Mail, Check, X, RefreshCw, CheckCheck, Globe, MapPin, Send, FileText, Inbox, Search, Clock, AlertTriangle } from "lucide-react";
+import { Mail, Check, X, RefreshCw, CheckCheck, Globe, MapPin, Send, FileText, Inbox, Search, Clock, AlertTriangle, Sparkles } from "lucide-react";
 import { WhatsAppIcon } from "@/components/icons/Brands";
 import { useT } from "@/i18n/LocaleProvider";
 import { clsx } from "clsx";
@@ -27,12 +27,14 @@ interface ReplyRow {
   channel: string;
   fromAddress: string;
   body: string | null;
+  suggestedReply: string | null;
   status: string;
   intent: string | null;
   handledAt: string | null;
   receivedAt: string;
   leadName: string | null;
   leadCity: string | null;
+  leadCategory: string | null;
 }
 
 interface EmailRow {
@@ -566,6 +568,124 @@ function DupBanner({ items, onAck, busy }: { items: PriorContact[]; onAck: () =>
   );
 }
 
+/**
+ * A reply row with the AI reply assistant: generate a suggested reply, edit it,
+ * and approve→send (the app sends via the same channel). Never auto-sent.
+ */
+function ReplyCard({ r, onChanged }: { r: ReplyRow; onChanged: () => void }) {
+  const { t } = useT();
+  const ch: Channel = r.channel === "whatsapp" ? "whatsapp" : "email";
+  const handled = r.status === "handled";
+  const [suggestion, setSuggestion] = useState(r.suggestedReply || "");
+  const [open, setOpen] = useState(!!r.suggestedReply);
+  const [busy, setBusy] = useState(false);
+  const [sending, setSending] = useState(false);
+  const [msg, setMsg] = useState("");
+
+  const suggest = async () => {
+    setBusy(true);
+    setMsg("");
+    const res = await fetch("/api/replies", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ replyId: r.id, action: "suggest" }),
+    }).then((x) => x.json()).catch(() => ({ error: "error" }));
+    setBusy(false);
+    if (res?.suggestion) {
+      setSuggestion(res.suggestion);
+      setOpen(true);
+    } else setMsg(t("review.suggestError"));
+  };
+
+  const approveSend = async () => {
+    if (!suggestion.trim()) return;
+    setSending(true);
+    setMsg("");
+    const res = await fetch("/api/replies", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id: r.id, action: "approve_send", body: suggestion }),
+    }).then((x) => x.json()).catch(() => ({ error: "error" }));
+    setSending(false);
+    if (res?.success) {
+      setMsg(t("review.sentOk"));
+      onChanged();
+    } else setMsg(res?.error || t("review.sendError"));
+  };
+
+  const toggleHandled = async () => {
+    await fetch("/api/replies", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id: r.id, action: handled ? "unhandle" : "handle" }),
+    });
+    onChanged();
+  };
+
+  return (
+    <Card className={clsx("nd-enter-fade", handled && "opacity-60")}>
+      <div className="flex items-start gap-3">
+        <div className="rv-icon" data-ch={ch}>
+          <ChannelGlyph channel={ch} />
+        </div>
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2 mb-1">
+            {!handled && <span className="w-1.5 h-1.5 rounded-full bg-accent flex-shrink-0" aria-label={t("review.unread")} />}
+            <span className="text-sm font-medium text-text-display truncate">{r.leadName || t("review.unknownLead")}</span>
+            {isReplyIntent(r.intent) && (
+              <span className={clsx("flex-shrink-0 rounded-full border px-2 py-0.5 text-[9px] font-mono uppercase tracking-[0.06em]", INTENT_BADGE_CLASS[INTENT_TONE[r.intent]])}>
+                {t(`intent.${r.intent}`)}
+              </span>
+            )}
+            <span className="nd-label text-text-muted flex-shrink-0 ml-auto">{r.receivedAt}</span>
+          </div>
+          <p className="text-[11px] text-text-muted font-mono mb-2 truncate">{r.fromAddress}</p>
+          <p className="text-[13px] text-text-primary leading-relaxed whitespace-pre-wrap">{r.body || ""}</p>
+
+          {open ? (
+            <div className="mt-3 rounded-lg border border-border bg-surface-raised p-3 nd-enter">
+              <label className="nd-label block mb-1">{t("review.suggestedReply")}</label>
+              <Textarea
+                value={suggestion}
+                onChange={(e) => setSuggestion(e.target.value)}
+                rows={ch === "whatsapp" ? 4 : 7}
+                className="w-full text-sm leading-relaxed"
+              />
+              <div className="flex flex-wrap items-center gap-3 mt-3">
+                <Button size="sm" onClick={approveSend} disabled={sending || !suggestion.trim()}>
+                  <Send className="h-3.5 w-3.5" strokeWidth={1.6} />
+                  {sending ? t("review.sending") : t("review.approveSend")}
+                </Button>
+                <Button size="sm" variant="ghost" onClick={suggest} disabled={busy}>
+                  <Sparkles className="h-3.5 w-3.5" strokeWidth={1.5} />
+                  {busy ? t("review.generating") : t("review.regenerate")}
+                </Button>
+                <Button size="sm" variant="ghost" onClick={toggleHandled}>
+                  <CheckCheck className="h-3.5 w-3.5" strokeWidth={1.6} />
+                  {handled ? t("review.markUnread") : t("review.markHandled")}
+                </Button>
+              </div>
+              {msg && <p className="text-xs text-text-muted font-mono mt-2">{msg}</p>}
+            </div>
+          ) : (
+            <div className="mt-3 flex flex-wrap items-center gap-2">
+              <Button size="sm" onClick={suggest} disabled={busy}>
+                <Sparkles className="h-3.5 w-3.5" strokeWidth={1.5} />
+                {busy ? t("review.generating") : t("review.generateReply")}
+              </Button>
+              <Button size="sm" variant={handled ? "ghost" : "secondary"} onClick={toggleHandled}>
+                <CheckCheck className="h-3.5 w-3.5" strokeWidth={1.6} />
+                {handled ? t("review.markUnread") : t("review.markHandled")}
+              </Button>
+              {msg && <span className="text-xs text-text-muted font-mono">{msg}</span>}
+            </div>
+          )}
+        </div>
+      </div>
+    </Card>
+  );
+}
+
 export default function ReviewPage() {
   const { toast } = useToast();
   const { t } = useT();
@@ -620,22 +740,6 @@ export default function ReviewPage() {
       setRepliesLoading(false);
     }
   }, [selectedId]);
-
-  const toggleReplyHandled = useCallback(async (id: number, handled: boolean) => {
-    const action = handled ? "handle" : "unhandle";
-    setReplyList((prev) =>
-      prev.map((r) => (r.id === id ? { ...r, status: handled ? "handled" : "unread" } : r))
-    );
-    try {
-      await fetch("/api/replies", {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id, action }),
-      });
-    } catch {
-      fetchReplies();
-    }
-  }, [fetchReplies]);
 
   useEffect(() => { fetchMessages(); }, [fetchMessages]);
   useEffect(() => { fetchReplies(); }, [fetchReplies]);
@@ -1038,39 +1142,7 @@ export default function ReviewPage() {
           <EmptyState icon={<Inbox className="h-10 w-10" strokeWidth={1.4} />} title={t("review.repliesTab")} description={t("review.noReplies")} />
         ) : (
           <div className="space-y-3">
-            {replyList.map((r) => {
-              const ch: Channel = r.channel === "whatsapp" ? "whatsapp" : "email";
-              const handled = r.status === "handled";
-              return (
-                <Card key={r.id} className={clsx("nd-enter-fade", handled && "opacity-60")}>
-                  <div className="flex items-start gap-3">
-                    <div className="rv-icon" data-ch={ch}>
-                      <ChannelGlyph channel={ch} />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 mb-1">
-                        {!handled && <span className="w-1.5 h-1.5 rounded-full bg-accent flex-shrink-0" aria-label={t("review.unread")} />}
-                        <span className="text-sm font-medium text-text-display truncate">{r.leadName || t("review.unknownLead")}</span>
-                        {isReplyIntent(r.intent) && (
-                          <span className={clsx("flex-shrink-0 rounded-full border px-2 py-0.5 text-[9px] font-mono uppercase tracking-[0.06em]", INTENT_BADGE_CLASS[INTENT_TONE[r.intent]])}>
-                            {t(`intent.${r.intent}`)}
-                          </span>
-                        )}
-                        <span className="nd-label text-text-muted flex-shrink-0 ml-auto">{r.receivedAt}</span>
-                      </div>
-                      <p className="text-[11px] text-text-muted font-mono mb-2 truncate">{r.fromAddress}</p>
-                      <p className="text-[13px] text-text-primary leading-relaxed whitespace-pre-wrap">{r.body || ""}</p>
-                      <div className="mt-3 flex items-center gap-2">
-                        <Button size="sm" variant={handled ? "ghost" : "secondary"} onClick={() => toggleReplyHandled(r.id, !handled)}>
-                          <CheckCheck className="h-3.5 w-3.5" strokeWidth={1.6} />
-                          {handled ? t("review.markUnread") : t("review.markHandled")}
-                        </Button>
-                      </div>
-                    </div>
-                  </div>
-                </Card>
-              );
-            })}
+            {replyList.map((r) => <ReplyCard key={r.id} r={r} onChanged={fetchReplies} />)}
           </div>
         )
       )}

@@ -6,6 +6,7 @@ import { logActivity } from "@/lib/activity";
 import { triggerCrmWebhook } from "@/lib/crm-webhook";
 import { prioritizeLeadOnReply } from "@/lib/lead-prioritization";
 import { classifyReply } from "@/lib/reply-classification";
+import { maybeSuggestReply } from "@/lib/cron/reply-suggest";
 import { logger } from "@/lib/logger";
 
 // Track which client instance has the listener to avoid duplicates.
@@ -42,7 +43,7 @@ export function setupWhatsAppReplyListener(): void {
       const intent = await classifyReply(msg.body, "whatsapp");
 
       // Record the reply
-      db.insert(replies).values({
+      const ins = db.insert(replies).values({
         leadId: lead.id,
         campaignId: lead.campaignId,
         channel: "whatsapp",
@@ -72,6 +73,18 @@ export function setupWhatsAppReplyListener(): void {
 
       // CRM webhook
       await triggerCrmWebhook(lead, "replied");
+
+      // Pre-generate a suggested reply for actionable intents (best-effort).
+      await maybeSuggestReply({
+        replyId: Number(ins.lastInsertRowid),
+        leadId: lead.id,
+        channel: "whatsapp",
+        intent: intent ?? null,
+        body: msg.body,
+        leadName: lead.name,
+        leadCategory: lead.category,
+        campaignId: lead.campaignId,
+      });
     } catch {
       // Silently ignore individual reply processing errors
     }

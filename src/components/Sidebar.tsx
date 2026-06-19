@@ -11,6 +11,7 @@ import {
   Menu,
   X,
   Briefcase,
+  FolderKanban,
   PanelLeftClose,
   PanelLeftOpen,
 } from "lucide-react";
@@ -21,10 +22,13 @@ import { SendingQuota } from "@/components/SendingQuota";
 export function Sidebar() {
   const { t } = useT();
   const [workanaEnabled, setWorkanaEnabled] = useState(false);
+  // Portfolio knowledge base is on by default; hidden only if explicitly disabled.
+  const [portfolioEnabled, setPortfolioEnabled] = useState(true);
 
   const nav = [
     { href: "/inicio", label: t("sidebar.home"), icon: Home },
     { href: "/review", label: t("sidebar.review"), icon: Inbox },
+    ...(portfolioEnabled ? [{ href: "/profile", label: t("sidebar.profile"), icon: FolderKanban }] : []),
     ...(workanaEnabled ? [{ href: "/workana", label: t("sidebar.workana"), icon: Briefcase }] : []),
     { href: "/settings", label: t("sidebar.config"), icon: Settings },
   ];
@@ -78,7 +82,10 @@ export function Sidebar() {
     fetch("/api/settings")
       .then((r) => (r.ok ? r.json() : null))
       .then((d) => {
-        if (!cancelled && d) setWorkanaEnabled(d.workana_enabled === "true");
+        if (!cancelled && d) {
+          setWorkanaEnabled(d.workana_enabled === "true");
+          setPortfolioEnabled(d.portfolio_enabled !== "false");
+        }
       })
       .catch(() => {});
     return () => {

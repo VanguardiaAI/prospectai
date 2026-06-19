@@ -100,6 +100,11 @@ const defaultSettings: Record<string, string> = {
   workana_allow_submit: "false",
   workana_replies_interval_hours: "2",
   workana_last_replies_at: "",
+  // Portfolio knowledge base (structured projects + AI interview) — on by default.
+  portfolio_enabled: "true",
+  // Pre-generate a suggested reply in the cron for interested/question replies so
+  // the inbox is "ready"; the user still edits/approves before anything is sent.
+  reply_autosuggest_enabled: "true",
 };
 
 export function initializeDefaultSettings(): void {

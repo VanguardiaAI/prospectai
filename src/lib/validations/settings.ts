@@ -32,6 +32,8 @@ const ALLOWED_SETTINGS_KEYS = [
   "workana_autosend_enabled", "workana_min_send_interval_minutes", "workana_max_sends_per_day",
   // Opt-in: auto-start the cron scheduler (engine) on server boot.
   "scheduler_autostart",
+  // Portfolio knowledge base + reply assistant
+  "portfolio_enabled", "reply_autosuggest_enabled",
 ] as const;
 
 export const updateSettingsSchema = z.record(z.string(), z.string()).refine(

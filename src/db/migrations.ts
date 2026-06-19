@@ -352,6 +352,49 @@ export function runMigrations(): void {
   CREATE INDEX IF NOT EXISTS idx_workana_replies_status ON workana_replies(status);
   CREATE INDEX IF NOT EXISTS idx_workana_replies_external ON workana_replies(external_id);
 
+  -- Portfolio knowledge base: structured past projects + AI "interview" Q&A.
+  CREATE TABLE IF NOT EXISTS portfolio_projects (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    agency_profile_id INTEGER REFERENCES agency_profile(id),
+    title TEXT NOT NULL,
+    client TEXT,
+    sector TEXT,
+    problem TEXT,
+    solution TEXT,
+    services TEXT,
+    stack TEXT,
+    deliverables TEXT,
+    result TEXT,
+    metric TEXT,
+    testimonial TEXT,
+    testimonial_author TEXT,
+    project_url TEXT,
+    duration_label TEXT,
+    tags TEXT,
+    notes TEXT,
+    highlight INTEGER NOT NULL DEFAULT 0,
+    source TEXT NOT NULL DEFAULT 'manual',
+    source_url TEXT,
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+  );
+
+  CREATE TABLE IF NOT EXISTS profile_enrichment (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    agency_profile_id INTEGER REFERENCES agency_profile(id),
+    project_id INTEGER REFERENCES portfolio_projects(id),
+    question TEXT NOT NULL,
+    answer TEXT,
+    category TEXT NOT NULL DEFAULT 'other',
+    priority INTEGER NOT NULL DEFAULT 3,
+    status TEXT NOT NULL DEFAULT 'pending',
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    answered_at TEXT
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_portfolio_projects_profile ON portfolio_projects(agency_profile_id);
+  CREATE INDEX IF NOT EXISTS idx_profile_enrichment_status ON profile_enrichment(status);
+
   CREATE TABLE IF NOT EXISTS rate_limits (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     key TEXT NOT NULL,
@@ -393,6 +436,10 @@ export function runMigrations(): void {
   safeAddColumn(`ALTER TABLE replies ADD COLUMN intent TEXT`);
   safeAddColumn(`ALTER TABLE replies ADD COLUMN handled_at TEXT`);
   safeAddColumn(`CREATE INDEX IF NOT EXISTS idx_replies_status ON replies(status)`);
+
+  // Reply assistant: AI-drafted reply the user reviews/edits/approves before send.
+  safeAddColumn(`ALTER TABLE replies ADD COLUMN suggested_reply TEXT`);
+  safeAddColumn(`ALTER TABLE replies ADD COLUMN suggested_reply_at TEXT`);
 
   // Multiple agency profiles + per-campaign profile selection
   safeAddColumn(`ALTER TABLE agency_profile ADD COLUMN label TEXT`);
@@ -469,4 +516,41 @@ export function runMigrations(): void {
         .run();
     }
   } catch { /* settings table not ready on a brand-new DB — defaults seed it instead */ }
+
+  // One-time: seed portfolio_projects from existing agency_profile.case_studies so
+  // the richer knowledge base starts populated and nothing is lost. The case study
+  // stays in place (still rendered as a fallback); the project is the richer source.
+  // Scoped to the profile it came from, preserving the original per-profile behavior.
+  try {
+    const done = sqlite
+      .prepare(`SELECT value FROM settings WHERE key = 'portfolio_backfill_migrated'`)
+      .get() as { value: string } | undefined;
+    if (!done) {
+      const profiles = sqlite
+        .prepare(`SELECT id, case_studies FROM agency_profile WHERE case_studies IS NOT NULL AND case_studies != ''`)
+        .all() as { id: number; case_studies: string }[];
+      const insert = sqlite.prepare(
+        `INSERT INTO portfolio_projects (agency_profile_id, title, client, result, notes, source)
+         VALUES (?, ?, ?, ?, ?, 'manual')`
+      );
+      for (const p of profiles) {
+        let cases: unknown;
+        try { cases = JSON.parse(p.case_studies); } catch { continue; }
+        if (!Array.isArray(cases)) continue;
+        for (const c of cases) {
+          if (!c || typeof c !== "object") continue;
+          const obj = c as Record<string, unknown>;
+          const client = typeof obj.client === "string" ? obj.client.trim() : "";
+          const result = typeof obj.result === "string" ? obj.result.trim() : "";
+          const snippet = typeof obj.snippet === "string" ? obj.snippet.trim() : "";
+          if (!client && !result) continue;
+          const title = client || result.slice(0, 60) || "Proyecto";
+          insert.run(p.id, title, client || null, result || null, snippet || null);
+        }
+      }
+      sqlite
+        .prepare(`INSERT INTO settings (key, value) VALUES ('portfolio_backfill_migrated', '1')`)
+        .run();
+    }
+  } catch { /* tables not ready on a brand-new DB — nothing to backfill */ }
 }
