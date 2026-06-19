@@ -121,6 +121,13 @@
     "scanInterval": "Intervalo de escaneo (horas)",
     "maxEval": "Máx. proyectos evaluados por escaneo",
     "maxDrafts": "Máx. borradores por escaneo",
+    "feedPages": "Páginas del feed a escanear",
+    "feedPagesHint": "Cuántas páginas del feed (más nuevas primero) recorrer por escaneo. Más páginas = más cobertura, sin dejar pasar oportunidades.",
+    "autosendLabel": "Envío automático espaciado",
+    "autosendHint": "Envía solo las propuestas que apruebes, mejor-primero, respetando el intervalo y el tope semanal. Requiere \"envío real\" activado. Puedes pausarlo cuando quieras.",
+    "minSendInterval": "Intervalo mínimo entre envíos (min)",
+    "maxSendsPerDay": "Tope de envíos por día",
+    "maxSendsPerDayHint": "Límite suave diario (0 = sin tope; el cupo semanal y el intervalo marcan el ritmo).",
     "profileUrlLabel": "URL de tu perfil de Workana",
     "headlessLabel": "Navegador en segundo plano (headless)",
     "tos": "Add-on para uso personal. Automatizar Workana puede infringir sus Términos (el scraping y las propuestas masivas están prohibidos). El envío real está desactivado y la aprobación es manual; úsalo bajo tu propia responsabilidad.",
@@ -129,10 +136,12 @@
     "dryRun": "Probar relleno",
     "sendNow": "Enviar a Workana",
     "sending": "Enviando…",
-    "dryOk": "Relleno de prueba OK (no se envió).",
+    "dryOk": "Relleno OK: formulario y botón de envío detectados. Listo para enviar (no se envió nada).",
+    "drySubmitMissing": "Relleno OK, pero no se encontró el botón de envío. Revisa el formulario antes de enviar.",
     "sentOk": "Propuesta enviada.",
     "sendDisabledHint": "Activa \"envío real\" en Configuración para habilitar el botón.",
-    "submittedNote": "Enviada a Workana."
+    "submittedNote": "Enviada a Workana.",
+    "sendingNote": "Enviándose… Si lleva mucho rato aquí, un reinicio pudo interrumpir el envío: verifica en Workana si la propuesta ya salió ANTES de reintentar (reabrir), para no postular dos veces."
   },
   "home": {
     "title": "Inicio",

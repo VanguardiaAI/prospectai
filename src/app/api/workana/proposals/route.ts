@@ -6,11 +6,17 @@ import {
   getProjectRowForProposal,
   getProposalForSubmit,
   markProposalSubmitted,
+  markProposalFailed,
+  claimProposalForSending,
+  releaseProposalClaim,
   getWeeklyConnectionUsage,
+  getLastSubmittedAt,
   getStyleExamples,
 } from "@/db/workana";
 import { draftProposal, PROPOSAL_TONE_DIRECTIVES } from "@/lib/workana/ai";
-import { submitProposal } from "@/lib/workana/submit";
+import { submitProposal, formatDeliveryTime, type SubmitResult } from "@/lib/workana/submit";
+import { withSendLock } from "@/lib/cron/send-lock";
+import { WORKANA_DEFAULTS } from "@/lib/workana/priority";
 import type { ScrapedProject } from "@/lib/workana/types";
 
 export const runtime = "nodejs";
@@ -110,7 +116,13 @@ export async function PUT(req: NextRequest) {
       const p = getProposalForSubmit(id);
       if (!p) return NextResponse.json({ error: "proposal not found" }, { status: 404 });
       if (!p.slug) return NextResponse.json({ error: "project slug missing" }, { status: 400 });
-      const res = await submitProposal({ slug: p.slug, coverLetter: p.coverLetter, bidAmount: p.bidAmount, dryRun: true });
+      const res = await submitProposal({
+        slug: p.slug,
+        coverLetter: p.coverLetter,
+        bidAmount: p.bidAmount,
+        deliveryTime: formatDeliveryTime(p.deliveryDays, p.language),
+        dryRun: true,
+      });
       return NextResponse.json(res);
     }
 
@@ -131,13 +143,57 @@ export async function PUT(req: NextRequest) {
         if (p.bidAmount == null) {
           return NextResponse.json({ error: "bid amount required (edit the proposal first)" }, { status: 400 });
         }
+        // Send spacing: keep at least the configured gap between any two real sends
+        // (manual or auto), so two offers never go out together.
+        const intervalMin =
+          Number(getSetting("workana_min_send_interval_minutes")) || WORKANA_DEFAULTS.minSendIntervalMinutes;
+        const last = getLastSubmittedAt();
+        if (last) {
+          const elapsedMin = (Date.now() - Date.parse(last)) / 60_000;
+          if (elapsedMin < intervalMin) {
+            const nextInMin = Math.max(1, Math.ceil(intervalMin - elapsedMin));
+            return NextResponse.json(
+              { error: `Espera ${nextInMin} min entre envíos (intervalo mínimo ${intervalMin} min).`, nextInMin },
+              { status: 429 }
+            );
+          }
+        }
         // Weekly connection budget — re-read inside the lock so it's never overshot.
         const { used, budget } = getWeeklyConnectionUsage();
         if (budget > 0 && used >= budget) {
           return NextResponse.json({ error: "weekly connection budget reached", used, budget }, { status: 429 });
         }
-        const res = await submitProposal({ slug: p.slug, coverLetter: p.coverLetter, bidAmount: p.bidAmount });
-        if (res.ok) markProposalSubmitted(id, res.ref ?? null);
+        // Share the "workana" send lock with the auto-sender so the two never drive
+        // the browser (or spend the weekly budget) at the same time. The crash-safe
+        // claim (approved → "sending") happens INSIDE the lock so a busy lock never
+        // strands a proposal mid-claim.
+        const res = await withSendLock<SubmitResult>(
+          "workana",
+          { ok: false, error: "otro envío en curso, reintenta en un momento" },
+          async () => {
+            // Claim it; if it's no longer approved (auto-sender took it / already
+            // sending or sent), bail without sending — never double-send.
+            if (!claimProposalForSending(id)) {
+              return { ok: false, error: "la propuesta ya no está aprobada (¿enviándose o ya enviada?)" };
+            }
+            const r = await submitProposal({
+              slug: p.slug!,
+              coverLetter: p.coverLetter,
+              bidAmount: p.bidAmount!,
+              deliveryTime: formatDeliveryTime(p.deliveryDays, p.language),
+            });
+            if (r.ok) {
+              markProposalSubmitted(id, r.ref ?? null);
+            } else if (/not_logged_in|session lost|reconnect|sesión/i.test(r.error ?? "")) {
+              releaseProposalClaim(id); // not posted → back to approved for retry
+            } else {
+              markProposalFailed(id, r.error ?? null); // not-sent failure → out of the queue
+            }
+            return r;
+            // NOTE: if submitProposal THROWS (ambiguous — bid may have posted), the
+            // proposal is intentionally left "sending" for manual verification.
+          }
+        );
         return NextResponse.json(res);
       } finally {
         realSubmitInFlight = false;

@@ -11,11 +11,12 @@ import {
   projectHasProposal,
   getStyleExamples,
 } from "@/db/workana";
+import { WORKANA_DEFAULTS, priorityScore } from "@/lib/workana/priority";
 import type { ScrapedProject, WorkanaSearchFilters } from "@/lib/workana/types";
 
-const DEFAULT_MAX_EVAL = 15;
-const DEFAULT_MAX_DRAFTS = 5;
-const DEFAULT_INTERVAL_HOURS = 12;
+const DEFAULT_MAX_EVAL = WORKANA_DEFAULTS.maxEvalPerScan;
+const DEFAULT_MAX_DRAFTS = WORKANA_DEFAULTS.maxDraftsPerScan;
+const DEFAULT_INTERVAL_HOURS = WORKANA_DEFAULTS.scanIntervalHours;
 
 export interface ScanOptions {
   /** Ignore the interval time-gate (manual "scan now"). */
@@ -60,6 +61,7 @@ export async function processWorkanaScans(opts: ScanOptions = {}): Promise<ScanR
 
   const maxEval = opts.maxEval ?? (Number(getSetting("workana_max_eval_per_scan")) || DEFAULT_MAX_EVAL);
   const maxDrafts = opts.maxDrafts ?? (Number(getSetting("workana_max_drafts_per_scan")) || DEFAULT_MAX_DRAFTS);
+  const feedPages = Number(getSetting("workana_feed_pages")) || WORKANA_DEFAULTS.feedPages;
 
   const searches = getActiveSearches();
   const targets = searches.length
@@ -72,7 +74,7 @@ export async function processWorkanaScans(opts: ScanOptions = {}): Promise<ScanR
 
   for (const t of targets) {
     try {
-      const projects = await scrapeFeed(t.filters);
+      const projects = await scrapeFeed(t.filters, feedPages);
       scraped += projects.length;
       for (const p of projects) {
         if (known.has(p.workanaProjectId)) continue;
@@ -105,10 +107,16 @@ export async function processWorkanaScans(opts: ScanOptions = {}): Promise<ScanR
     }
   }
 
-  // Second-stage: draft the best-fit "shouldBid" projects, capped, highest fit first.
+  // Second-stage: draft the best "shouldBid" projects as a ranked pool (best +
+  // reserve), highest priority first (recency + fit, not fit alone).
+  const nowMs = Date.now();
   const toDraft = evaluated
     .filter((i) => i.shouldBid && !projectHasProposal(i.projectId))
-    .sort((a, b) => b.fitScore - a.fitScore)
+    .sort(
+      (a, b) =>
+        priorityScore({ fitScore: b.fitScore, publishedAt: b.p.publishedAt }, nowMs) -
+        priorityScore({ fitScore: a.fitScore, publishedAt: a.p.publishedAt }, nowMs)
+    )
     .slice(0, maxDrafts);
 
   let drafted = 0;

@@ -121,6 +121,13 @@
     "scanInterval": "Scan interval (hours)",
     "maxEval": "Max projects evaluated per scan",
     "maxDrafts": "Max drafts per scan",
+    "feedPages": "Feed pages to scan",
+    "feedPagesHint": "How many feed pages (newest first) to walk per scan. More pages = more coverage, so no good opportunity slips through.",
+    "autosendLabel": "Auto-spaced sending",
+    "autosendHint": "Sends only the proposals you approve, best-first, respecting the interval and weekly cap. Requires \"real sending\" on. You can pause it anytime.",
+    "minSendInterval": "Minimum interval between sends (min)",
+    "maxSendsPerDay": "Max sends per day",
+    "maxSendsPerDayHint": "Soft daily limit (0 = no cap; the weekly budget and interval set the pace).",
     "profileUrlLabel": "Your Workana profile URL",
     "headlessLabel": "Background browser (headless)",
     "tos": "Personal-use add-on. Automating Workana may violate its Terms (scraping and mass proposals are prohibited). Real sending is off and approval is manual; use at your own risk.",
@@ -129,10 +136,12 @@
     "dryRun": "Test fill",
     "sendNow": "Send to Workana",
     "sending": "Sending…",
-    "dryOk": "Test fill OK (nothing sent).",
+    "dryOk": "Fill OK: form and send button detected. Ready to send (nothing was sent).",
+    "drySubmitMissing": "Fill OK, but the send button wasn't found. Check the form before sending.",
     "sentOk": "Proposal sent.",
     "sendDisabledHint": "Turn on \"real sending\" in Settings to enable the button.",
-    "submittedNote": "Sent to Workana."
+    "submittedNote": "Sent to Workana.",
+    "sendingNote": "Sending… If it's been stuck here a while, a restart may have interrupted the send: check on Workana whether the proposal already went out BEFORE retrying (reopen), so you never bid twice."
   },
   "home": {
     "title": "Home",

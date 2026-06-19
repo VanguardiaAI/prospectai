@@ -19,7 +19,10 @@ export interface ScrapedProject {
   skills: string[];
   budgetText: string | null;
   bidsCount: number | null;
+  /** Raw relative publish time scraped from the card ("hace 2 horas"). */
   publishedText: string | null;
+  /** Parsed publish time (ISO) for recency ranking; null when unknown. */
+  publishedAt?: string | null;
   /** Full readable text of the card/detail — fed to the AI evaluator. */
   rawText: string;
 }

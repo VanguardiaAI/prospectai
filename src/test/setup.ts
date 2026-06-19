@@ -251,12 +251,33 @@ export function createTestDb() {
     processed_at TEXT
   );
 
+  CREATE TABLE IF NOT EXISTS workana_projects (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    workana_project_id TEXT NOT NULL UNIQUE,
+    title TEXT NOT NULL,
+    status TEXT NOT NULL DEFAULT 'new',
+    fit_score INTEGER,
+    should_bid INTEGER,
+    language TEXT,
+    published_at TEXT,
+    scanned_at TEXT,
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+  );
+
   CREATE TABLE IF NOT EXISTS workana_proposals (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     project_id INTEGER NOT NULL,
+    agency_profile_id INTEGER,
     cover_letter TEXT NOT NULL,
+    bid_amount REAL,
+    currency TEXT,
+    delivery_days INTEGER,
+    confidence INTEGER,
     status TEXT NOT NULL DEFAULT 'draft',
     submitted_at TEXT,
+    workana_proposal_ref TEXT,
+    error_message TEXT,
     created_at TEXT NOT NULL DEFAULT (datetime('now')),
     updated_at TEXT NOT NULL DEFAULT (datetime('now'))
   );

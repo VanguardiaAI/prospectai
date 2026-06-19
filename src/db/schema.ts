@@ -382,7 +382,9 @@ export const workanaProposals = sqliteTable("workana_proposals", {
   screeningAnswers: text("screening_answers"), // JSON array [{ question, answer }]
   confidence: integer("confidence"), // 0-100
   status: text("status", {
-    enum: ["draft", "approved", "rejected", "submitted", "failed"],
+    // "sending" is a crash-safe claim: set BEFORE the (slow) real send so that a
+    // restart mid-send leaves it here (not "approved") and it is never auto-re-sent.
+    enum: ["draft", "approved", "rejected", "sending", "submitted", "failed"],
   }).notNull().default("draft"),
   submittedAt: text("submitted_at"),
   workanaProposalRef: text("workana_proposal_ref"),

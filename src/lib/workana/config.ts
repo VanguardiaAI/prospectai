@@ -36,6 +36,9 @@ export const WORKANA_SELECTORS = {
   bidCoverLetter: ['textarea[name="bid[content]"]', "#BidContent"],
   bidAmount: ['input[name="bid[amount]"]', "#Amount"],
   bidHours: ['input[name="bid[hours]"]', "#Hours"],
+  // Free-text delivery estimate ("Ejemplo: 2 días o 3 horas"). Not HTML-required,
+  // but Workana validates it on submit, so we fill it from the proposal estimate.
+  bidDeliveryTime: ['input[name="bid[deliveryTime]"]', "#DeliveryTime"],
   bidSubmit: ['button[type="submit"]', 'input[type="submit"]'],
 } as const;
 

@@ -2,6 +2,7 @@ import { getSetting } from "@/db";
 import { logger } from "@/lib/logger";
 import { WORKANA_BASE_URL, WORKANA_INBOX_PATHS } from "./config";
 import { withPage, randomDelay } from "./browser";
+import { parseRelativeTime, WORKANA_DEFAULTS } from "./priority";
 import type { ScrapedProject, ScrapedProfile, ScrapedInboxMessage, WorkanaSearchFilters } from "./types";
 
 function hashId(s: string): string {
@@ -37,52 +38,95 @@ function extractBids(text: string): number | null {
   return m ? parseInt(m[1], 10) : null;
 }
 
+/** Pull the relative publish phrase from a card ("Hace 2 horas", "ayer", "há 3 dias"). */
+function extractPublishedText(text: string): string | null {
+  const m = text.match(
+    /(?:hace|há)\s+\d+\s+(?:minutos?|min|horas?|d[ií]as?|dias?|semanas?|meses|m[eê]s(?:es)?)|ayer|yesterday|ontem/i
+  );
+  return m ? m[0].trim() : null;
+}
+
+/** Feed URL for a given 1-based page (page 1 omits the param). */
+function feedUrlForPage(filters: WorkanaSearchFilters, page: number): string {
+  const u = new URL(buildFeedUrl(filters));
+  if (page > 1) u.searchParams.set("page", String(page));
+  return u.toString();
+}
+
 /**
- * Scrape the project feed. Tolerant by design: projects link to /job/<slug>, so
- * we collect those anchors and climb to the nearest card container for context.
- * Returns raw items (rawText drives the later AI evaluation). Selectors are
- * intentionally loose and refined against the live DOM in later phases.
+ * Scrape the project feed across several pages (newest-first), so we don't miss
+ * matching projects beyond page 1. Tolerant by design: projects link to /job/<slug>,
+ * so we collect those anchors and climb to the nearest card container for context.
+ * Dedups by slug across pages and stops early once a page yields nothing new.
+ * `rawText` drives the AI evaluation; `publishedAt` is parsed for recency ranking.
  */
-export async function scrapeFeed(filters: WorkanaSearchFilters = {}): Promise<ScrapedProject[]> {
-  const url = buildFeedUrl(filters);
+export async function scrapeFeed(
+  filters: WorkanaSearchFilters = {},
+  maxPages: number = WORKANA_DEFAULTS.feedPages
+): Promise<ScrapedProject[]> {
   return withPage(isHeadless(), async (page) => {
-    logger.info({ url }, "workana: scraping feed");
-    await page.goto(url, { waitUntil: "domcontentloaded", timeout: 45000 });
-    await page.waitForTimeout(2500); // let client-side rendering settle
-    await randomDelay(400, 1200);
+    const bySlug = new Map<string, ScrapedProject>();
+    const pages = Math.max(1, maxPages);
 
-    const raw = await page.evaluate(() => {
-      const out: Array<{ slug: string; href: string; title: string; rawText: string }> = [];
-      const seen = new Set<string>();
-      const anchors = Array.from(document.querySelectorAll<HTMLAnchorElement>('a[href*="/job/"]'));
-      for (const a of anchors) {
-        const href = a.href;
-        const slug = href.split("/job/")[1]?.split(/[?#]/)[0];
-        if (!slug || seen.has(slug)) continue;
-        seen.add(slug);
-        const card =
-          a.closest('[class*="project-item"]') ||
-          a.closest('[class*="project"]') ||
-          a.closest("article") ||
-          a.closest("li") ||
-          a.parentElement;
-        const rawText = (card?.textContent || a.textContent || "").replace(/\s+/g, " ").trim();
-        out.push({ slug, href, title: (a.textContent || "").replace(/\s+/g, " ").trim(), rawText });
+    for (let pg = 1; pg <= pages; pg++) {
+      const url = feedUrlForPage(filters, pg);
+      logger.info({ url, page: pg }, "workana: scraping feed page");
+      try {
+        await page.goto(url, { waitUntil: "domcontentloaded", timeout: 45000 });
+        await page.waitForTimeout(2500); // let client-side rendering settle
+        await randomDelay(400, 1200);
+      } catch (e) {
+        logger.warn({ err: (e as Error).message, page: pg }, "workana: feed page nav failed");
+        break;
       }
-      return out;
-    });
 
-    const projects: ScrapedProject[] = raw.map((it) => ({
-      workanaProjectId: it.slug,
-      url: it.href,
-      title: it.title || it.slug,
-      description: it.rawText,
-      skills: [],
-      budgetText: extractBudget(it.rawText),
-      bidsCount: extractBids(it.rawText),
-      publishedText: null,
-      rawText: it.rawText,
-    }));
+      const raw = await page.evaluate(() => {
+        const out: Array<{ slug: string; href: string; title: string; rawText: string }> = [];
+        const seen = new Set<string>();
+        const anchors = Array.from(document.querySelectorAll<HTMLAnchorElement>('a[href*="/job/"]'));
+        for (const a of anchors) {
+          const href = a.href;
+          const slug = href.split("/job/")[1]?.split(/[?#]/)[0];
+          if (!slug || seen.has(slug)) continue;
+          seen.add(slug);
+          const card =
+            a.closest('[class*="project-item"]') ||
+            a.closest('[class*="project"]') ||
+            a.closest("article") ||
+            a.closest("li") ||
+            a.parentElement;
+          const rawText = (card?.textContent || a.textContent || "").replace(/\s+/g, " ").trim();
+          out.push({ slug, href, title: (a.textContent || "").replace(/\s+/g, " ").trim(), rawText });
+        }
+        return out;
+      });
+
+      const nowMs = Date.now();
+      let newOnPage = 0;
+      for (const it of raw) {
+        if (bySlug.has(it.slug)) continue;
+        newOnPage++;
+        const publishedText = extractPublishedText(it.rawText);
+        const pubMs = parseRelativeTime(publishedText, nowMs);
+        bySlug.set(it.slug, {
+          workanaProjectId: it.slug,
+          url: it.href,
+          title: it.title || it.slug,
+          description: it.rawText,
+          skills: [],
+          budgetText: extractBudget(it.rawText),
+          bidsCount: extractBids(it.rawText),
+          publishedText,
+          publishedAt: pubMs ? new Date(pubMs).toISOString() : null,
+          rawText: it.rawText,
+        });
+      }
+      logger.info({ page: pg, newOnPage, total: bySlug.size }, "workana: feed page scraped");
+      // No new projects on this page → end of results (or a repeated last page).
+      if (newOnPage === 0) break;
+    }
+
+    const projects = Array.from(bySlug.values());
     logger.info({ count: projects.length }, "workana: feed scraped");
     return projects;
   });

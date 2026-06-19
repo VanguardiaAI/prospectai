@@ -4,6 +4,7 @@ import { eq, desc, and, gte, like, inArray } from "drizzle-orm";
 import type { ScrapedProject, ScrapedInboxMessage } from "@/lib/workana/types";
 import type { ProjectEvaluation, ProposalDraft } from "@/lib/workana/ai";
 import type { ReplyIntent } from "@/lib/reply-intent";
+import { WORKANA_DEFAULTS } from "@/lib/workana/priority";
 
 /** All project ids already stored — used to dedup across scan runs. */
 export function getKnownProjectIds(): Set<string> {
@@ -49,6 +50,7 @@ export function upsertProject(
         shouldBid: evaluation.shouldBid,
         reason: evaluation.reason,
         status,
+        publishedAt: p.publishedAt ?? null,
         scannedAt: now,
         updatedAt: now,
       })
@@ -75,6 +77,7 @@ export function upsertProject(
       shouldBid: evaluation.shouldBid,
       reason: evaluation.reason,
       status,
+      publishedAt: p.publishedAt ?? null,
       scannedAt: now,
     })
     .run();
@@ -185,7 +188,7 @@ export interface ProposalEditFields {
   deliveryDays?: number | null;
   screeningAnswers?: Array<{ question: string; answer: string }>;
   confidence?: number;
-  status?: "draft" | "approved" | "rejected" | "submitted" | "failed";
+  status?: "draft" | "approved" | "rejected" | "sending" | "submitted" | "failed";
 }
 
 /** Patch a proposal's editable fields and/or status. */
@@ -210,7 +213,9 @@ export function getProposalForSubmit(id: number) {
       status: workanaProposals.status,
       coverLetter: workanaProposals.coverLetter,
       bidAmount: workanaProposals.bidAmount,
+      deliveryDays: workanaProposals.deliveryDays,
       slug: workanaProjects.workanaProjectId,
+      language: workanaProjects.language,
     })
     .from(workanaProposals)
     .leftJoin(workanaProjects, eq(workanaProjects.id, workanaProposals.projectId))
@@ -319,8 +324,106 @@ export function getWeeklyConnectionUsage(): { used: number; budget: number } {
   d.setDate(d.getDate() - offset);
   return {
     used: countSubmittedSince(d.toISOString()),
-    budget: Number(getSetting("workana_weekly_connections")) || 0,
+    budget: Number(getSetting("workana_weekly_connections")) || WORKANA_DEFAULTS.weeklyConnections,
   };
+}
+
+/** Sends made so far today (local day) — for the optional soft daily cap. */
+export function getTodaySubmittedCount(): number {
+  const d = new Date();
+  d.setHours(0, 0, 0, 0);
+  return countSubmittedSince(d.toISOString());
+}
+
+/** Most recent real-send timestamp (ISO) — used to enforce the send-spacing gap. */
+export function getLastSubmittedAt(): string | null {
+  const row = db
+    .select({ submittedAt: workanaProposals.submittedAt })
+    .from(workanaProposals)
+    .where(eq(workanaProposals.status, "submitted"))
+    .orderBy(desc(workanaProposals.submittedAt))
+    .limit(1)
+    .get();
+  return row?.submittedAt ?? null;
+}
+
+/**
+ * Approved proposals ready to auto-send, with the fields needed to rank them
+ * (fit + recency + confidence) and to submit them. Ranking is done in JS by the
+ * caller via priorityScore so the scanner, sender and review UI stay consistent.
+ */
+export function listApprovedForSending() {
+  return db
+    .select({
+      id: workanaProposals.id,
+      coverLetter: workanaProposals.coverLetter,
+      bidAmount: workanaProposals.bidAmount,
+      deliveryDays: workanaProposals.deliveryDays,
+      confidence: workanaProposals.confidence,
+      createdAt: workanaProposals.createdAt,
+      slug: workanaProjects.workanaProjectId,
+      language: workanaProjects.language,
+      fitScore: workanaProjects.fitScore,
+      publishedAt: workanaProjects.publishedAt,
+    })
+    .from(workanaProposals)
+    .leftJoin(workanaProjects, eq(workanaProjects.id, workanaProposals.projectId))
+    .where(eq(workanaProposals.status, "approved"))
+    .all();
+}
+
+/**
+ * Mark a proposal as failed (e.g. Workana rejected the send), so the auto-send
+ * queue advances instead of retrying the same blocking proposal every tick.
+ */
+export function markProposalFailed(id: number, error: string | null): void {
+  const now = new Date().toISOString();
+  db.update(workanaProposals)
+    .set({ status: "failed", errorMessage: error ? error.slice(0, 300) : null, updatedAt: now })
+    .where(eq(workanaProposals.id, id))
+    .run();
+}
+
+/**
+ * Atomically CLAIM a proposal for sending: flip approved → "sending" in one
+ * statement, returning true only for the single caller that won. Done BEFORE the
+ * slow real send so that a crash/restart mid-send leaves it in "sending" (never
+ * re-picked, since senders only take "approved") instead of re-sending it. The
+ * status==='approved' guard also makes a double-claim impossible.
+ */
+export function claimProposalForSending(id: number): boolean {
+  const res = db
+    .update(workanaProposals)
+    .set({ status: "sending", updatedAt: new Date().toISOString() })
+    .where(and(eq(workanaProposals.id, id), eq(workanaProposals.status, "approved")))
+    .run();
+  return res.changes === 1;
+}
+
+/**
+ * Release a claim (sending → approved) when a send did NOT go through and is safe
+ * to retry (e.g. the session was logged out before the bid was ever posted).
+ */
+export function releaseProposalClaim(id: number): void {
+  db.update(workanaProposals)
+    .set({ status: "approved", updatedAt: new Date().toISOString() })
+    .where(and(eq(workanaProposals.id, id), eq(workanaProposals.status, "sending")))
+    .run();
+}
+
+/** Proposals stuck in "sending" (a crash interrupted a real send) — surfaced so the
+ *  user can verify on Workana and decide, never auto-resent. */
+export function listStuckSending() {
+  return db
+    .select({
+      id: workanaProposals.id,
+      updatedAt: workanaProposals.updatedAt,
+      projectTitle: workanaProjects.title,
+    })
+    .from(workanaProposals)
+    .leftJoin(workanaProjects, eq(workanaProjects.id, workanaProposals.projectId))
+    .where(eq(workanaProposals.status, "sending"))
+    .all();
 }
 
 // ── Workana replies inbox ───────────────────────────────────────────

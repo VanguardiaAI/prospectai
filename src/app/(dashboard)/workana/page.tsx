@@ -75,7 +75,7 @@ function ProposalCard({ p, onChanged, allowSubmit }: { p: ProposalRow; onChanged
     setSubmitMsg("");
     const res = await put({ action: dry ? "submit_dry" : "submit" });
     const d = await res.json().catch(() => ({}));
-    if (d.ok && d.dryRun) setSubmitMsg(t("workana.dryOk"));
+    if (d.ok && d.dryRun) setSubmitMsg(d.submitReady === false ? t("workana.drySubmitMissing") : t("workana.dryOk"));
     else if (d.ok) {
       setSubmitMsg(t("workana.sentOk"));
       onChanged();
@@ -206,6 +206,7 @@ function ProposalCard({ p, onChanged, allowSubmit }: { p: ProposalRow; onChanged
             </Button>
           </div>
           {p.status === "approved" && !allowSubmit && <p className="text-xs text-text-muted">{t("workana.sendDisabledHint")}</p>}
+          {p.status === "sending" && <p className="text-xs text-warning leading-relaxed">{t("workana.sendingNote")}</p>}
           {p.status === "submitted" && <p className="text-xs text-success font-mono">{t("workana.submittedNote")}</p>}
           {submitMsg && <p className="text-xs text-text-muted font-mono">{submitMsg}</p>}
         </div>
@@ -220,11 +221,15 @@ export default function WorkanaPage() {
   const [enabled, setEnabled] = useState(false);
   const [authState, setAuthState] = useState<AuthState>("disconnected");
   const [cfg, setCfg] = useState({
-    weeklyConnections: "10",
-    scanIntervalHours: "12",
-    maxEval: "15",
-    maxDrafts: "5",
+    weeklyConnections: "17",
+    scanIntervalHours: "6",
+    maxEval: "60",
+    maxDrafts: "12",
     styleExamples: "3",
+    feedPages: "4",
+    autosendEnabled: "false",
+    minSendInterval: "20",
+    maxSendsPerDay: "0",
     headless: "true",
     profileUrl: "",
     allowSubmit: "false",
@@ -291,11 +296,15 @@ export default function WorkanaPage() {
       setEnabled(isEnabled);
       if (isEnabled) {
         setCfg({
-          weeklyConnections: s?.workana_weekly_connections || "10",
-          scanIntervalHours: s?.workana_scan_interval_hours || "12",
-          maxEval: s?.workana_max_eval_per_scan || "15",
-          maxDrafts: s?.workana_max_drafts_per_scan || "5",
+          weeklyConnections: s?.workana_weekly_connections || "17",
+          scanIntervalHours: s?.workana_scan_interval_hours || "6",
+          maxEval: s?.workana_max_eval_per_scan || "60",
+          maxDrafts: s?.workana_max_drafts_per_scan || "12",
           styleExamples: s?.workana_style_examples ?? "3",
+          feedPages: s?.workana_feed_pages || "4",
+          autosendEnabled: s?.workana_autosend_enabled || "false",
+          minSendInterval: s?.workana_min_send_interval_minutes || "20",
+          maxSendsPerDay: s?.workana_max_sends_per_day || "0",
           headless: s?.workana_headless || "true",
           profileUrl: s?.workana_profile_url || "",
           allowSubmit: s?.workana_allow_submit || "false",
@@ -373,6 +382,10 @@ export default function WorkanaPage() {
         workana_max_eval_per_scan: cfg.maxEval,
         workana_max_drafts_per_scan: cfg.maxDrafts,
         workana_style_examples: cfg.styleExamples,
+        workana_feed_pages: cfg.feedPages,
+        workana_autosend_enabled: cfg.autosendEnabled,
+        workana_min_send_interval_minutes: cfg.minSendInterval,
+        workana_max_sends_per_day: cfg.maxSendsPerDay,
         workana_headless: cfg.headless,
         workana_profile_url: cfg.profileUrl,
         workana_allow_submit: cfg.allowSubmit,
@@ -524,6 +537,11 @@ export default function WorkanaPage() {
                     <Input value={cfg.maxDrafts} onChange={(e) => setCfg({ ...cfg, maxDrafts: e.target.value })} inputMode="numeric" className="w-full" />
                   </div>
                   <div>
+                    <label className="nd-label block mb-1">{t("workana.feedPages")}</label>
+                    <Input value={cfg.feedPages} onChange={(e) => setCfg({ ...cfg, feedPages: e.target.value })} inputMode="numeric" className="w-full" />
+                    <p className="mt-1 text-xs text-text-muted leading-relaxed">{t("workana.feedPagesHint")}</p>
+                  </div>
+                  <div>
                     <label className="nd-label block mb-1">{t("workana.styleExamples")}</label>
                     <Input value={cfg.styleExamples} onChange={(e) => setCfg({ ...cfg, styleExamples: e.target.value })} inputMode="numeric" className="w-full" />
                     <p className="mt-1 text-xs text-text-muted leading-relaxed">{t("workana.styleExamplesHint")}</p>
@@ -544,6 +562,25 @@ export default function WorkanaPage() {
                 <div className="mt-4 pt-4 border-t border-border">
                   <Toggle checked={cfg.allowSubmit === "true"} onChange={(v) => setCfg({ ...cfg, allowSubmit: v ? "true" : "false" })} label={t("workana.allowSubmitLabel")} />
                   <p className="mt-2 text-xs text-warning leading-relaxed">{t("workana.allowSubmitWarn")}</p>
+                </div>
+                <div className="mt-4 pt-4 border-t border-border">
+                  <Toggle
+                    checked={cfg.autosendEnabled === "true"}
+                    onChange={(v) => setCfg({ ...cfg, autosendEnabled: v ? "true" : "false" })}
+                    label={t("workana.autosendLabel")}
+                  />
+                  <p className="mt-2 text-xs text-text-muted leading-relaxed">{t("workana.autosendHint")}</p>
+                  <div className="grid grid-cols-2 gap-3 mt-3">
+                    <div>
+                      <label className="nd-label block mb-1">{t("workana.minSendInterval")}</label>
+                      <Input value={cfg.minSendInterval} onChange={(e) => setCfg({ ...cfg, minSendInterval: e.target.value })} inputMode="numeric" className="w-full" />
+                    </div>
+                    <div>
+                      <label className="nd-label block mb-1">{t("workana.maxSendsPerDay")}</label>
+                      <Input value={cfg.maxSendsPerDay} onChange={(e) => setCfg({ ...cfg, maxSendsPerDay: e.target.value })} inputMode="numeric" className="w-full" />
+                    </div>
+                  </div>
+                  <p className="mt-1 text-xs text-text-muted leading-relaxed">{t("workana.maxSendsPerDayHint")}</p>
                 </div>
                 <div className="mt-4">
                   <Button size="sm" variant="secondary" onClick={saveCfg} disabled={savingCfg}>

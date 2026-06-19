@@ -65,6 +65,8 @@ export function StatusBadge({ status }: { status: string }) {
     error: { label: "ERROR", color: "danger" },
     draft: { label: "BORRADOR", color: "default" },
     approved: { label: "APROBADO", color: "success" },
+    sending: { label: "ENVIANDO…", color: "warning" },
+    submitted: { label: "ENVIADA", color: "success" },
     sent: { label: "ENVIADO", color: "success" },
     failed: { label: "FALLIDO", color: "danger" },
     active: { label: "ACTIVA", color: "success" },

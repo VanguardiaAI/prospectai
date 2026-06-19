@@ -11,6 +11,7 @@ import { processSequences } from "@/lib/cron/sequences";
 import { setupWhatsAppReplyListener } from "@/lib/cron/wa-replies";
 import { processEmailReplies } from "@/lib/cron/email-replies";
 import { processWorkanaScans } from "@/lib/cron/workana-scan";
+import { processWorkanaSending } from "@/lib/cron/workana-sending";
 import { processWorkanaReplies } from "@/lib/cron/workana-replies";
 
 export async function POST(req: NextRequest) {
@@ -68,6 +69,14 @@ export async function POST(req: NextRequest) {
   if (action === "all" || action === "workana_scan") {
     if (getSetting("workana_enabled") === "true") {
       results.workanaScan = await processWorkanaScans();
+    }
+  }
+
+  // Auto-spaced Workana sender: drips ≤1 approved proposal per tick, ≥20 min apart,
+  // best-first, up to the weekly budget. Self-gates on enabled/allow_submit/autosend.
+  if (action === "all" || action === "workana_send") {
+    if (getSetting("workana_enabled") === "true") {
+      results.workanaSend = await processWorkanaSending();
     }
   }
 
