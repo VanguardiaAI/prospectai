@@ -14,10 +14,11 @@ import {
   cliToolNames,
   CLI_MCP_SERVER_NAME,
 } from "@/lib/chatbot/tools";
-import { getApiKey, db } from "@/db";
+import { getApiKey, db, getSetting } from "@/db";
 import { campaigns } from "@/db/schema";
 import { eq } from "drizzle-orm";
-import { getAiProvider } from "@/lib/ai/provider";
+import { getAiProvider, type AiProvider } from "@/lib/ai/provider";
+import { describePage } from "@/lib/chatbot/page-context";
 
 const SYSTEM_PROMPT = `You are ProspectAI's assistant. You help manage B2B outreach campaigns.
 You can set up the agency profile, create campaigns, search for leads, review and
@@ -25,6 +26,11 @@ approve messages, check dashboard metrics, and manage settings.
 Always be concise. If a user asks to do something, use the available tools.
 Respond in the same language the user writes in.
 When reporting results, use bullet points and bold for key data.
+
+PREFER ACTION: When the user is on a page, prefer performing that page's actions
+for them via tools rather than explaining where to click — especially repetitive
+work. Tie your suggestions to the current page and offer a concrete next step the
+user can confirm in one message.
 
 SETUP ORDER (each step depends on the previous one — never skip ahead):
 1. Agency profile — must exist before creating campaigns. If onboarding isn't
@@ -43,9 +49,37 @@ SERVICE WARNINGS: Use check_configuration. Only warn that EMAIL or WHATSAPP is
 unconfigured when that service has required: true — i.e. at least one campaign uses
 that channel. Never nag about a channel no campaign uses.
 
-You CANNOT set secrets: API keys (Gemini/Resend/Anthropic), SMTP/IMAP passwords, or
-the WhatsApp QR connection. For those, tell the user to open Settings (email/API
-keys) or the WhatsApp section (scan QR) — you can only confirm what's missing.`;
+You CANNOT set secrets: API keys (Gemini/Resend/Anthropic) or SMTP/IMAP passwords —
+for those, tell the user to open Settings → Connections. You CAN connect WhatsApp
+yourself with connect_whatsapp (the QR appears in the chat to scan) and enable then
+connect the Workana add-on with enable_workana_addon / connect_workana.`;
+
+// Appended to the system prompt only for the claude_cli provider with developer
+// mode ON. Lifts the sandbox: the agent may read/edit files, run shell and SQL.
+const DEV_MODE_PROMPT = `
+
+DEVELOPER MODE IS ON. This is the user's own local, single-user dev environment.
+Beyond the ProspectAI tools you may use the native Read, Write, Edit, Bash, Glob and
+Grep tools, plus query_database / execute_sql, to extend the app when no exact tool
+or endpoint exists — e.g. create an API route, add a column, run a migration, or
+inspect data. Follow the conventions in AGENTS.md, keep changes minimal and
+consistent with the surrounding code, and briefly explain any destructive action
+(file overwrite, DROP/DELETE, schema change) before doing it. File checkpointing is
+on, so edits can be reverted.`;
+
+// Native Claude Code tools unlocked in developer mode (claude_cli only).
+const CLI_DEV_TOOLS = [
+  "Read",
+  "Write",
+  "Edit",
+  "Bash",
+  "Glob",
+  "Grep",
+  "WebFetch",
+  "WebSearch",
+  "TodoWrite",
+  "NotebookEdit",
+];
 
 const ANTHROPIC_CHAT_MODEL = process.env.ANTHROPIC_MODEL || "claude-sonnet-4-6";
 const CLI_CHAT_MODEL = process.env.CLAUDE_CLI_CHAT_MODEL || "sonnet";
@@ -82,21 +116,35 @@ type ChatModel =
  *                              (no API key); our tools are exposed as an in-process
  *                              MCP server. No silent fallback to an API provider.
  */
-function resolveChatModel(): ChatModel {
-  const provider = getAiProvider();
-
+function resolveChatModel(provider: AiProvider, devMode: boolean): ChatModel {
   if (provider === "claude_cli") {
-    const model = claudeCode(CLI_CHAT_MODEL, {
-      mcpServers: {
-        [CLI_MCP_SERVER_NAME]: createAiSdkMcpServer(
-          CLI_MCP_SERVER_NAME,
-          chatbotCliTools
-        ),
-      },
-      allowedTools: cliToolNames,
-      disallowedTools: CLI_BLOCKED_TOOLS,
-      permissionMode: "default",
-    }) as unknown as LanguageModel;
+    const mcpServers = {
+      [CLI_MCP_SERVER_NAME]: createAiSdkMcpServer(
+        CLI_MCP_SERVER_NAME,
+        chatbotCliTools
+      ),
+    };
+    // Developer mode lifts the sandbox: native file/shell tools auto-run with
+    // bypassed permissions (localhost only). Otherwise stay fenced to the MCP
+    // tools with everything else denied.
+    const model = claudeCode(
+      CLI_CHAT_MODEL,
+      devMode
+        ? {
+            mcpServers,
+            allowedTools: [...cliToolNames, ...CLI_DEV_TOOLS],
+            permissionMode: "bypassPermissions",
+            allowDangerouslySkipPermissions: true,
+            enableFileCheckpointing: true,
+            cwd: process.cwd(),
+          }
+        : {
+            mcpServers,
+            allowedTools: cliToolNames,
+            disallowedTools: CLI_BLOCKED_TOOLS,
+            permissionMode: "default",
+          }
+    ) as unknown as LanguageModel;
     return { kind: "cli", model };
   }
 
@@ -127,9 +175,15 @@ function resolveChatModel(): ChatModel {
 }
 
 export async function POST(req: Request) {
+  // Developer mode (localhost-only power switch) only applies to the claude_cli
+  // bridge, which can run native file/shell tools through the logged-in CLI.
+  const provider = getAiProvider();
+  const devMode =
+    provider === "claude_cli" && getSetting("chatbot_dev_mode") === "true";
+
   let resolved: ChatModel;
   try {
-    resolved = resolveChatModel();
+    resolved = resolveChatModel(provider, devMode);
   } catch (err) {
     return new Response(
       JSON.stringify({
@@ -142,14 +196,24 @@ export async function POST(req: Request) {
     );
   }
 
-  const { messages, campaignId } = (await req.json()) as {
+  const { messages, campaignId, path } = (await req.json()) as {
     messages: UIMessage[];
     campaignId?: number | null;
+    path?: string | null;
   };
+
+  let system = SYSTEM_PROMPT;
+
+  // Page awareness: tell the agent what the current window is for and which tools
+  // cover its actions, so answers are specific and it can offer to do the work.
+  const pageBlock = describePage(path);
+  if (pageBlock) system += `\n\n${pageBlock}`;
+
+  // Developer mode unlocks the native toolset — describe it in the prompt too.
+  if (devMode) system += DEV_MODE_PROMPT;
 
   // Global campaign scope: the UI tells us which campaign the user is viewing so
   // the agent scopes ambiguous requests to it (matching the dashboard/Review).
-  let system = SYSTEM_PROMPT;
   if (campaignId != null && Number.isFinite(campaignId)) {
     const camp = db
       .select({ name: campaigns.name, channels: campaigns.channels, status: campaigns.status })
@@ -161,6 +225,9 @@ export async function POST(req: Request) {
     }
   }
 
+  // Code/SQL tasks in dev mode chain many tool calls, so allow more steps there.
+  const maxSteps = devMode ? 30 : 10;
+
   // The claude_cli bridge ignores the `tools` option (it runs its own tool loop
   // via the in-process MCP server), so we only wire `tools` for the API providers.
   const result =
@@ -169,14 +236,14 @@ export async function POST(req: Request) {
           model: resolved.model,
           system,
           messages: await convertToModelMessages(messages),
-          stopWhen: stepCountIs(10),
+          stopWhen: stepCountIs(maxSteps),
         })
       : streamText({
           model: resolved.model,
           system,
           messages: await convertToModelMessages(messages, { tools: chatbotTools }),
           tools: chatbotTools,
-          stopWhen: stepCountIs(10),
+          stopWhen: stepCountIs(maxSteps),
         });
 
   return result.toUIMessageStreamResponse({

@@ -950,7 +950,13 @@
       "language": "Language",
       "languageHint": "Dashboard interface language. Auto-detected from your browser on first visit.",
       "dark": "Dark",
-      "light": "Light"
+      "light": "Light",
+      "assistant": "Assistant",
+      "proactive": "Proactive nudges",
+      "proactiveHint": "With Claude CLI, the assistant comments when you change page and suggests actions. The AI decides whether it's worthwhile or stays silent.",
+      "devMode": "Developer mode",
+      "devModeHint": "Claude CLI only. Lets the chat edit files, run commands and SQL to create routes or touch the database when no exact tool exists.",
+      "devModeWarning": "The agent will be able to edit files and run commands/SQL on this machine. Use it only on localhost and in a version-controlled repo."
     },
     "apiKeys": {
       "section": "API keys",
@@ -1144,6 +1150,8 @@
     "examples": "I can manage campaigns, search leads, review emails, and more",
     "placeholder": "Type a message...",
     "thinking": "Thinking...",
+    "suggestion": "Suggestion",
+    "devModeHint": "Developer mode active (localhost only)",
     "status": "AI Assistant",
     "shortcuts": {
       "title": "What you can do",
