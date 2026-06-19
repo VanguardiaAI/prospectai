@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSetting } from "@/db";
+import { getSession } from "@/lib/auth";
 import { isWhatsAppReady } from "@/lib/whatsapp-client";
 import { processScrapeJobs } from "@/lib/cron/scrape-jobs";
 import { processEmailGenerationJobs } from "@/lib/cron/email-generation";
@@ -15,9 +16,12 @@ import { processWorkanaSending } from "@/lib/cron/workana-sending";
 import { processWorkanaReplies } from "@/lib/cron/workana-replies";
 
 export async function POST(req: NextRequest) {
-  // Bearer auth — cron endpoint uses its own secret, not JWT session
+  // Accept either the cron secret (scheduler / external cron) OR a logged-in
+  // dashboard session (manual "run now" triggers from Settings). Both are gated
+  // again by the proxy; this is defense-in-depth.
   const secret = req.headers.get("x-cron-secret") || req.headers.get("authorization")?.replace("Bearer ", "");
-  if (!secret || secret !== process.env.CRON_SECRET) {
+  const secretOk = !!secret && secret === process.env.CRON_SECRET;
+  if (!secretOk && !(await getSession())) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
