@@ -20,6 +20,7 @@ const projectFields = {
   title: z.string().min(1).max(200),
   client: z.string().nullable().optional(),
   sector: z.string().nullable().optional(),
+  description: z.string().nullable().optional(),
   problem: z.string().nullable().optional(),
   solution: z.string().nullable().optional(),
   services: z.array(z.string()).optional(),

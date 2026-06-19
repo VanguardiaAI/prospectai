@@ -161,6 +161,7 @@ export function getAgencyContext(profileId?: number | null): AgencyContext {
 function formatProjectEntry(p: PortfolioProject, knowledge: { question: string; answer: string }[]): string {
   const head = [p.title, p.sector, p.client ? `cliente: ${p.client}` : ""].filter(Boolean).join(" · ");
   const sub: string[] = [];
+  if (p.description) sub.push(`Descripción: ${p.description}`);
   if (p.problem) sub.push(`Problema: ${p.problem}`);
   if (p.solution) sub.push(`Solución: ${p.solution}`);
   if (p.deliverables) sub.push(`Entregables: ${p.deliverables}`);

@@ -10,6 +10,7 @@ interface Project {
   title: string;
   client: string | null;
   sector: string | null;
+  description: string | null;
   problem: string | null;
   solution: string | null;
   services: string[];
@@ -31,6 +32,7 @@ interface Extracted {
   title: string;
   client: string | null;
   sector: string | null;
+  description: string | null;
   problem: string | null;
   solution: string | null;
   services: string[];
@@ -41,6 +43,7 @@ interface Extracted {
   testimonialAuthor: string | null;
   projectUrl: string | null;
   tags: string[];
+  duplicate?: boolean;
 }
 
 interface EnrichItem {
@@ -61,7 +64,7 @@ type Draft = Partial<Project> & { title: string };
 
 function blankDraft(): Draft {
   return {
-    title: "", client: "", sector: "", problem: "", solution: "", deliverables: "",
+    title: "", client: "", sector: "", description: "", problem: "", solution: "", deliverables: "",
     result: "", metric: "", testimonial: "", testimonialAuthor: "", projectUrl: "",
     durationLabel: "", notes: "", services: [], stack: [], tags: [], highlight: false,
   };
@@ -92,6 +95,7 @@ function ProjectEditor({
       title: d.title.trim(),
       client: orNull(d.client || ""),
       sector: orNull(d.sector || ""),
+      description: orNull(d.description || ""),
       problem: orNull(d.problem || ""),
       solution: orNull(d.solution || ""),
       deliverables: orNull(d.deliverables || ""),
@@ -145,6 +149,10 @@ function ProjectEditor({
         </div>
       </div>
 
+      <div>
+        <label className="nd-label block mb-1">{t("profile.fDescription")}</label>
+        <Textarea value={d.description || ""} onChange={(e) => set("description", e.target.value)} rows={3} className="w-full" />
+      </div>
       <div>
         <label className="nd-label block mb-1">{t("profile.fProblem")}</label>
         <Textarea value={d.problem || ""} onChange={(e) => set("problem", e.target.value)} rows={2} className="w-full" />
@@ -267,7 +275,8 @@ function ProjectCard({ p, onChanged }: { p: Project; onChanged: () => void }) {
               </a>
             )}
           </div>
-          {resultLine && <p className="mt-1.5 text-sm text-text-secondary leading-relaxed">{resultLine}</p>}
+          {p.description && <p className="mt-1.5 text-[13px] text-text-secondary leading-relaxed">{p.description}</p>}
+          {resultLine && <p className="mt-1.5 text-sm text-text-primary leading-relaxed">{resultLine}</p>}
         </div>
         <div className="flex items-center gap-1 flex-shrink-0">
           <button onClick={toggleHighlight} disabled={busy} title={t("profile.fHighlight")} className="p-1.5 rounded text-text-muted hover:text-accent transition-colors">
@@ -364,7 +373,8 @@ export default function ProfilePage() {
     }
     const list: Extracted[] = Array.isArray(r?.projects) ? r.projects : [];
     setExtracted(list);
-    setSelected(new Set(list.map((_, i) => i)));
+    // Pre-select only the new ones; duplicates start unchecked.
+    setSelected(new Set(list.map((_, i) => i).filter((i) => !list[i].duplicate)));
     setImportMsg(t("profile.importFound").replace("{{n}}", String(list.length)).replace("{{p}}", String(r?.pagesScraped ?? 0)));
   };
 
@@ -445,13 +455,18 @@ export default function ProfilePage() {
                   className="mt-1 accent-[var(--accent)]"
                 />
                 <div className="min-w-0">
-                  <span className="text-sm font-medium text-text-primary">{e.title}</span>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="text-sm font-medium text-text-primary">{e.title}</span>
+                    {e.duplicate && <Badge color="default">{t("profile.alreadyExists")}</Badge>}
+                  </div>
                   <div className="mt-0.5 flex flex-wrap gap-x-3 text-xs text-text-muted font-mono">
                     {e.client && <span>{e.client}</span>}
                     {e.sector && <span>{e.sector}</span>}
+                    {e.projectUrl && <span className="truncate">{e.projectUrl.replace(/^https?:\/\//, "")}</span>}
                   </div>
+                  {e.description && <p className="mt-1 text-xs text-text-secondary leading-relaxed">{e.description}</p>}
                   {[e.result, e.metric].filter(Boolean).join(" · ") && (
-                    <p className="mt-1 text-xs text-text-secondary">{[e.result, e.metric].filter(Boolean).join(" · ")}</p>
+                    <p className="mt-1 text-xs text-text-primary">{[e.result, e.metric].filter(Boolean).join(" · ")}</p>
                   )}
                 </div>
               </label>

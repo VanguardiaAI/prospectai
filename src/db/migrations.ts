@@ -441,6 +441,9 @@ export function runMigrations(): void {
   safeAddColumn(`ALTER TABLE replies ADD COLUMN suggested_reply TEXT`);
   safeAddColumn(`ALTER TABLE replies ADD COLUMN suggested_reply_at TEXT`);
 
+  // Portfolio: free-form project description captured from the site.
+  safeAddColumn(`ALTER TABLE portfolio_projects ADD COLUMN description TEXT`);
+
   // Multiple agency profiles + per-campaign profile selection
   safeAddColumn(`ALTER TABLE agency_profile ADD COLUMN label TEXT`);
   safeAddColumn(`ALTER TABLE agency_profile ADD COLUMN strategy TEXT NOT NULL DEFAULT 'web_design'`);

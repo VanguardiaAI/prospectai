@@ -10,6 +10,7 @@ export interface PortfolioProjectData {
   title: string;
   client?: string | null;
   sector?: string | null;
+  description?: string | null;
   problem?: string | null;
   solution?: string | null;
   services?: string[];
@@ -35,6 +36,7 @@ export interface PortfolioProject {
   title: string;
   client: string | null;
   sector: string | null;
+  description: string | null;
   problem: string | null;
   solution: string | null;
   services: string[];
@@ -74,6 +76,7 @@ function rowToProject(r: ProjectRow): PortfolioProject {
     title: r.title,
     client: r.client ?? null,
     sector: r.sector ?? null,
+    description: r.description ?? null,
     problem: r.problem ?? null,
     solution: r.solution ?? null,
     services: parseStrArray(r.services),
@@ -101,6 +104,7 @@ function buildProjectValues(data: Partial<PortfolioProjectData>): Partial<typeof
   if (data.title !== undefined) v.title = data.title;
   if (data.client !== undefined) v.client = data.client;
   if (data.sector !== undefined) v.sector = data.sector;
+  if (data.description !== undefined) v.description = data.description;
   if (data.problem !== undefined) v.problem = data.problem;
   if (data.solution !== undefined) v.solution = data.solution;
   if (data.services !== undefined) v.services = data.services.length ? JSON.stringify(data.services) : null;

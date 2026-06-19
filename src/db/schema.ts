@@ -338,6 +338,7 @@ export const portfolioProjects = sqliteTable("portfolio_projects", {
   title: text("title").notNull(),
   client: text("client"), // client/company name (may be anonymized)
   sector: text("sector"), // industry/vertical — used for relevance matching
+  description: text("description"), // free-form project description (as written on the site)
   problem: text("problem"), // the challenge/need the client had
   solution: text("solution"), // what we built / our approach
   services: text("services"), // JSON array of service keys involved
