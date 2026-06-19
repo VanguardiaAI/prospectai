@@ -26,7 +26,11 @@ export function startScheduler() {
       const url = `${baseUrl}/api/cron?action=all`;
       await fetch(url, {
         method: "POST",
-        headers: { "x-cron-secret": cronSecret },
+        // The proxy (middleware) only accepts `Authorization: Bearer <secret>` or a
+        // session cookie for /api/cron; a bare `x-cron-secret` header is rejected
+        // there before the route runs. Send Bearer (passes the proxy AND the route);
+        // keep x-cron-secret too as a harmless fallback.
+        headers: { authorization: `Bearer ${cronSecret}`, "x-cron-secret": cronSecret },
       });
     } catch (err) {
       logger.error({ err: err instanceof Error ? err.message : err }, "[Scheduler] Cron tick failed");

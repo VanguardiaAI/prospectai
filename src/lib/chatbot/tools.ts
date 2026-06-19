@@ -533,6 +533,9 @@ const toolDefs = {
         {
           method: "POST",
           headers: {
+            // Bearer passes the proxy (middleware) AND the route; a bare
+            // x-cron-secret is rejected by the proxy. Keep both for safety.
+            authorization: `Bearer ${cronSecret}`,
             "x-cron-secret": cronSecret,
             "Content-Type": "application/json",
           },
