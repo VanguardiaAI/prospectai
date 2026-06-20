@@ -13,6 +13,7 @@ export const updateLeadSchema = z.object({
   notes: z.string().optional(),
   status: leadStatusEnum.optional(),
   campaignId: z.number().int().positive().optional(),
+  tags: z.array(z.string()).optional(),
 });
 
 export const bulkUpdateLeadsSchema = z.object({

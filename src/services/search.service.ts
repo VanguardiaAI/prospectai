@@ -44,7 +44,7 @@ export function getSearchJob(id: number) {
 }
 
 export async function startSearch(input: StartSearchInput) {
-  const { keyword, campaignId, maxDepth = 5 } = input;
+  const { keyword, campaignId, maxDepth = 12 } = input;
   const scraperUrl = getSetting("gmaps_scraper_url") || "http://localhost:8081";
 
   const formData = new URLSearchParams();
@@ -53,7 +53,7 @@ export async function startSearch(input: StartSearchInput) {
   formData.set("lang", "es");
   formData.set("depth", String(Math.min(Math.max(maxDepth, 1), 100)));
   formData.set("email", "on");
-  formData.set("maxtime", "10m");
+  formData.set("maxtime", "15m");
   formData.set("zoom", "15");
   formData.set("latitude", "0");
   formData.set("longitude", "0");

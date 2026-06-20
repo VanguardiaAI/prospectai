@@ -412,6 +412,9 @@ export function runMigrations(): void {
   };
 
   safeAddColumn(`ALTER TABLE leads ADD COLUMN wa_sent_at TEXT`);
+  // Lead classification: provenance + free-form tags (see lead CRM, Phase 2).
+  safeAddColumn(`ALTER TABLE leads ADD COLUMN source TEXT`);
+  safeAddColumn(`ALTER TABLE leads ADD COLUMN tags TEXT`);
   safeAddColumn(`ALTER TABLE emails ADD COLUMN opened_at TEXT`);
   safeAddColumn(`ALTER TABLE emails ADD COLUMN clicked_at TEXT`);
   // Conscious-override flag for the already-contacted guard (see contact-history).
@@ -421,6 +424,9 @@ export function runMigrations(): void {
   // instead of going out on the next cron tick (see lib/cron/send-schedule).
   safeAddColumn(`ALTER TABLE emails ADD COLUMN scheduled_for TEXT`);
   safeAddColumn(`ALTER TABLE whatsapp_messages ADD COLUMN scheduled_for TEXT`);
+  // Persist why a WhatsApp send failed (e.g. number not on WhatsApp) on the row
+  // itself, not just the activity log (see cron/wa-sending).
+  safeAddColumn(`ALTER TABLE whatsapp_messages ADD COLUMN error_message TEXT`);
   safeAddColumn(`ALTER TABLE email_templates ADD COLUMN channel TEXT NOT NULL DEFAULT 'email'`);
   safeAddColumn(`ALTER TABLE ab_variants ADD COLUMN channel TEXT NOT NULL DEFAULT 'email'`);
   safeAddColumn(`ALTER TABLE ab_results ADD COLUMN whatsapp_message_id INTEGER`);

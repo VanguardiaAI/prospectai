@@ -26,9 +26,9 @@ export async function startGoogleMapsSearch(
     formData.set("name", `prospectai-${Date.now()}`);
     formData.set("keywords", keyword.trim());
     formData.set("lang", "es");
-    formData.set("depth", "5");
+    formData.set("depth", "12");
     formData.set("email", "on");
-    formData.set("maxtime", "10m");
+    formData.set("maxtime", "15m");
     formData.set("zoom", "15");
     formData.set("latitude", "0");
     formData.set("longitude", "0");

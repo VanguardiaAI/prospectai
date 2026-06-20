@@ -32,7 +32,7 @@ def scrape_url(url: str) -> dict:
 
         body = response.css_first("body")
         text_content = body.text(separator=" ", strip=True) if body else ""
-        text_content = re.sub(r'\s+', ' ', text_content)[:5000]
+        text_content = re.sub(r'\s+', ' ', text_content)[:12000]
 
         # Extract emails. The TLD pattern (\.[a-zA-Z]{2,}) also matches asset
         # extensions, so filenames like `bg-info@2x.png` look like valid emails.

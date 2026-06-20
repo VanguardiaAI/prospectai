@@ -51,6 +51,10 @@ export const leads = sqliteTable("leads", {
   }).notNull().default("imported"),
   errorMessage: text("error_message"),
   notes: text("notes"),
+  // Where the lead came from: "search" (Google Maps) | "csv" | "manual".
+  source: text("source"),
+  // Free-form classification tags as a JSON array string, e.g. ["dermatólogo","CDMX"].
+  tags: text("tags"),
   // Timestamps
   importedAt: text("imported_at").notNull().default(sql`(datetime('now'))`),
   scrapedAt: text("scraped_at"),
@@ -117,6 +121,8 @@ export const whatsappMessages = sqliteTable("whatsapp_messages", {
   // Scheduled send instant (ISO-UTC). See emails.scheduledFor.
   scheduledFor: text("scheduled_for"),
   waMessageId: text("wa_message_id"),
+  // Why the last send attempt failed (e.g. "número no registrado en WhatsApp").
+  errorMessage: text("error_message"),
   sentAt: text("sent_at"),
   createdAt: text("created_at").notNull().default(sql`(datetime('now'))`),
   updatedAt: text("updated_at").notNull().default(sql`(datetime('now'))`),

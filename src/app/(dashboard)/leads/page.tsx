@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
-import { Card, Button, Input, Select, StatusBadge, QualityBar, EmptyState, Spinner, Modal, Textarea, Badge, Tooltip, ConfirmDialog } from "@/components/ui";
+import { Card, Button, Input, Select, StatusBadge, QualityBar, EmptyState, Spinner, Modal, Textarea, Tooltip, ConfirmDialog } from "@/components/ui";
 import { useToast } from "@/components/Toast";
 import { useT } from "@/i18n/LocaleProvider";
 import { Users, Upload, Download, Search, ChevronLeft, ChevronRight, ExternalLink, MapPin, Star, Phone, Mail, Globe, FileText, MessageCircle, Zap, Send, RefreshCw, Info, Activity, Trash2, ChevronDown, X } from "lucide-react";
@@ -29,6 +29,8 @@ interface Lead {
   status: string;
   errorMessage: string | null;
   notes: string | null;
+  source: string | null;
+  tags: string | null;
   importedAt: string;
   analyzedAt: string | null;
   emailSentAt: string | null;
@@ -39,6 +41,43 @@ interface Campaign {
   id: number;
   name: string;
 }
+
+interface PriorContact {
+  channel: "email" | "whatsapp";
+  campaignName: string | null;
+  status: string;
+  sentAt: string | null;
+  recipient: string;
+  matchedOn: "email" | "phone" | "domain";
+}
+
+/** Parse the JSON-array tags field into a string[] (tolerant of nulls/garbage). */
+function parseTags(tags: string | null | undefined): string[] {
+  if (!tags) return [];
+  try {
+    const arr = JSON.parse(tags);
+    return Array.isArray(arr) ? arr.map(String) : [];
+  } catch {
+    return [];
+  }
+}
+
+// Mappable lead fields for the import wizard (kept in sync with csv-importer's
+// LEAD_FIELDS; defined here because that module is server-only).
+const IMPORT_FIELDS: { key: string; label: string }[] = [
+  { key: "", label: "— Ignorar —" },
+  { key: "name", label: "Nombre" },
+  { key: "category", label: "Categoría" },
+  { key: "phone", label: "Teléfono" },
+  { key: "email", label: "Email" },
+  { key: "website", label: "Sitio web" },
+  { key: "address", label: "Dirección" },
+  { key: "city", label: "Ciudad" },
+  { key: "state", label: "Estado" },
+  { key: "rating", label: "Calificación" },
+  { key: "reviewCount", label: "Nº reseñas" },
+  { key: "googleMapsUrl", label: "URL Google Maps" },
+];
 
 interface EmailRecord {
   id: number;
@@ -123,11 +162,15 @@ function LeadsPageInner() {
   const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(true);
   const [cities, setCities] = useState<string[]>([]);
+  const [sources, setSources] = useState<string[]>([]);
+  const [allTags, setAllTags] = useState<string[]>([]);
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
   const [filters, setFilters] = useState({
     campaignId: "",
     city: searchParams.get("city") ?? "",
     status: searchParams.get("status") ?? "",
+    source: searchParams.get("source") ?? "",
+    tags: searchParams.get("tags") ?? "",
     search: searchParams.get("search") ?? "",
   });
   const [showImport, setShowImport] = useState(false);
@@ -135,9 +178,19 @@ function LeadsPageInner() {
   const [importCampaign, setImportCampaign] = useState("");
   const [importing, setImporting] = useState(false);
   const [importResult, setImportResult] = useState<string | null>(null);
+  // Import wizard (column mapping) state.
+  const [importHeaders, setImportHeaders] = useState<string[]>([]);
+  const [importMapping, setImportMapping] = useState<Record<string, string>>({});
+  const [importSample, setImportSample] = useState<Record<string, string>[]>([]);
+  const [importTotal, setImportTotal] = useState(0);
+  const [importTags, setImportTags] = useState("");
+  const [previewLoading, setPreviewLoading] = useState(false);
   const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
-  const [leadDetail, setLeadDetail] = useState<{ lead: Lead; emails: EmailRecord[]; whatsapps: WhatsappRecord[]; activity: ActivityRecord[] } | null>(null);
+  const [leadDetail, setLeadDetail] = useState<{ lead: Lead; emails: EmailRecord[]; whatsapps: WhatsappRecord[]; activity: ActivityRecord[]; priorContacts?: PriorContact[] } | null>(null);
   const [notes, setNotes] = useState("");
+  // Editable tags in the detail modal.
+  const [detailTags, setDetailTags] = useState<string[]>([]);
+  const [tagInput, setTagInput] = useState("");
   // Outreach state
   const [analyzing, setAnalyzing] = useState(false);
   const [outreachMode, setOutreachMode] = useState<"none" | "email" | "whatsapp">("none");
@@ -163,6 +216,8 @@ function LeadsPageInner() {
     if (filters.campaignId) params.set("campaignId", filters.campaignId);
     if (filters.city) params.set("city", filters.city);
     if (filters.status) params.set("status", filters.status);
+    if (filters.source) params.set("source", filters.source);
+    if (filters.tags) params.set("tags", filters.tags);
     if (filters.search) params.set("search", filters.search);
 
     const res = await fetch(`/api/leads?${params}`);
@@ -170,6 +225,8 @@ function LeadsPageInner() {
     setLeads(data.leads);
     setTotal(data.total);
     setCities(data.cities);
+    setSources(data.sources ?? []);
+    setAllTags(data.tags ?? []);
     setLoading(false);
   }, [page, filters]);
 
@@ -179,20 +236,58 @@ function LeadsPageInner() {
 
   useEffect(() => { fetchLeads(); }, [fetchLeads]);
 
+  const resetImport = () => {
+    setImportFile(null); setImportHeaders([]); setImportMapping({});
+    setImportSample([]); setImportTotal(0); setImportTags(""); setImportResult(null);
+  };
+
+  // Step 1: parse the file server-side to detect columns + suggest a mapping.
+  const loadPreview = async (file: File) => {
+    setPreviewLoading(true);
+    setImportResult(null);
+    setImportHeaders([]); setImportMapping({});
+    try {
+      const fd = new FormData();
+      fd.append("file", file);
+      fd.append("preview", "1");
+      const res = await fetch("/api/import", { method: "POST", body: fd });
+      const data = await res.json();
+      if (data.success) {
+        setImportHeaders(data.headers || []);
+        setImportMapping(data.suggestedMapping || {});
+        setImportSample(data.sample || []);
+        setImportTotal(data.total || 0);
+        if (!data.headers?.length) setImportResult("No se detectaron columnas en el archivo.");
+      } else {
+        setImportResult(`Error: ${data.error}`);
+      }
+    } catch {
+      setImportResult("Error al leer el archivo.");
+    }
+    setPreviewLoading(false);
+  };
+
+  // Step 2: import with the (possibly edited) mapping + campaign + tags.
   const handleImport = async () => {
     if (!importFile) return;
+    if (!Object.values(importMapping).includes("name")) {
+      setImportResult('Debes asignar una columna a "Nombre".');
+      return;
+    }
     setImporting(true);
     const fd = new FormData();
     fd.append("file", importFile);
     if (importCampaign) fd.append("campaignId", importCampaign);
+    if (importTags.trim()) fd.append("tags", importTags.trim());
+    fd.append("mapping", JSON.stringify(importMapping));
 
     const res = await fetch("/api/import", { method: "POST", body: fd });
     const data = await res.json();
     setImporting(false);
 
     if (data.success) {
-      setImportResult(`${t("leads.imported")}: ${data.imported} | ${t("leads.import")}: ${data.skipped} | Blacklist: ${data.blacklisted} | Dup: ${data.duplicates ?? 0}`);
-      toast(`${data.imported} leads ${t("leads.imported").toLowerCase()}`, "success");
+      setImportResult(`Importados: ${data.imported} · Omitidos: ${data.skipped} · Blacklist: ${data.blacklisted} · Duplicados: ${data.duplicates ?? 0}`);
+      toast(`${data.imported} leads importados`, "success");
       fetchLeads();
     } else {
       setImportResult(`Error: ${data.error}`);
@@ -203,13 +298,36 @@ function LeadsPageInner() {
   const openDetail = async (lead: Lead) => {
     setSelectedLead(lead);
     setNotes(lead.notes || "");
+    setDetailTags(parseTags(lead.tags));
+    setTagInput("");
     setOutreachMode("none");
     setOutreachResult(null);
     const res = await fetch(`/api/leads/${lead.id}`);
     const detail = await res.json();
     setLeadDetail(detail);
     setSelectedLead(detail.lead); // refresh with latest data
+    setDetailTags(parseTags(detail.lead.tags));
   };
+
+  const saveTags = async (tags: string[]) => {
+    if (!selectedLead) return;
+    setDetailTags(tags);
+    await fetch("/api/leads", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id: selectedLead.id, tags }),
+    });
+    setLeads(prev => prev.map(l => l.id === selectedLead.id ? { ...l, tags: tags.length ? JSON.stringify(tags) : null } : l));
+  };
+
+  const addTag = () => {
+    const v = tagInput.trim();
+    if (!v || detailTags.includes(v)) { setTagInput(""); return; }
+    saveTags([...detailTags, v]);
+    setTagInput("");
+  };
+
+  const removeTag = (tag: string) => saveTags(detailTags.filter(x => x !== tag));
 
   const saveNotes = async () => {
     if (!selectedLead) return;
@@ -286,6 +404,36 @@ function LeadsPageInner() {
     setBulkAnalyzing(false);
     setBulkProgress({ done: 0, total: 0 });
     fetchLeads();
+  };
+
+  // Re-analyze the SELECTED leads (even if already analyzed) — refreshes the
+  // stored analysis with the current truthful prompt. Costs AI per lead.
+  const bulkReanalyze = async () => {
+    const targets = leads.filter(l => selectedIds.has(l.id) && l.website);
+    if (targets.length === 0) {
+      toast("Ningún lead seleccionado tiene sitio web para analizar", "error");
+      return;
+    }
+    setBulkAnalyzing(true);
+    setBulkProgress({ done: 0, total: targets.length });
+    for (let i = 0; i < targets.length; i++) {
+      setBulkProgress({ done: i, total: targets.length });
+      try {
+        const r = await fetch(`/api/leads/${targets[i].id}/outreach`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ action: "analyze" }),
+        });
+        const d = await r.json();
+        if (d.success) setLeads(prev => prev.map(l => l.id === targets[i].id ? d.lead : l));
+      } catch { /* continue with next */ }
+      setBulkProgress({ done: i + 1, total: targets.length });
+    }
+    setBulkAnalyzing(false);
+    setBulkProgress({ done: 0, total: 0 });
+    setSelectedIds(new Set());
+    fetchLeads();
+    toast(`${targets.length} leads re-analizados`, "success");
   };
 
   // Bulk operations
@@ -484,6 +632,20 @@ function LeadsPageInner() {
                 <option value="error">{t("leads.error")}</option>
               </Select>
             </div>
+            <div className="w-32">
+              <label className="nd-label block mb-2">Origen</label>
+              <Select value={filters.source} onChange={(e) => { setFilters({ ...filters, source: e.target.value }); setPage(1); }}>
+                <option value="">Todos</option>
+                {sources.map(s => <option key={s} value={s}>{s === "search" ? "Búsqueda" : s === "csv" ? "Importado" : s === "manual" ? "Manual" : s}</option>)}
+              </Select>
+            </div>
+            <div className="w-36">
+              <label className="nd-label block mb-2">Etiqueta</label>
+              <Select value={filters.tags} onChange={(e) => { setFilters({ ...filters, tags: e.target.value }); setPage(1); }}>
+                <option value="">Todas</option>
+                {allTags.map(tg => <option key={tg} value={tg}>{tg}</option>)}
+              </Select>
+            </div>
           </div>
         </Card>
       </div>
@@ -545,6 +707,13 @@ function LeadsPageInner() {
                     <td>
                       <div className="text-sm text-text-primary">{lead.name}</div>
                       <div className="text-[10px] text-text-muted font-mono uppercase tracking-wider mt-0.5">{lead.category}</div>
+                      {parseTags(lead.tags).length > 0 && (
+                        <div className="flex flex-wrap gap-1 mt-1">
+                          {parseTags(lead.tags).slice(0, 3).map(tg => (
+                            <span key={tg} className="text-[9px] font-mono px-1.5 py-0.5 rounded-full border border-border-light text-text-secondary">{tg}</span>
+                          ))}
+                        </div>
+                      )}
                     </td>
                     <td className="text-sm text-text-secondary">{lead.city || "—"}</td>
                     <td><Tooltip text={t("leads.qualityTooltip")}><QualityBar score={lead.webQualityScore} size="sm" /></Tooltip></td>
@@ -606,6 +775,13 @@ function LeadsPageInner() {
           <span className="text-sm text-text-primary font-medium whitespace-nowrap">{selectedIds.size} {t("common.selected")}</span>
           <div className="w-px h-6 bg-border" />
 
+          {/* Re-analizar seleccionados */}
+          <Button size="sm" variant="secondary" onClick={bulkReanalyze} disabled={bulkAnalyzing}>
+            {bulkAnalyzing
+              ? <><RefreshCw className="h-3.5 w-3.5 animate-spin" strokeWidth={1.5} /> {bulkProgress.done}/{bulkProgress.total}</>
+              : <><Zap className="h-3.5 w-3.5 text-accent" strokeWidth={1.5} /> Re-analizar</>}
+          </Button>
+
           {/* Cambiar estado */}
           <div className="relative">
             <Button size="sm" variant="secondary" onClick={() => { setShowStatusDropdown(v => !v); setShowCampaignDropdown(false); }}>
@@ -665,27 +841,80 @@ function LeadsPageInner() {
         variant="danger"
       />
 
-      {/* Import Modal */}
-      <Modal open={showImport} onClose={() => setShowImport(false)} title={t("leads.importCsv")}>
+      {/* Import Modal (wizard: file → column mapping → campaign/tags) */}
+      <Modal open={showImport} onClose={() => { setShowImport(false); resetImport(); }} title="Importar leads (CSV o Excel)" maxWidth="max-w-2xl">
         <div className="space-y-5">
+          {/* Step 1: file */}
           <div>
-            <label className="nd-label block mb-2">{t("leads.csvFile")}</label>
-            <Input type="file" accept=".csv" onChange={(e) => setImportFile(e.target.files?.[0] || null)} />
+            <label className="nd-label block mb-2">Archivo (.csv, .tsv, .xlsx)</label>
+            <Input
+              type="file"
+              accept=".csv,.tsv,.xlsx,.xls"
+              onChange={(e) => {
+                const f = e.target.files?.[0] || null;
+                setImportFile(f);
+                if (f) loadPreview(f);
+              }}
+            />
+            {previewLoading && <p className="text-[11px] font-mono text-text-muted mt-2">Leyendo archivo…</p>}
           </div>
-          <div>
-            <label className="nd-label block mb-2">{t("leads.campaignOptional")}</label>
-            <Select value={importCampaign} onChange={(e) => setImportCampaign(e.target.value)}>
-              <option value="">{t("leads.noCampaign")}</option>
-              {campaigns.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-            </Select>
-          </div>
-          {importResult && (
-            <p className={`text-[11px] font-mono ${importResult.includes("Error") ? "text-accent" : "text-success"}`}>{importResult}</p>
+
+          {/* Step 2: column mapping + classification */}
+          {importHeaders.length > 0 && (
+            <>
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <label className="nd-label">Asigna las columnas</label>
+                  <span className="text-[10px] font-mono text-text-muted">{importTotal} filas</span>
+                </div>
+                <div className="border border-border rounded-lg divide-y divide-border max-h-64 overflow-y-auto">
+                  {importHeaders.map((h) => (
+                    <div key={h} className="flex items-center gap-3 px-3 py-2">
+                      <div className="flex-1 min-w-0">
+                        <div className="text-sm text-text-primary truncate" title={h}>{h}</div>
+                        {importSample[0]?.[h] && (
+                          <div className="text-[10px] font-mono text-text-muted truncate" title={importSample[0][h]}>
+                            ej. {importSample[0][h]}
+                          </div>
+                        )}
+                      </div>
+                      <div className="w-44 flex-shrink-0">
+                        <Select
+                          value={importMapping[h] ?? ""}
+                          onChange={(e) => setImportMapping({ ...importMapping, [h]: e.target.value })}
+                        >
+                          {IMPORT_FIELDS.map(f => <option key={f.key} value={f.key}>{f.label}</option>)}
+                        </Select>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="nd-label block mb-2">Campaña (opcional)</label>
+                  <Select value={importCampaign} onChange={(e) => setImportCampaign(e.target.value)}>
+                    <option value="">Sin campaña</option>
+                    {campaigns.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                  </Select>
+                </div>
+                <div>
+                  <label className="nd-label block mb-2">Etiquetas (separadas por coma)</label>
+                  <Input value={importTags} onChange={(e) => setImportTags(e.target.value)} placeholder="dermatólogo, CDMX" />
+                </div>
+              </div>
+            </>
           )}
+
+          {importResult && (
+            <p className={`text-[11px] font-mono ${importResult.includes("Error") || importResult.includes("Debes") ? "text-accent" : "text-success"}`}>{importResult}</p>
+          )}
+
           <div className="flex justify-end gap-3 pt-2">
-            <Button variant="secondary" size="sm" onClick={() => setShowImport(false)}>{t("common.cancel")}</Button>
-            <Button size="sm" onClick={handleImport} disabled={!importFile || importing}>
-              {importing ? t("common.importing") : t("leads.import")}
+            <Button variant="secondary" size="sm" onClick={() => { setShowImport(false); resetImport(); }}>{t("common.cancel")}</Button>
+            <Button size="sm" onClick={handleImport} disabled={!importFile || importing || importHeaders.length === 0}>
+              {importing ? t("common.importing") : "Importar"}
             </Button>
           </div>
         </div>
@@ -726,6 +955,57 @@ function LeadsPageInner() {
               <div><StatusBadge status={selectedLead.status} /></div>
             </div>
 
+            {/* Clasificación: origen + etiquetas editables */}
+            <div className="border border-border rounded-lg px-4 py-3 space-y-3">
+              <div className="flex items-center justify-between">
+                <span className="nd-label">Clasificación</span>
+                {selectedLead.source && (
+                  <span className="text-[10px] font-mono uppercase tracking-wider text-text-muted">
+                    Origen: {selectedLead.source === "search" ? "Búsqueda" : selectedLead.source === "csv" ? "Importado" : selectedLead.source}
+                  </span>
+                )}
+              </div>
+              <div className="flex flex-wrap items-center gap-2">
+                {detailTags.map(tg => (
+                  <span key={tg} className="inline-flex items-center gap-1 text-[11px] font-mono px-2 py-0.5 rounded-full border border-border-light text-text-secondary">
+                    {tg}
+                    <button onClick={() => removeTag(tg)} className="text-text-muted hover:text-accent transition-colors" title="Quitar etiqueta">
+                      <X className="h-3 w-3" strokeWidth={1.5} />
+                    </button>
+                  </span>
+                ))}
+                {detailTags.length === 0 && <span className="text-[11px] text-text-muted">Sin etiquetas</span>}
+              </div>
+              <div className="flex gap-2">
+                <Input
+                  value={tagInput}
+                  onChange={(e) => setTagInput(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addTag(); } }}
+                  placeholder="Añadir etiqueta y Enter"
+                />
+                <Button size="sm" variant="secondary" onClick={addTag} disabled={!tagInput.trim()}>Añadir</Button>
+              </div>
+            </div>
+
+            {/* Contacto previo (misma empresa en otra campaña) */}
+            {leadDetail?.priorContacts && leadDetail.priorContacts.length > 0 && (
+              <div className="border border-warning/30 rounded-lg px-4 py-3 bg-warning-subtle">
+                <span className="nd-label block mb-2 text-warning">Ya contactado antes</span>
+                <div className="space-y-1.5">
+                  {leadDetail.priorContacts.map((pc, i) => (
+                    <div key={i} className="text-[11px] text-text-secondary flex flex-wrap items-center gap-x-2">
+                      <span className="font-mono uppercase tracking-wider text-text-muted">{pc.channel === "email" ? "Email" : "WhatsApp"}</span>
+                      <span>·</span>
+                      <span className="text-text-primary">{pc.campaignName || "Sin campaña"}</span>
+                      <span>·</span>
+                      <span>{pc.status === "sent" ? "enviado" : pc.status}{pc.sentAt ? ` (${pc.sentAt.split("T")[0]})` : ""}</span>
+                      <span className="text-text-muted">— coincide por {pc.matchedOn === "email" ? "email" : pc.matchedOn === "phone" ? "teléfono" : "dominio"}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
             {/* Scores */}
             <div className="grid grid-cols-2 gap-4">
               <div className="border border-border rounded-lg px-4 py-3">
@@ -739,10 +1019,21 @@ function LeadsPageInner() {
             </div>
 
             {/* Analysis */}
-            {selectedLead.analysisSummary && (
+            {(selectedLead.analysisSummary || (isAnalyzed(selectedLead) && selectedLead.website)) && (
               <div className="border border-border rounded-lg px-4 py-3">
-                <span className="nd-label block mb-2">{t("review.analysis")}</span>
-                <p className="text-sm text-text-primary leading-relaxed">{selectedLead.analysisSummary}</p>
+                <div className="flex items-center justify-between mb-2">
+                  <span className="nd-label">{t("review.analysis")}</span>
+                  {isAnalyzed(selectedLead) && selectedLead.website && (
+                    <Button size="sm" variant="secondary" onClick={analyzeLead} disabled={analyzing}>
+                      {analyzing
+                        ? <><RefreshCw className="h-3 w-3 animate-spin" strokeWidth={1.5} /> {t("leads.analyzing")}</>
+                        : <><RefreshCw className="h-3 w-3" strokeWidth={1.5} /> Re-analizar</>}
+                    </Button>
+                  )}
+                </div>
+                {selectedLead.analysisSummary
+                  ? <p className="text-sm text-text-primary leading-relaxed">{selectedLead.analysisSummary}</p>
+                  : <p className="text-[11px] text-text-muted">Sin resumen guardado. Pulsa Re-analizar para generar un análisis nuevo y veraz de la web.</p>}
               </div>
             )}
 

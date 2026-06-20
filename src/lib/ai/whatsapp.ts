@@ -1,6 +1,7 @@
 import { getAgencyContext, getLocaleLabel, getLocaleWritingRules, SERVICE_DEFINITIONS, formatAgencyContextBlock } from "./config";
 import { generateStructured } from "./provider";
 import { withRetry } from "@/lib/ai/retry";
+import { sanitizeIssues } from "@/lib/lead-quality";
 import { GEMINI_MAX_RETRIES, GEMINI_BASE_DELAY_MS } from "@/lib/constants";
 import {
   formatWhatsAppExamples,
@@ -44,8 +45,8 @@ export async function generateWhatsApp(
     ? `\nANÁLISIS DE PRESENCIA DIGITAL:
 - Score web: ${analysis.qualityScore}/100
 - Score SEO: ${analysis.seoScore ?? "N/A"}/100
-- Issues: ${analysis.issues.join(", ")}
-- Oportunidades SEO: ${(analysis.seoIssues || []).join(", ")}
+- Issues: ${sanitizeIssues(analysis.issues).join(", ")}
+- Oportunidades SEO: ${sanitizeIssues(analysis.seoIssues).join(", ")}
 - Oportunidades IA: ${(analysis.aiAgentOpportunities || []).join(", ")}
 - Servicios recomendados: ${(analysis.recommendedServices || []).map((k) => SERVICE_DEFINITIONS[k]?.label || k).join(", ")}
 - Resumen: ${analysis.summary}`

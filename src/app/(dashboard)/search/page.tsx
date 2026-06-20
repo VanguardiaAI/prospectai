@@ -4,6 +4,8 @@ import { useEffect, useState, useCallback, useRef } from "react";
 import { Card, Button, Input, Select, EmptyState, Spinner, Badge } from "@/components/ui";
 import { useT } from "@/i18n/LocaleProvider";
 import { Search, MapPin, Star, Globe, Check, Clock, ExternalLink } from "lucide-react";
+import { classifyLead, hasContactEmail, type LeadQuality } from "@/lib/lead-quality";
+import { WhatsAppIcon } from "@/components/icons/Brands";
 
 interface Campaign {
   id: number;
@@ -39,11 +41,31 @@ interface JobWithResults extends SearchJob {
   results: PlaceResult[] | null;
 }
 
+/** Reachability classification for a raw Google Maps result (see lead-quality). */
+function classifyPlace(p: PlaceResult): LeadQuality {
+  return classifyLead({
+    name: p.title,
+    category: p.category,
+    website: p.website,
+    emails: p.emails,
+    phone: p.phone,
+  });
+}
+
+/** Indices of the results we pre-select for import (only "good" tier). */
+function goodIndices(results: PlaceResult[]): Set<number> {
+  const s = new Set<number>();
+  results.forEach((p, i) => {
+    if (classifyPlace(p).tier === "good") s.add(i);
+  });
+  return s;
+}
+
 export default function SearchPage() {
   const { t } = useT();
   const [keyword, setKeyword] = useState("");
   const [campaignId, setCampaignId] = useState("");
-  const [maxDepth, setMaxDepth] = useState(5);
+  const [maxDepth, setMaxDepth] = useState(12);
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -62,6 +84,8 @@ export default function SearchPage() {
   const [filterRating, setFilterRating] = useState("all");
   const [filterWebsite, setFilterWebsite] = useState("all");
   const [filterEmail, setFilterEmail] = useState("all");
+  const [filterQuality, setFilterQuality] = useState("all"); // all | good
+  const [showDiscarded, setShowDiscarded] = useState(false); // reveal government + hidden leads
 
   // Job history
   const [history, setHistory] = useState<SearchJob[]>([]);
@@ -133,9 +157,10 @@ export default function SearchPage() {
           setPolling(false);
           fetchHistory();
 
-          // Auto-select all results
+          // Pre-select only the recommended ("good") leads — government is
+          // excluded and hospitals/low-reachability leads are left unselected.
           if (job.results) {
-            setSelected(new Set(job.results.map((_, i) => i)));
+            setSelected(goodIndices(job.results));
           }
         }
       } catch {
@@ -166,8 +191,8 @@ export default function SearchPage() {
 
   const toggleSelectAll = () => {
     if (!activeJob?.results) return;
-    const filteredIndices = filteredWithIndex.map((f) => f.originalIndex);
-    const allFilteredSelected = filteredIndices.every((i) => selected.has(i));
+    const filteredIndices = selectableIndices;
+    const allFilteredSelected = filteredIndices.length > 0 && filteredIndices.every((i) => selected.has(i));
     if (allFilteredSelected) {
       setSelected((prev) => {
         const next = new Set(prev);
@@ -221,7 +246,7 @@ export default function SearchPage() {
       const data = await res.json();
       setActiveJob(data.job);
       if (data.job.results) {
-        setSelected(new Set(data.job.results.map((_: PlaceResult, i: number) => i)));
+        setSelected(goodIndices(data.job.results));
       }
     } else if (job.status === "pending" || job.status === "running") {
       setActiveJob({ ...job, results: null } as JobWithResults);
@@ -233,34 +258,43 @@ export default function SearchPage() {
 
   const allResults = activeJob?.results || [];
 
-  // Apply client-side filters
-  const filteredResults = allResults.filter((place) => {
-    // Rating filter
-    if (filterRating !== "all") {
-      const rating = parseFloat(place.review_rating || "0");
-      const minRating = parseFloat(filterRating);
-      if (rating < minRating) return false;
-    }
-    // Website filter
-    if (filterWebsite === "with" && !place.website) return false;
-    if (filterWebsite === "without" && place.website) return false;
-    // Email filter
-    if (filterEmail !== "all") {
-      const hasEmailValue = (() => {
-        if (!place.emails || place.emails === "[]") return false;
-        try { const arr = JSON.parse(place.emails); return arr.length > 0 && !!arr[0]; } catch { return place.emails.includes("@"); }
-      })();
-      if (filterEmail === "with" && !hasEmailValue) return false;
-      if (filterEmail === "without" && hasEmailValue) return false;
-    }
-    return true;
-  });
+  // Classify every result once (reachability tier, phone/email signals).
+  // React Compiler (Next 16) memoizes these derived values automatically.
+  const qualities = allResults.map(classifyPlace);
 
-  // Map filtered results back to their original indices for selection tracking
-  const filteredWithIndex = filteredResults.map((place) => ({
-    place,
-    originalIndex: allResults.indexOf(place),
-  }));
+  // How many results carry a real contact email (drives the low-yield hint).
+  const emailYield = allResults.reduce((n, p) => (hasContactEmail(p.emails) ? n + 1 : n), 0);
+
+  // Apply client-side filters, then sort best-first by reachability.
+  const filteredWithIndex = allResults
+    .map((place, originalIndex) => ({ place, originalIndex, quality: qualities[originalIndex] }))
+    .filter(({ place, quality }) => {
+      // Hide government + hidden-by-default leads unless "show discarded" is on.
+      const discarded = quality.tier === "excluded" || quality.hiddenByDefault;
+      if (discarded && !showDiscarded) return false;
+      if (filterQuality === "good" && quality.tier !== "good") return false;
+      // Rating filter
+      if (filterRating !== "all") {
+        const rating = parseFloat(place.review_rating || "0");
+        if (rating < parseFloat(filterRating)) return false;
+      }
+      // Website filter
+      if (filterWebsite === "with" && !place.website) return false;
+      if (filterWebsite === "without" && place.website) return false;
+      // Email filter
+      if (filterEmail !== "all") {
+        const withEmail = hasContactEmail(place.emails);
+        if (filterEmail === "with" && !withEmail) return false;
+        if (filterEmail === "without" && withEmail) return false;
+      }
+      return true;
+    })
+    .sort((a, b) => b.quality.reachabilityScore - a.quality.reachabilityScore);
+
+  // Selectable = everything shown except government (the server hard-skips it).
+  const selectableIndices = filteredWithIndex
+    .filter((f) => f.quality.tier !== "excluded")
+    .map((f) => f.originalIndex);
 
   return (
     <div>
@@ -415,15 +449,36 @@ export default function SearchPage() {
                 <option value="without">{t("search.withoutEmail")}</option>
               </Select>
             </div>
+            <div className="w-36">
+              <label className="nd-label block mb-2">Calidad</label>
+              <Select value={filterQuality} onChange={(e) => setFilterQuality(e.target.value)}>
+                <option value="all">Todas</option>
+                <option value="good">Recomendados</option>
+              </Select>
+            </div>
+            <div className="ml-auto">
+              <Button variant="secondary" size="sm" onClick={() => setShowDiscarded((v) => !v)}>
+                {showDiscarded ? "Ocultar descartados" : "Mostrar descartados"}
+              </Button>
+            </div>
           </div>
+
+          {/* Low email-yield hint */}
+          {emailYield < 5 && (
+            <div className="mb-4 border border-warning/30 rounded-lg px-4 py-2.5 bg-warning-subtle">
+              <span className="text-[11px] font-mono text-warning">
+                Solo {emailYield} resultado{emailYield === 1 ? "" : "s"} con email. Sube la profundidad de búsqueda o prueba otra zona o palabra clave para conseguir al menos 5 contactos con correo.
+              </span>
+            </div>
+          )}
 
           {/* Results header */}
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-3">
               <span className="nd-label">
-                {filteredResults.length === allResults.length
+                {filteredWithIndex.length === allResults.length
                   ? `${allResults.length} ${t("common.results")}`
-                  : `${filteredResults.length} ${t("common.of")} ${allResults.length} ${t("common.results")}`}
+                  : `${filteredWithIndex.length} ${t("common.of")} ${allResults.length} ${t("common.results")}`}
               </span>
               <button
                 className="text-[10px] font-mono text-accent hover:text-text-display transition-colors uppercase tracking-wider"
@@ -458,26 +513,33 @@ export default function SearchPage() {
                   <th>{t("search.address")}</th>
                   <th>{t("search.rating")}</th>
                   <th>{t("common.phone")}</th>
+                  <th>WhatsApp</th>
                   <th>{t("search.web")}</th>
                   <th>{t("common.email")}</th>
+                  <th>Calidad</th>
                   <th style={{ width: 32 }}></th>
                 </tr>
               </thead>
               <tbody>
-                {filteredWithIndex.map(({ place, originalIndex }) => (
+                {filteredWithIndex.map(({ place, originalIndex, quality }) => {
+                  const selectable = quality.tier !== "excluded";
+                  const isSelected = selected.has(originalIndex);
+                  return (
                   <tr
                     key={originalIndex}
-                    className={`cursor-pointer ${selected.has(originalIndex) ? "bg-bg-tertiary/30" : ""}`}
-                    onClick={() => toggleSelect(originalIndex)}
+                    className={`${selectable ? "cursor-pointer" : "opacity-50"} ${isSelected ? "bg-bg-tertiary/30" : ""}`}
+                    onClick={() => selectable && toggleSelect(originalIndex)}
                   >
                     <td>
-                      <div className={`w-4 h-4 rounded border flex items-center justify-center transition-colors ${
-                        selected.has(originalIndex)
-                          ? "border-accent bg-accent"
-                          : "border-border"
-                      }`}>
-                        {selected.has(originalIndex) && <Check className="h-3 w-3 text-bg-primary" strokeWidth={2} />}
-                      </div>
+                      {selectable ? (
+                        <div className={`w-4 h-4 rounded border flex items-center justify-center transition-colors ${
+                          isSelected ? "border-accent bg-accent" : "border-border"
+                        }`}>
+                          {isSelected && <Check className="h-3 w-3 text-bg-primary" strokeWidth={2} />}
+                        </div>
+                      ) : (
+                        <span className="text-[11px] text-text-muted">—</span>
+                      )}
                     </td>
                     <td>
                       <div className="text-sm text-text-primary">{place.title || "—"}</div>
@@ -506,6 +568,15 @@ export default function SearchPage() {
                       {place.phone || "—"}
                     </td>
                     <td>
+                      {!place.phone ? (
+                        <span className="text-[11px] text-text-muted">—</span>
+                      ) : quality.whatsappLikely ? (
+                        <WhatsAppIcon size={14} className="text-success" />
+                      ) : (
+                        <span className="text-[10px] font-mono uppercase tracking-wider text-text-muted" title="Teléfono fijo: probablemente sin WhatsApp">Fijo</span>
+                      )}
+                    </td>
+                    <td>
                       {place.website ? (
                         <Globe className="h-3.5 w-3.5 text-success" strokeWidth={1.5} />
                       ) : (
@@ -517,6 +588,15 @@ export default function SearchPage() {
                         if (!place.emails || place.emails === "[]") return "—";
                         try { const arr = JSON.parse(place.emails); return arr[0] || "—"; } catch { return place.emails.includes("@") ? place.emails : "—"; }
                       })()}
+                    </td>
+                    <td title={quality.reasons.join(" · ")}>
+                      {quality.tier === "good" ? (
+                        <Badge color="success" dot>Recomendado</Badge>
+                      ) : quality.tier === "excluded" ? (
+                        <Badge color="danger" dot>Descartado</Badge>
+                      ) : (
+                        <Badge color="default" dot>Baja prioridad</Badge>
+                      )}
                     </td>
                     <td>
                       {place.link && (
@@ -531,7 +611,8 @@ export default function SearchPage() {
                       )}
                     </td>
                   </tr>
-                ))}
+                  );
+                })}
               </tbody>
             </table>
           </div>

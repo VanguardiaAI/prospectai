@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/db";
 import { searchJobs, leads, blacklist, jobQueue } from "@/db/schema";
-import { eq } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import { logActivity } from "@/lib/activity";
 import { validateBody, importSearchResultsSchema } from "@/lib/validations";
-import { isContactEmail } from "@/lib/scraper";
+import { classifyLead, extractDomain, parseEmailsField } from "@/lib/lead-quality";
 
 interface PlaceResult {
   title?: string;
@@ -51,33 +51,6 @@ function extractCityState(completeAddress: string | undefined, plainAddress: str
   return { city: null, state: null };
 }
 
-function parseEmails(emailsStr: string | undefined): string[] {
-  if (!emailsStr || emailsStr === "[]") return [];
-  let candidates: string[] = [];
-  try {
-    // Could be a JSON array string like ["email@example.com"]
-    const parsed = JSON.parse(emailsStr);
-    if (Array.isArray(parsed)) candidates = parsed.map(String);
-    else if (typeof parsed === "string") candidates = [parsed];
-  } catch {
-    // Could be comma-separated or a single email
-    candidates = [emailsStr];
-  }
-  // The Google Maps scraper emits emails from the same loose regex our own scraper
-  // used to, so a single field can hold several addresses joined by commas AND
-  // asset filenames like `bg-info@2x.png`. Split on separators and drop anything
-  // that isn't a real contact address (see isContactEmail) before it reaches
-  // leads.email — otherwise those false positives become the lead's send target.
-  return [
-    ...new Set(
-      candidates
-        .flatMap((c) => c.split(/[\s,;]+/))
-        .map((e) => e.trim())
-        .filter((e) => e.includes("@") && isContactEmail(e))
-    ),
-  ];
-}
-
 // POST: Import selected results as leads
 export async function POST(
   req: NextRequest,
@@ -112,9 +85,23 @@ export async function POST(
     const blacklisted = db.select().from(blacklist).all();
     const blacklistSet = new Set(blacklisted.map((b) => b.value.toLowerCase()));
 
+    // Existing leads — avoid re-importing the same business on a repeated search
+    // (dedup by name+city / phone / website, same logic as the CSV importer).
+    const existingLeads = db.select({
+      name: sql<string>`lower(${leads.name})`,
+      city: sql<string>`lower(coalesce(${leads.city}, ''))`,
+      phone: leads.phone,
+      website: sql<string>`lower(coalesce(${leads.website}, ''))`,
+    }).from(leads).all();
+    const dupeNameCity = new Set(existingLeads.map((l) => `${l.name}||${l.city}`));
+    const dupePhone = new Set(existingLeads.filter((l) => l.phone).map((l) => l.phone!));
+    const dupeWebsite = new Set(existingLeads.filter((l) => l.website).map((l) => l.website));
+
     let imported = 0;
     let skippedBlacklist = 0;
     let skippedNoName = 0;
+    let skippedGovernment = 0;
+    let skippedDuplicate = 0;
 
     for (const place of toImport) {
       if (!place.title) {
@@ -122,22 +109,32 @@ export async function POST(
         continue;
       }
 
-      // Check blacklist
-      let domain: string | null = null;
-      if (place.website) {
-        try {
-          const url = place.website.startsWith("http") ? place.website : `https://${place.website}`;
-          domain = new URL(url).hostname.replace("www.", "");
-        } catch { /* invalid URL */ }
+      const domain = extractDomain(place.website);
+      const emails = parseEmailsField(place.emails);
+      const email = emails[0] || null;
+
+      // Hard-skip government sites/orgs regardless of what the user selected: no
+      // sale is possible and the address is a generic switchboard. Hospitals and
+      // other "low" leads are NOT skipped here — if the user explicitly selected
+      // them they get imported (the UI just doesn't pre-select them).
+      const quality = classifyLead({
+        name: place.title,
+        category: place.category,
+        website: place.website,
+        domain,
+        emails: place.emails,
+        phone: place.phone,
+      });
+      if (quality.tier === "excluded") {
+        skippedGovernment++;
+        continue;
       }
 
+      // Check blacklist (domain or email)
       if (domain && blacklistSet.has(domain)) {
         skippedBlacklist++;
         continue;
       }
-
-      const emails = parseEmails(place.emails);
-      const email = emails[0] || null;
       if (email && blacklistSet.has(email.toLowerCase())) {
         skippedBlacklist++;
         continue;
@@ -145,6 +142,22 @@ export async function POST(
 
       // Extract city and state from complete_address (real Google Maps data)
       const { city, state } = extractCityState(place.complete_address, place.address);
+
+      // Skip businesses already in the lead list so a repeated search doesn't
+      // create duplicates (also dedups within this same batch).
+      const nameKey = `${place.title.toLowerCase()}||${(city || "").toLowerCase()}`;
+      const websiteLower = (place.website || "").toLowerCase();
+      if (
+        dupeNameCity.has(nameKey) ||
+        (place.phone && dupePhone.has(place.phone)) ||
+        (websiteLower && dupeWebsite.has(websiteLower))
+      ) {
+        skippedDuplicate++;
+        continue;
+      }
+      dupeNameCity.add(nameKey);
+      if (place.phone) dupePhone.add(place.phone);
+      if (websiteLower) dupeWebsite.add(websiteLower);
 
       const lead = db.insert(leads).values({
         campaignId: campaignId || null,
@@ -159,6 +172,7 @@ export async function POST(
         rating: place.review_rating ? parseFloat(place.review_rating) : null,
         reviewCount: place.review_count ? parseInt(place.review_count) : null,
         googleMapsUrl: place.link || null,
+        source: "search",
         status: "imported",
       }).returning().get();
 
@@ -174,9 +188,9 @@ export async function POST(
       imported++;
     }
 
-    logActivity("import", `Importados ${imported} negocios desde búsqueda "${job.keyword}" (${skippedBlacklist} en blacklist, ${skippedNoName} sin nombre)`, {
+    logActivity("import", `Importados ${imported} negocios desde búsqueda "${job.keyword}" (${skippedGovernment} de gobierno, ${skippedDuplicate} duplicados, ${skippedBlacklist} en blacklist, ${skippedNoName} sin nombre)`, {
       campaignId: campaignId || undefined,
-      metadata: { searchJobId: jobId, imported, skippedBlacklist, skippedNoName, total: toImport.length },
+      metadata: { searchJobId: jobId, imported, skippedGovernment, skippedDuplicate, skippedBlacklist, skippedNoName, total: toImport.length },
       messageKey: "activityLog.importedFromSearch",
       messageVars: { count: imported, keyword: job.keyword },
     });
@@ -184,6 +198,8 @@ export async function POST(
     return NextResponse.json({
       success: true,
       imported,
+      skippedGovernment,
+      skippedDuplicate,
       skippedBlacklist,
       skippedNoName,
       total: toImport.length,

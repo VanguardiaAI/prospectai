@@ -266,7 +266,8 @@ export function getLocaleWritingRules(country: string): string {
 - NUNCA uses signo de interrogación de apertura (¿) en mensajes de WhatsApp. En WhatsApp nadie lo usa, queda robótico. Solo usa el de cierre (?). En emails sí puedes usarlo si la región lo requiere.
 - Preséntate SIEMPRE como una persona real: "Soy [nombre], de [empresa]". NUNCA digas "Soy [empresa]" ni te presentes como si fueras la empresa misma.
 - Escribe de forma natural y humana. Evita construcciones rígidas o que suenen a copy publicitario.
-- SIEMPRE conecta cualquier problema detectado con un IMPACTO DE NEGOCIO concreto: pérdida de clientes, menos ventas, peor visibilidad, etc. NUNCA listes problemas técnicos sin explicar qué pierde el negocio por eso.`;
+- SIEMPRE conecta cualquier problema detectado con un IMPACTO DE NEGOCIO concreto: pérdida de clientes, menos ventas, peor visibilidad, etc. NUNCA listes problemas técnicos sin explicar qué pierde el negocio por eso.
+- NUNCA afirmes que el sitio web está caído, roto, incompleto, "a medias", sin terminar, en construcción, feo o que "se ve cortado": no lo has visto renderizado, solo tienes señales técnicas automáticas. Menciona únicamente hechos verificables (SEO, falta de meta descripción, sin versión móvil, pocas reseñas, ausencia de sitio web, etc.). Si no hay un problema claro y verificable, enfoca el mensaje en oportunidades de mejora, nunca en defectos inventados.`;
 
   const regional: Record<string, string> = {
     ES: `- Región: España. Usa "tú" y "vosotros" de forma natural.

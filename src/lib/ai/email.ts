@@ -1,6 +1,7 @@
 import { getAgencyContext, getLocaleLabel, getLocaleWritingRules, formatAgencyContextBlock } from "./config";
 import { generateStructured } from "./provider";
 import { withRetry } from "@/lib/ai/retry";
+import { sanitizeIssues } from "@/lib/lead-quality";
 import { GEMINI_MAX_RETRIES, GEMINI_BASE_DELAY_MS } from "@/lib/constants";
 import {
   formatEmailExamples,
@@ -50,10 +51,15 @@ export async function generateEmail(
     .map((s) => `- ${s!.label}: ${s!.description}`)
     .join("\n");
 
-  // Build issue context from all analysis angles
+  // Build issue context from all analysis angles. sanitizeIssues strips any
+  // unverifiable "site is broken/cut off/incomplete" claim — including from
+  // analyses stored BEFORE the anti-hallucination fix (read straight from
+  // leads.analysisJson here), so old leads never leak the lie into new copy.
+  const webIssues = sanitizeIssues(analysis.issues);
+  const seoIssues = sanitizeIssues(analysis.seoIssues);
   const issueContext: string[] = [];
-  if (analysis.issues.length > 0) issueContext.push(`Web issues: ${analysis.issues.join(", ")}`);
-  if (analysis.seoIssues?.length > 0) issueContext.push(`SEO issues: ${analysis.seoIssues.join(", ")}`);
+  if (webIssues.length > 0) issueContext.push(`Web issues: ${webIssues.join(", ")}`);
+  if (seoIssues.length > 0) issueContext.push(`SEO issues: ${seoIssues.join(", ")}`);
   if (analysis.googleBusinessOpportunities?.length > 0) issueContext.push(`Google Business opportunities: ${analysis.googleBusinessOpportunities.join(", ")}`);
   if (analysis.aiAgentOpportunities?.length > 0) issueContext.push(`AI opportunities: ${analysis.aiAgentOpportunities.join(", ")}`);
 
@@ -177,8 +183,8 @@ DATOS DEL NEGOCIO:
 - Web: ${websiteUrl || "No tiene"}
 - Calidad web: ${analysis.qualityScore}/100
 - SEO: ${analysis.seoScore ?? "N/A"}/100
-- Issues: ${analysis.issues.join(", ")}
-- Oportunidades SEO: ${(analysis.seoIssues || []).join(", ")}
+- Issues: ${sanitizeIssues(analysis.issues).join(", ")}
+- Oportunidades SEO: ${sanitizeIssues(analysis.seoIssues).join(", ")}
 - Oportunidades IA: ${(analysis.aiAgentOpportunities || []).join(", ")}
 
 EMAIL ANTERIOR:

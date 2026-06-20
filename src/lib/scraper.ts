@@ -1,41 +1,10 @@
 import { execFile } from "child_process";
 import path from "path";
+import { extractEmails, isContactEmail } from "@/lib/lead-quality";
 
-const EMAIL_REGEX = /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g;
-
-// Domains that are never real contact addresses (telemetry, placeholders, host SDKs).
-const IGNORED_DOMAINS = ["example.com", "sentry", "wixpress"];
-
-// The TLD pattern in EMAIL_REGEX (\.[a-zA-Z]{2,}) also matches asset extensions,
-// so filenames like `bg-info@2x.png` or `logo@3x.svg` look like valid emails.
-// Reject any match whose "domain" ends in a non-email asset extension...
-const ASSET_EXT =
-  /\.(png|jpe?g|gif|svg|webp|avif|ico|bmp|tiff?|css|js|mjs|json|woff2?|ttf|eot|otf|mp4|webm|mp3|pdf|zip)$/i;
-// ...or that uses a retina filename suffix (`@2x.`, `@3x.`).
-const RETINA_SUFFIX = /@\d+x\./i;
-
-/**
- * True if a string is a plausible contact address rather than a telemetry/
- * placeholder domain or an asset filename (e.g. `bg-info@2x.png`) that the loose
- * email regex captures as a false positive. Shared by `extractEmails` and the
- * Google Maps import path so both apply the exact same filter.
- */
-export function isContactEmail(email: string): boolean {
-  return (
-    !IGNORED_DOMAINS.some((d) => email.includes(d)) &&
-    !ASSET_EXT.test(email) &&
-    !RETINA_SUFFIX.test(email)
-  );
-}
-
-/**
- * Extract contact emails from raw page content, filtering out telemetry/placeholder
- * domains and asset filenames (e.g. retina images) that the loose email regex
- * would otherwise capture as false positives.
- */
-export function extractEmails(content: string): string[] {
-  return [...new Set(content.match(EMAIL_REGEX) || [])].filter(isContactEmail);
-}
+// Re-exported for existing importers. The implementations live in lead-quality
+// (a DB-free, browser-safe module) so the search UI can share the exact filter.
+export { extractEmails, isContactEmail };
 
 export interface ScrapeResult {
   success: boolean;
@@ -173,7 +142,7 @@ async function scrapeWithFetch(url: string): Promise<ScrapeResult> {
       .replace(/<[^>]+>/g, " ")
       .replace(/\s+/g, " ")
       .trim()
-      .substring(0, 5000);
+      .substring(0, 12000);
 
     // Detect meta info
     const meta: Record<string, string> = {};

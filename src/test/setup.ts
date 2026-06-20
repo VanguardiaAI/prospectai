@@ -52,6 +52,8 @@ export function createTestDb() {
     status TEXT NOT NULL DEFAULT 'imported',
     error_message TEXT,
     notes TEXT,
+    source TEXT,
+    tags TEXT,
     imported_at TEXT NOT NULL DEFAULT (datetime('now')),
     scraped_at TEXT,
     analyzed_at TEXT,
@@ -129,6 +131,7 @@ export function createTestDb() {
     dup_ack INTEGER NOT NULL DEFAULT 0,
     scheduled_for TEXT,
     wa_message_id TEXT,
+    error_message TEXT,
     sent_at TEXT,
     created_at TEXT NOT NULL DEFAULT (datetime('now')),
     updated_at TEXT NOT NULL DEFAULT (datetime('now'))

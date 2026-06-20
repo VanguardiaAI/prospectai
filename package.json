@@ -41,6 +41,7 @@
     "drizzle-orm": "^0.45.2",
     "imapflow": "^1.4.1",
     "jose": "^6.2.2",
+    "libphonenumber-js": "^1.13.7",
     "lucide-react": "^1.7.0",
     "mailparser": "^3.9.10",
     "next": "16.2.2",

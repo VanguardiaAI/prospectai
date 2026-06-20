@@ -97,6 +97,7 @@ async function runWhatsAppSending(): Promise<WaSendResult> {
       db.update(whatsappMessages).set({
         status: "sent",
         waMessageId: result.messageId,
+        errorMessage: null,
         sentAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
       }).where(eq(whatsappMessages.id, msg.id)).run();
@@ -115,8 +116,14 @@ async function runWhatsAppSending(): Promise<WaSendResult> {
 
       sent++;
     } else {
+      // "not_registered" = the number is not on WhatsApp -> permanent failure.
+      // "not_connected"/"send_error" = transient -> keep it approved so the next
+      // pass retries it instead of burning the message. Persist the reason either
+      // way so it is visible on the message, not only in the activity log.
+      const permanent = result.reason === "not_registered";
       db.update(whatsappMessages).set({
-        status: "failed",
+        status: permanent ? "failed" : "approved",
+        errorMessage: result.error ?? null,
         updatedAt: new Date().toISOString(),
       }).where(eq(whatsappMessages.id, msg.id)).run();
 
@@ -125,6 +132,10 @@ async function runWhatsAppSending(): Promise<WaSendResult> {
         messageKey: "activityLog.errorSendingWa",
         messageVars: { phone: msg.toPhone },
       });
+
+      // If the client dropped mid-pass, stop — the remaining sends would just
+      // fail the same way and retry next window.
+      if (result.reason === "not_connected") break;
     }
 
     // Stagger: wait 30-90 seconds between messages

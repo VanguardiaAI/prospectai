@@ -160,16 +160,22 @@ function formatPhoneForWA(phone: string): string {
   return cleaned;
 }
 
+// Machine-readable failure cause so callers can distinguish a permanent failure
+// (number not on WhatsApp) from a transient one (client offline / network) and
+// decide whether to fail the message or re-hold it for the next window.
+export type SendWAFailureReason = "not_connected" | "not_registered" | "send_error";
+
 export interface SendWAResult {
   success: boolean;
   messageId?: string;
   error?: string;
+  reason?: SendWAFailureReason;
 }
 
 export async function sendWhatsAppMessage(phone: string, message: string): Promise<SendWAResult> {
   const client = wa.client;
   if (!client || wa.state.status !== "ready") {
-    return { success: false, error: "WhatsApp not connected" };
+    return { success: false, error: "WhatsApp not connected", reason: "not_connected" };
   }
 
   try {
@@ -178,15 +184,24 @@ export async function sendWhatsAppMessage(phone: string, message: string): Promi
     // Resolve the canonical WhatsApp chat id from the number. getNumberId queries
     // WhatsApp and returns the real id (handling country quirks like Mexico's
     // mobile "1" prefix: 52 -> 521), or null if the number isn't on WhatsApp.
-    // This is more reliable than building `${number}@c.us` by hand.
+    // This is more reliable than building `${number}@c.us` by hand. This IS the
+    // authoritative "is this number on WhatsApp?" check, run right before sending.
     const numberId = await client.getNumberId(formattedPhone);
     if (!numberId) {
-      return { success: false, error: `El número ${phone} no está registrado en WhatsApp` };
+      return {
+        success: false,
+        error: `El número ${phone} no está registrado en WhatsApp`,
+        reason: "not_registered",
+      };
     }
 
     const sentMsg = await client.sendMessage(numberId._serialized, message);
     return { success: true, messageId: sentMsg.id._serialized };
   } catch (err) {
-    return { success: false, error: err instanceof Error ? err.message : "Error sending message" };
+    return {
+      success: false,
+      error: err instanceof Error ? err.message : "Error sending message",
+      reason: "send_error",
+    };
   }
 }

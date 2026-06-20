@@ -1,8 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { db } from "@/db";
-import { leads } from "@/db/schema";
 import { validateBody, bulkUpdateLeadsSchema, updateLeadSchema, deleteLeadSchema } from "@/lib/validations";
-import { searchLeads, updateLead, bulkUpdateLeads, deleteLead, bulkDeleteLeads } from "@/services/lead.service";
+import { searchLeads, updateLead, bulkUpdateLeads, deleteLead, bulkDeleteLeads, getLeadFacets } from "@/services/lead.service";
 import { handleServiceError } from "@/services/api-handler";
 
 export async function GET(req: NextRequest) {
@@ -11,6 +9,8 @@ export async function GET(req: NextRequest) {
     const campaignId = searchParams.get("campaignId");
     const city = searchParams.get("city");
     const status = searchParams.get("status") || undefined;
+    const source = searchParams.get("source") || undefined;
+    const tags = searchParams.get("tags") || undefined;
     const maxQuality = searchParams.get("maxQuality");
     const search = searchParams.get("search") || undefined;
     const page = parseInt(searchParams.get("page") || "1");
@@ -20,17 +20,18 @@ export async function GET(req: NextRequest) {
       campaignId: campaignId ? Number(campaignId) : undefined,
       city: city || undefined,
       status,
+      source,
+      tags,
       maxQuality: maxQuality ? Number(maxQuality) : undefined,
       search,
       page,
       limit,
     });
 
-    // Get distinct cities for filter
-    const cities = db.selectDistinct({ city: leads.city }).from(leads).all()
-      .map(r => r.city).filter(Boolean) as string[];
+    // Distinct cities / sources / tags for the filter dropdowns.
+    const facets = getLeadFacets();
 
-    return NextResponse.json({ ...result, cities });
+    return NextResponse.json({ ...result, ...facets });
   } catch (err) {
     return handleServiceError(err);
   }
@@ -61,6 +62,7 @@ export async function PUT(req: NextRequest) {
       notes: v.data.notes,
       status: v.data.status,
       campaignId: v.data.campaignId,
+      tags: v.data.tags,
     });
     return NextResponse.json(result);
   } catch (err) {

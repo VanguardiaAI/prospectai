@@ -2,6 +2,7 @@ import { db } from "@/db";
 import { leads, emails, whatsappMessages, activityLog } from "@/db/schema";
 import { eq, and, desc, like, lte, sql, inArray } from "drizzle-orm";
 import { NotFoundError } from "./errors";
+import { findPriorContacts } from "@/lib/contact-history";
 
 // ─── Types ──────────────────────────────────────────────────────────
 
@@ -9,6 +10,8 @@ export interface SearchLeadsFilters {
   campaignId?: number;
   city?: string;
   status?: string;
+  source?: string;
+  tags?: string;
   maxQuality?: number;
   search?: string;
   page?: number;
@@ -20,6 +23,7 @@ export interface UpdateLeadInput {
   notes?: string;
   status?: string;
   campaignId?: number;
+  tags?: string[];
 }
 
 export interface BulkUpdateInput {
@@ -38,6 +42,10 @@ export function searchLeads(filters: SearchLeadsFilters) {
   if (filters.campaignId) conditions.push(eq(leads.campaignId, filters.campaignId));
   if (filters.city) conditions.push(eq(leads.city, filters.city));
   if (filters.status) conditions.push(eq(leads.status, filters.status as typeof leads.status.enumValues[number]));
+  if (filters.source) conditions.push(eq(leads.source, filters.source));
+  // tags is a JSON array string (e.g. ["dermatólogo","CDMX"]); match the quoted
+  // token so "CDMX" doesn't also match a hypothetical "CDMX Norte".
+  if (filters.tags) conditions.push(like(leads.tags, `%"${filters.tags}"%`));
   if (filters.maxQuality) conditions.push(lte(leads.webQualityScore, filters.maxQuality));
   if (filters.search) conditions.push(like(leads.name, `%${filters.search}%`));
 
@@ -54,6 +62,24 @@ export function searchLeads(filters: SearchLeadsFilters) {
   const total = countResult?.count ?? 0;
 
   return { leads: rows, total, page, limit };
+}
+
+/** Distinct values for the /leads filter dropdowns: cities, sources, and tags. */
+export function getLeadFacets() {
+  const cities = db.selectDistinct({ city: leads.city }).from(leads).all()
+    .map((r) => r.city).filter(Boolean) as string[];
+  const sources = db.selectDistinct({ source: leads.source }).from(leads).all()
+    .map((r) => r.source).filter(Boolean) as string[];
+  const tagRows = db.select({ tags: leads.tags }).from(leads)
+    .where(sql`${leads.tags} is not null`).all();
+  const tagSet = new Set<string>();
+  for (const r of tagRows) {
+    try {
+      const arr = JSON.parse(r.tags as string);
+      if (Array.isArray(arr)) arr.forEach((t) => tagSet.add(String(t)));
+    } catch { /* ignore malformed tag json */ }
+  }
+  return { cities, sources, tags: [...tagSet].sort() };
 }
 
 export function getLeadDetails(id: number) {
@@ -76,7 +102,11 @@ export function getLeadDetails(id: number) {
     .limit(50)
     .all();
 
-  return { lead, emails: leadEmails, whatsapps: leadWhatsapps, activity };
+  // Cross-campaign contact history: was this same company already contacted via
+  // another lead/campaign, and where (drives the "ya contactado" panel).
+  const priorContacts = findPriorContacts(id);
+
+  return { lead, emails: leadEmails, whatsapps: leadWhatsapps, activity, priorContacts };
 }
 
 export function updateLead(id: number, updates: UpdateLeadInput) {
@@ -85,6 +115,7 @@ export function updateLead(id: number, updates: UpdateLeadInput) {
   if (updates.notes !== undefined) cleanUpdates.notes = updates.notes;
   if (updates.status !== undefined) cleanUpdates.status = updates.status;
   if (updates.campaignId !== undefined) cleanUpdates.campaignId = updates.campaignId;
+  if (updates.tags !== undefined) cleanUpdates.tags = updates.tags.length ? JSON.stringify(updates.tags) : null;
 
   const result = db.update(leads).set(cleanUpdates).where(eq(leads.id, id)).returning().get();
   if (!result) throw new NotFoundError("Lead", id);
