@@ -925,7 +925,7 @@ export default function ReviewPage() {
     : `${replyList.length} ${t("review.repliesTab")}`;
 
   return (
-    <div>
+    <div data-surface="app">
       {/* Header */}
       <div className="nd-page-header">
         <div>

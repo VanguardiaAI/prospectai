@@ -7,7 +7,7 @@ export function Input({ className, ...props }: InputHTMLAttributes<HTMLInputElem
   return (
     <input
       className={clsx(
-        "w-full bg-transparent border-b border-border-light caret-accent",
+        "ui-input w-full bg-transparent border-b border-border-light caret-accent",
         "px-0 py-2.5 text-sm text-text-primary font-mono",
         "placeholder:text-text-muted/60",
         "focus:outline-none focus:border-accent",

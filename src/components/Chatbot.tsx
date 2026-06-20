@@ -541,7 +541,7 @@ export function Chatbot() {
   // ─── Expanded mode: right-side dock (desktop) / fullscreen (mobile) ───
   if (isPanel) {
     return (
-      <div className="fixed z-[80] flex flex-col bg-bg-secondary inset-0 lg:inset-auto lg:top-0 lg:right-0 lg:bottom-0 lg:w-[420px] lg:border-l lg:border-border">
+      <div data-surface="app" className="fixed z-[80] flex flex-col bg-bg-secondary inset-0 lg:inset-auto lg:top-0 lg:right-0 lg:bottom-0 lg:w-[420px] lg:border-l lg:border-border">
         <div className="flex items-center justify-between px-4 py-2.5 border-b border-border">
           {headerLeft}
           <div className="flex items-center gap-1">
@@ -566,7 +566,7 @@ export function Chatbot() {
 
   // ─── Bar mode: always-present bottom bar + upward panel ───
   return (
-    <div className="nd-chatdock fixed bottom-0 left-0 right-0 z-40 pointer-events-none">
+    <div data-surface="app" className="nd-chatdock fixed bottom-0 left-0 right-0 z-40 pointer-events-none">
       <div className="mx-auto max-w-[1100px] px-4 lg:px-8 pb-4 pointer-events-auto">
         {/* Expanded conversation panel (grows upward) */}
         <div

@@ -798,3 +798,182 @@ html[data-sidebar="collapsed"] .nd-sidebar-burger { display: none; }
     scroll-behavior: auto !important;
   }
 }
+
+/* ═══════════════════════════════════════════════════════════════════════
+   APP SURFACES — /review · /profile · /workana · chat dock
+   ───────────────────────────────────────────────────────────────────────
+   The "Nothing" language (mono + uppercase tracking, gray cards on a white
+   canvas, dot textures) is tuned for dashboards: data you READ at a glance.
+   The surfaces below are the opposite — you WRITE in them (emails, cover
+   letters, chat replies) and read long prose. They get an app-grade layer:
+   humanist sans in sentence case, white/lifted cards, real filled fields
+   with a visible focus ring, and no texture noise. Same brand tokens
+   (orange accent, Hanken + Space Mono, light/dark). Mono is kept ONLY for
+   genuine numbers (.font-mono / .nd-data are deliberately left untouched).
+
+   Everything is scoped under [data-surface="app"], set on the three page
+   roots and the chat dock — dashboards never carry it, so their look is
+   byte-for-byte unchanged. Primitives expose additive hook classes
+   (.ui-input/.ui-textarea/.ui-select/.ui-btn/.ui-badge/.ui-toggle-label)
+   so these rules can re-skin them without touching their default render.
+   ═══════════════════════════════════════════════════════════════════════ */
+
+[data-surface="app"] {
+  --app-card: #FFFFFF;
+  --app-card-border: var(--border-visible);
+  --app-field: var(--surface);
+  --app-field-border: var(--border-visible);
+  --app-field-focus: #FFFFFF;
+  --app-muted: var(--surface);
+  --app-shadow: 0 1px 3px rgba(17, 17, 17, 0.05), 0 10px 24px -14px rgba(17, 17, 17, 0.16);
+  --app-radius: 14px;
+  --app-radius-sm: 10px;
+}
+
+[data-theme="dark"] [data-surface="app"] {
+  --app-card: #17171C;
+  --app-card-border: #2E2E36;
+  --app-field: #0F0F13;
+  --app-field-border: #34343C;
+  --app-field-focus: #141419;
+  --app-muted: #1E1E24;
+  --app-shadow: 0 1px 2px rgba(0, 0, 0, 0.45), 0 14px 32px -18px rgba(0, 0, 0, 0.7);
+}
+
+/* ─── Typography: humanist sans + sentence case instead of mono/uppercase ─── */
+[data-surface="app"] .nd-label {
+  font-family: var(--font-body);
+  font-size: 12px;
+  line-height: 1.45;
+  letter-spacing: 0;
+  text-transform: none;
+  font-weight: 500;
+  color: var(--text-secondary);
+}
+[data-surface="app"] .nd-heading {
+  font-family: var(--font-body);
+  font-size: 15px;
+  line-height: 1.3;
+  letter-spacing: -0.01em;
+  text-transform: none;
+  font-weight: 600;
+  color: var(--text-display);
+}
+[data-surface="app"] .nd-card-head-title {
+  font-family: var(--font-body);
+  font-size: 13px;
+  letter-spacing: 0;
+  text-transform: none;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+[data-surface="app"] .nd-card-head-title::before { width: 6px; height: 6px; }
+[data-surface="app"] .nd-page-header h1 { font-size: 28px; letter-spacing: -0.02em; font-weight: 600; }
+[data-surface="app"] .nd-list-label {
+  font-family: var(--font-body);
+  font-size: 12px;
+  letter-spacing: 0;
+  text-transform: none;
+}
+/* Inline mono+caps "pills"/labels (PRINCIPAL, PARA:, FALLBACK, held-status, …)
+   → calm sans. Targets only elements carrying BOTH classes, so plain
+   .font-mono numbers (char counts, fit scores, addresses) keep their mono. */
+[data-surface="app"] .font-mono.uppercase {
+  font-family: var(--font-body);
+  text-transform: none;
+  letter-spacing: 0.01em;
+}
+
+/* ─── Cards: white (light) / lifted (dark), softer radius, no texture ─── */
+[data-surface="app"] .nd-card {
+  background: var(--app-card);
+  border-color: var(--app-card-border);
+  border-radius: var(--app-radius);
+  box-shadow: var(--app-shadow);
+}
+[data-surface="app"] .nd-card-interactive:hover {
+  border-color: var(--text-disabled);
+  box-shadow: var(--app-shadow);
+  transform: none;
+}
+/* Strip the dashboard dot/hatch textures inside app surfaces */
+[data-surface="app"] .nd-dots,
+[data-surface="app"] .nd-texture,
+[data-surface="app"] .dot-grid,
+[data-surface="app"] .dot-grid-subtle { background-image: none; }
+[data-surface="app"] .nd-dots-fade { -webkit-mask-image: none; mask-image: none; }
+[data-surface="app"] .nd-ticks::before,
+[data-surface="app"] .nd-ticks::after { display: none; }
+
+/* ─── Fields: filled, padded, sans, with a clear accent focus ring ─── */
+[data-surface="app"] .ui-input,
+[data-surface="app"] .ui-textarea,
+[data-surface="app"] .ui-select {
+  font-family: var(--font-body);
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--text-primary);
+  background-color: var(--app-field);
+  border: 1px solid var(--app-field-border);
+  border-radius: var(--app-radius-sm);
+  -webkit-backdrop-filter: none;
+          backdrop-filter: none;
+  box-shadow: none;
+  transition: border-color 0.15s var(--ease-out), box-shadow 0.15s var(--ease-out), background-color 0.15s var(--ease-out);
+}
+[data-surface="app"] .ui-input { padding: 10px 12px; }
+[data-surface="app"] .ui-textarea { padding: 12px 14px; line-height: 1.6; }
+[data-surface="app"] .ui-select { padding: 10px 36px 10px 12px; }
+[data-surface="app"] .ui-input::placeholder,
+[data-surface="app"] .ui-textarea::placeholder {
+  color: var(--text-disabled);
+  opacity: 1;
+}
+[data-surface="app"] .ui-input:hover:not(:focus),
+[data-surface="app"] .ui-textarea:hover:not(:focus),
+[data-surface="app"] .ui-select:hover:not(:focus) { border-color: var(--text-disabled); }
+[data-surface="app"] .ui-input:focus,
+[data-surface="app"] .ui-textarea:focus,
+[data-surface="app"] .ui-select:focus {
+  outline: none;
+  border-color: var(--accent);
+  background-color: var(--app-field-focus);
+  box-shadow: 0 0 0 3px rgba(var(--accent-rgb), 0.16);
+}
+
+/* ─── Buttons: sans + sentence case (pill shape & variant colors kept) ─── */
+[data-surface="app"] .ui-btn {
+  font-family: var(--font-body);
+  text-transform: none;
+  letter-spacing: 0;
+  font-weight: 600;
+}
+
+/* ─── Badges: sans; status tokens stay caps but read calmer ─── */
+[data-surface="app"] .ui-badge {
+  font-family: var(--font-body);
+  letter-spacing: 0.02em;
+}
+
+/* ─── Segmented control & toggle label → sans ─── */
+[data-surface="app"] .nd-segment-item {
+  font-family: var(--font-body);
+  font-size: 12px;
+  letter-spacing: 0;
+}
+[data-surface="app"] .ui-toggle-label {
+  font-family: var(--font-body);
+  font-size: 12px;
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--text-secondary);
+}
+
+/* ─── Review inbox: soften channel tiles/labels against the white cards ─── */
+[data-surface="app"] .rv-icon { background: var(--app-muted); }
+[data-surface="app"] .rv-chan {
+  font-family: var(--font-body);
+  font-size: 11px;
+  letter-spacing: 0.02em;
+  text-transform: none;
+}

@@ -32,7 +32,7 @@ export function Toggle({
         />
       </div>
       {label && (
-        <span className="text-[11px] text-text-secondary font-mono uppercase tracking-[0.06em]">
+        <span className="ui-toggle-label text-[11px] text-text-secondary font-mono uppercase tracking-[0.06em]">
           {label}
         </span>
       )}

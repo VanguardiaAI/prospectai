@@ -33,7 +33,7 @@ export function Badge({
   return (
     <span
       className={clsx(
-        "inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full border",
+        "ui-badge inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full border",
         "text-[10px] font-mono uppercase tracking-[0.06em] leading-none whitespace-nowrap",
         colors[color]
       )}

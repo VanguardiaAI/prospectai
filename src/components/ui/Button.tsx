@@ -16,7 +16,7 @@ export function Button({
   return (
     <button
       className={clsx(
-        "inline-flex items-center justify-center gap-2 font-mono uppercase tracking-[0.06em] cursor-pointer",
+        "ui-btn inline-flex items-center justify-center gap-2 font-mono uppercase tracking-[0.06em] cursor-pointer",
         "transition-[transform,box-shadow,background-color,border-color,color,opacity] duration-150 ease-out",
         "active:translate-y-0 disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:translate-y-0 disabled:shadow-none",
         {

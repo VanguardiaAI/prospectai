@@ -430,7 +430,7 @@ export default function WorkanaPage() {
   const showConnect = authState !== "connected";
 
   return (
-    <div>
+    <div data-surface="app">
       <div className="nd-page-header">
         <div>
           <h1>{t("workana.title")}</h1>

@@ -7,7 +7,7 @@ export function Textarea({ className, ...props }: TextareaHTMLAttributes<HTMLTex
   return (
     <textarea
       className={clsx(
-        "w-full bg-[var(--glass-bg)] backdrop-blur-md border border-border rounded-lg caret-accent",
+        "ui-textarea w-full bg-[var(--glass-bg)] backdrop-blur-md border border-border rounded-lg caret-accent",
         "px-4 py-3 text-sm text-text-primary font-mono leading-relaxed",
         "placeholder:text-text-muted/60",
         "focus:outline-none focus:border-accent/60",

@@ -7,7 +7,7 @@ export function Select({ className, children, ...props }: SelectHTMLAttributes<H
   return (
     <select
       className={clsx(
-        "w-full bg-[var(--glass-bg)] backdrop-blur-md border border-border rounded-lg",
+        "ui-select w-full bg-[var(--glass-bg)] backdrop-blur-md border border-border rounded-lg",
         "pl-3 pr-9 py-2.5 text-sm text-text-primary font-mono",
         "focus:outline-none focus:border-accent/60",
         "transition-colors duration-200",
