@@ -616,7 +616,7 @@ export default function WorkanaPage() {
           {/* Replies + evaluated projects — full-width 2-up under the work/controls split */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 items-start">
             {/* Client replies (actionable inbox) */}
-            <Card title={t("workana.repliesHeading")} meta={replies.length ? String(replies.length) : undefined} dots>
+            <Card title={t("workana.repliesHeading")} meta={replies.length ? String(replies.length) : undefined}>
               <p className="text-sm text-text-secondary leading-relaxed mb-4 max-w-prose">{t("workana.repliesDesc")}</p>
               <Button size="sm" variant="secondary" onClick={checkReplies} disabled={checkingReplies}>
                 {checkingReplies ? t("workana.checkingReplies") : t("workana.checkReplies")}
@@ -628,7 +628,7 @@ export default function WorkanaPage() {
                   {replies.map((r) => (
                     <div
                       key={r.id}
-                      className={`rounded-xl border border-border bg-surface-raised p-4 ${r.status === "handled" ? "opacity-60" : ""}`}
+                      className={`rounded-xl border border-border-visible bg-surface-raised p-4 ${r.status === "handled" ? "opacity-60" : ""}`}
                     >
                       <div className="flex items-start justify-between gap-3">
                         <div className="min-w-0">
@@ -644,11 +644,11 @@ export default function WorkanaPage() {
                           {r.status === "handled" ? t("workana.reopen") : t("workana.markHandled")}
                         </Button>
                       </div>
-                      {r.body && <p className="mt-3 text-sm text-text-secondary leading-relaxed whitespace-pre-wrap line-clamp-4">{r.body}</p>}
+                      {r.body && <p className="mt-3 text-sm text-text-primary leading-relaxed whitespace-pre-wrap line-clamp-4">{r.body}</p>}
                       {r.suggestedReply && (
-                        <div className="mt-3 rounded-lg border border-border border-l-2 border-l-accent bg-surface p-3">
+                        <div className="mt-3 rounded-lg border border-border-visible border-l-2 border-l-accent bg-black p-3">
                           <p className="nd-label mb-1.5 text-accent">{t("workana.suggestedReply")}</p>
-                          <p className="text-[13px] text-text-secondary leading-relaxed whitespace-pre-wrap">{r.suggestedReply}</p>
+                          <p className="text-[13px] text-text-primary leading-relaxed whitespace-pre-wrap">{r.suggestedReply}</p>
                         </div>
                       )}
                     </div>
@@ -659,10 +659,10 @@ export default function WorkanaPage() {
 
             {/* Evaluated projects */}
             {projects.length > 0 && (
-              <Card title={t("workana.projectsHeading")} meta={String(projects.length)} dots>
+              <Card title={t("workana.projectsHeading")} meta={String(projects.length)}>
                 <div className="space-y-2">
                   {projects.map((p) => (
-                    <div key={p.id} className="rounded-lg border border-border bg-surface-raised px-3 py-2.5 flex items-start justify-between gap-3">
+                    <div key={p.id} className="rounded-lg border border-border-visible bg-surface-raised px-3 py-2.5 flex items-start justify-between gap-3">
                       <div className="min-w-0">
                         <div className="flex items-center gap-2">
                           <Badge color={p.shouldBid ? "success" : "default"}>{p.shouldBid ? t("workana.recommended") : t("workana.skipped")}</Badge>
