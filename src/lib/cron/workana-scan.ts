@@ -8,10 +8,10 @@ import {
   upsertProject,
   insertProposal,
   getDefaultProfileId,
-  projectHasProposal,
+  listDraftableProjects,
   getStyleExamples,
 } from "@/db/workana";
-import { WORKANA_DEFAULTS, priorityScore } from "@/lib/workana/priority";
+import { WORKANA_DEFAULTS } from "@/lib/workana/priority";
 import { WORKANA_DEFAULT_FEED_SKILLS } from "@/lib/workana/config";
 import type { ScrapedProject, WorkanaSearchFilters } from "@/lib/workana/types";
 
@@ -41,6 +41,17 @@ function parseFilters(json: string | null): WorkanaSearchFilters {
     return JSON.parse(json) as WorkanaSearchFilters;
   } catch {
     return {};
+  }
+}
+
+/** Tolerant parse of the stored skills JSON column → string[]. */
+function parseSkills(json: string | null): string[] {
+  if (!json) return [];
+  try {
+    const v = JSON.parse(json);
+    return Array.isArray(v) ? v.map(String) : [];
+  } catch {
+    return [];
   }
 }
 
@@ -116,31 +127,44 @@ export async function processWorkanaScans(opts: ScanOptions = {}): Promise<ScanR
     }
   }
 
-  // Second-stage: draft the best "shouldBid" projects as a ranked pool (best +
-  // reserve), highest priority first (recency + fit, not fit alone).
-  const nowMs = Date.now();
-  const toDraft = evaluated
-    .filter((i) => i.shouldBid && !projectHasProposal(i.projectId))
-    .sort(
-      (a, b) =>
-        priorityScore({ fitScore: b.fitScore, publishedAt: b.p.publishedAt }, nowMs) -
-        priorityScore({ fitScore: a.fitScore, publishedAt: a.p.publishedAt }, nowMs)
-    )
-    .slice(0, maxDrafts);
+  // Second-stage: draft from the WHOLE recommended-without-proposal pool — this run's
+  // fresh evals were just upserted, PLUS any reserve recommended in earlier runs —
+  // best-fit first, up to maxDrafts. Drafting only this run's fresh batch stranded
+  // high-fit projects beyond the cap, since dedup stops them being re-evaluated.
+  const defaultProfileId = getDefaultProfileId();
+  const toDraft = listDraftableProjects(maxDrafts);
 
   let drafted = 0;
-  for (const i of toDraft) {
+  for (const row of toDraft) {
     try {
+      const p: ScrapedProject = {
+        workanaProjectId: row.workanaProjectId,
+        url: row.url ?? "",
+        title: row.title,
+        description: row.description ?? "",
+        skills: parseSkills(row.skills),
+        budgetText: null,
+        bidsCount: row.bidsCount ?? null,
+        publishedText: null,
+        publishedAt: row.publishedAt ?? null,
+        rawText: row.rawText ?? row.description ?? "",
+      };
+      const evaluation = {
+        shouldBid: true,
+        fitScore: row.fitScore ?? 50,
+        reason: row.reason ?? "",
+        language: row.language ?? "es",
+      };
       // Enrich with the full brief from the detail page for a better proposal.
-      const detail = await scrapeProjectDetail(i.p.url).catch(() => null);
-      const source = detail && detail.rawText.length > i.p.rawText.length ? { ...i.p, ...detail } : i.p;
-      // Seed with the user's own approved/sent proposals (style learning), prioritizing same-type projects.
-      const examples = getStyleExamples({ skills: source.skills, excludeProjectId: i.projectId });
-      const draft = await draftProposal(source, i.evaluation, i.profileId, { examples });
-      insertProposal(i.projectId, i.profileId, draft, null);
+      const detail = await scrapeProjectDetail(p.url).catch(() => null);
+      const source = detail && detail.rawText.length > p.rawText.length ? { ...p, ...detail } : p;
+      // Seed with the user's own approved/sent proposals (style learning).
+      const examples = getStyleExamples({ skills: source.skills, excludeProjectId: row.id });
+      const draft = await draftProposal(source, evaluation, defaultProfileId, { examples });
+      insertProposal(row.id, defaultProfileId, draft, null);
       drafted++;
     } catch (e) {
-      logger.warn({ err: (e as Error).message, project: i.p.workanaProjectId }, "workana-scan: draft failed");
+      logger.warn({ err: (e as Error).message, project: row.workanaProjectId }, "workana-scan: draft failed");
     }
   }
 

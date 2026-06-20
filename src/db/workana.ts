@@ -133,6 +133,31 @@ export function listProjects(limit = 120) {
     .all();
 }
 
+/**
+ * Recommended (shouldBid) projects that have NO proposal yet, best-fit + freshest
+ * first. The scan drafts from THIS pool (not just the current run's fresh batch),
+ * so a high-fit project beyond a single run's draft cap — or recommended in an
+ * earlier run — still gets a draft on a later scan instead of being stranded
+ * (dedup stops known projects being re-evaluated, so they'd never be re-drafted).
+ */
+export function listDraftableProjects(limit: number) {
+  const claimed = new Set(
+    db
+      .select({ pid: workanaProposals.projectId })
+      .from(workanaProposals)
+      .all()
+      .map((r) => r.pid)
+      .filter((x): x is number => x != null)
+  );
+  const rows = db
+    .select()
+    .from(workanaProjects)
+    .where(eq(workanaProjects.shouldBid, true))
+    .orderBy(desc(workanaProjects.fitScore), desc(workanaProjects.scannedAt))
+    .all();
+  return rows.filter((r) => !claimed.has(r.id)).slice(0, Math.max(0, limit));
+}
+
 export function listProposals(limit = 50) {
   return db
     .select({
