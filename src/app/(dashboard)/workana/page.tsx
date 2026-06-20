@@ -646,7 +646,7 @@ export default function WorkanaPage() {
                       </div>
                       {r.body && <p className="mt-3 text-sm text-text-primary leading-relaxed whitespace-pre-wrap line-clamp-4">{r.body}</p>}
                       {r.suggestedReply && (
-                        <div className="mt-3 rounded-lg border border-border-visible border-l-2 border-l-accent bg-black p-3">
+                        <div className="mt-3 rounded-lg border border-border-visible border-l-2 border-l-accent bg-[var(--black)] p-3">
                           <p className="nd-label mb-1.5 text-accent">{t("workana.suggestedReply")}</p>
                           <p className="text-[13px] text-text-primary leading-relaxed whitespace-pre-wrap">{r.suggestedReply}</p>
                         </div>
