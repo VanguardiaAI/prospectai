@@ -3,6 +3,17 @@ import path from "node:path";
 export const WORKANA_BASE_URL = "https://www.workana.com";
 
 /**
+ * Default skill slugs for the no-saved-search feed, mirroring Workana's
+ * "Proyectos con mis habilidades" tab (/jobs?skills=...). Scanning the general
+ * /jobs feed (all categories, newest-first) buries the dev projects under
+ * writing/design/admin/marketing gigs, so almost nothing passes the filter;
+ * these skills pull the same relevant, skill-matched feed the user browses.
+ * Overridable via the `workana_feed_skills` setting (comma-separated slugs).
+ */
+export const WORKANA_DEFAULT_FEED_SKILLS =
+  "artificial-intelligence,chatbot,javascript,python,react-js,saas,typescript";
+
+/**
  * Persistent browser profile (cookies + localStorage). Holds the live login
  * session, so it is a credential — gitignored (see .gitignore) and 0700.
  */
