@@ -201,6 +201,7 @@ export function getProposalsDetailed(limit = 60) {
       projectUrl: workanaProjects.url,
       fitScore: workanaProjects.fitScore,
       reason: workanaProjects.reason,
+      description: workanaProjects.description,
     })
     .from(workanaProposals)
     .leftJoin(workanaProjects, eq(workanaProjects.id, workanaProposals.projectId))

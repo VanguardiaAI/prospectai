@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Card, Button, EmptyState, Spinner, Badge, Input, Textarea, Toggle, StatusBadge, Segment } from "@/components/ui";
+import { Card, Button, EmptyState, Spinner, Badge, Input, Textarea, Toggle, StatusBadge, Segment, Modal } from "@/components/ui";
 import type { SegmentOption } from "@/components/ui";
 import type { BadgeColor } from "@/components/ui/Badge";
 import { Briefcase } from "lucide-react";
@@ -50,6 +50,8 @@ interface ProjectRow {
   fitScore: number | null;
   shouldBid: boolean | null;
   reason: string | null;
+  description: string | null;
+  url: string | null;
   status: string;
 }
 interface ProposalRow {
@@ -57,12 +59,53 @@ interface ProposalRow {
   projectTitle: string | null;
   projectUrl: string | null;
   fitScore: number | null;
+  reason: string | null;
+  description: string | null;
   coverLetter: string;
   bidAmount: number | null;
   currency: string | null;
   deliveryDays: number | null;
   confidence: number | null;
   status: string;
+}
+
+/** Shared "what is this project + why recommended" body, used in the projects modal
+ *  and the per-draft details disclosure. */
+function ProjectDetailBody({
+  reason,
+  description,
+  fitScore,
+  url,
+}: {
+  reason: string | null;
+  description: string | null;
+  fitScore: number | null;
+  url?: string | null;
+}) {
+  const { t } = useT();
+  return (
+    <div className="space-y-3">
+      {fitScore != null && <span className="inline-block text-xs font-mono text-text-secondary">fit {fitScore}</span>}
+      {reason && (
+        <div>
+          <p className="nd-label mb-1 text-accent">{t("workana.whyRecommended")}</p>
+          <p className="text-sm text-text-primary leading-relaxed whitespace-pre-wrap">{reason}</p>
+        </div>
+      )}
+      {description && (
+        <div>
+          <p className="nd-label mb-1">{t("workana.projectSummary")}</p>
+          <p className="text-[13px] text-text-secondary leading-relaxed whitespace-pre-wrap">{description}</p>
+        </div>
+      )}
+      {url && (
+        <a href={url} target="_blank" rel="noopener noreferrer" className="inline-block text-xs text-accent hover:underline">
+          {t("workana.viewProject")}
+        </a>
+      )}
+      {!reason && !description && <p className="text-sm text-text-muted">{t("workana.noDetails")}</p>}
+    </div>
+  );
 }
 
 type ToneKey = "balanced" | "direct" | "technical" | "results";
@@ -76,6 +119,7 @@ function ProposalCard({ p, onChanged, allowSubmit }: { p: ProposalRow; onChanged
   const [submitting, setSubmitting] = useState(false);
   const [submitMsg, setSubmitMsg] = useState("");
   const [regenOpen, setRegenOpen] = useState(false);
+  const [detailsOpen, setDetailsOpen] = useState(false);
   const [tone, setTone] = useState<ToneKey>("balanced");
   const [instructions, setInstructions] = useState("");
   const editable = p.status === "draft";
@@ -151,6 +195,22 @@ function ProposalCard({ p, onChanged, allowSubmit }: { p: ProposalRow; onChanged
         </div>
         <StatusBadge status={p.status} />
       </div>
+
+      {(p.reason || p.description) && (
+        <div className="mb-3">
+          <button
+            onClick={() => setDetailsOpen((v) => !v)}
+            className="text-xs text-accent hover:underline underline-offset-2 font-mono"
+          >
+            {detailsOpen ? t("workana.hideProjectDetails") : t("workana.showProjectDetails")}
+          </button>
+          {detailsOpen && (
+            <div className="mt-2 rounded-lg border border-border-visible bg-surface-raised p-3 nd-enter max-w-[70ch]">
+              <ProjectDetailBody reason={p.reason} description={p.description} fitScore={null} url={p.projectUrl} />
+            </div>
+          )}
+        </div>
+      )}
 
       <label className="nd-label block mb-1">{t("workana.coverLabel")}</label>
       <Textarea value={cover} onChange={(e) => setCover(e.target.value)} rows={9} disabled={!editable} className="w-full max-w-[70ch] text-sm leading-relaxed" />
@@ -266,6 +326,7 @@ export default function WorkanaPage() {
   const [checkingReplies, setCheckingReplies] = useState(false);
   const [projectsPage, setProjectsPage] = useState(1);
   const [showOldReplies, setShowOldReplies] = useState(false);
+  const [detailProject, setDetailProject] = useState<ProjectRow | null>(null);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const loadAuth = async () => {
@@ -696,7 +757,13 @@ export default function WorkanaPage() {
                   <Card title={t("workana.projectsHeading")} meta={String(projects.length)}>
                     <div className="space-y-2">
                       {pagedProjects.map((p) => (
-                        <div key={p.id} className="rounded-lg border border-border-visible bg-surface-raised px-3 py-2.5 flex items-start justify-between gap-3">
+                        <button
+                          type="button"
+                          key={p.id}
+                          onClick={() => setDetailProject(p)}
+                          title={t("workana.showProjectDetails")}
+                          className="w-full text-left rounded-lg border border-border-visible bg-surface-raised px-3 py-2.5 flex items-start justify-between gap-3 cursor-pointer hover:border-accent/60 transition-colors"
+                        >
                           <div className="min-w-0">
                             <div className="flex items-center gap-2">
                               <Badge color="success">{t("workana.recommended")}</Badge>
@@ -705,7 +772,7 @@ export default function WorkanaPage() {
                             {p.reason && <p className="mt-1 text-xs text-text-muted leading-relaxed line-clamp-2">{p.reason}</p>}
                           </div>
                           <span className="text-xs text-text-secondary font-mono shrink-0">fit {p.fitScore ?? "—"}</span>
-                        </div>
+                        </button>
                       ))}
                     </div>
                     {totalProjPages > 1 && (
@@ -726,6 +793,21 @@ export default function WorkanaPage() {
           })()}
         </div>
       )}
+      <Modal
+        open={!!detailProject}
+        onClose={() => setDetailProject(null)}
+        title={detailProject?.title ?? ""}
+        maxWidth="max-w-xl"
+      >
+        {detailProject && (
+          <ProjectDetailBody
+            reason={detailProject.reason}
+            description={detailProject.description}
+            fitScore={detailProject.fitScore}
+            url={detailProject.url}
+          />
+        )}
+      </Modal>
     </div>
   );
 }
