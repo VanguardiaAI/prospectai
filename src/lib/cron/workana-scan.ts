@@ -12,6 +12,7 @@ import {
   getStyleExamples,
 } from "@/db/workana";
 import { WORKANA_DEFAULTS, priorityScore } from "@/lib/workana/priority";
+import { WORKANA_DEFAULT_FEED_SKILLS } from "@/lib/workana/config";
 import type { ScrapedProject, WorkanaSearchFilters } from "@/lib/workana/types";
 
 const DEFAULT_MAX_EVAL = WORKANA_DEFAULTS.maxEvalPerScan;
@@ -63,10 +64,18 @@ export async function processWorkanaScans(opts: ScanOptions = {}): Promise<ScanR
   const maxDrafts = opts.maxDrafts ?? (Number(getSetting("workana_max_drafts_per_scan")) || DEFAULT_MAX_DRAFTS);
   const feedPages = Number(getSetting("workana_feed_pages")) || WORKANA_DEFAULTS.feedPages;
 
+  // With no saved searches, scan Workana's skill-matched feed (/jobs?skills=...),
+  // i.e. the "Proyectos con mis habilidades" tab — NOT the general all-categories
+  // feed, which buries dev projects under writing/design/marketing gigs.
+  const feedSkills = ((getSetting("workana_feed_skills") ?? "").trim() || WORKANA_DEFAULT_FEED_SKILLS)
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean);
+
   const searches = getActiveSearches();
   const targets = searches.length
     ? searches.map((s) => ({ id: s.id as number | null, profileId: s.agencyProfileId, filters: parseFilters(s.filters) }))
-    : [{ id: null as number | null, profileId: getDefaultProfileId(), filters: {} as WorkanaSearchFilters }];
+    : [{ id: null as number | null, profileId: getDefaultProfileId(), filters: { skills: feedSkills } as WorkanaSearchFilters }];
 
   const known = getKnownProjectIds();
   let scraped = 0;

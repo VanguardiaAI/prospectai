@@ -29,7 +29,7 @@ const ALLOWED_SETTINGS_KEYS = [
   "workana_headless", "workana_locale", "workana_timezone",
   "workana_scan_interval_hours", "workana_max_eval_per_scan", "workana_max_drafts_per_scan",
   "workana_allow_submit", "workana_replies_interval_hours", "workana_last_replies_at",
-  "workana_style_examples", "workana_feed_pages", "workana_targeting",
+  "workana_style_examples", "workana_feed_pages", "workana_targeting", "workana_feed_skills",
   // Auto-spaced sender (Professional plan: 17/week, ≥20 min apart, best-first + reserve)
   "workana_autosend_enabled", "workana_min_send_interval_minutes", "workana_max_sends_per_day",
   // Opt-in: auto-start the cron scheduler (engine) on server boot.
