@@ -25,6 +25,22 @@ function intentBadgeColor(intent: string | null): BadgeColor {
   return tone === "good" ? "success" : tone === "warn" ? "warning" : "default";
 }
 
+const PROJECTS_PER_PAGE = 10;
+
+/** Display heuristic: is this inbox message older than ~1 month? Parses the Workana
+ *  relative-time phrase in the body ("Hace un año", "Hace 2 meses"). Years, 2+ months
+ *  and 5+ weeks count as old; minutes/hours/days/weeks(<5)/1 month stay visible. */
+function isReplyOld(body: string | null): boolean {
+  if (!body) return false;
+  const t = body.toLowerCase();
+  if (/hace\s+(un|una|\d+)\s+a[nñ]os?\b/.test(t) || /\byears?\s+ago\b/.test(t)) return true;
+  const mm = t.match(/hace\s+(\d+)\s+mes(?:es)?\b/);
+  if (mm && parseInt(mm[1], 10) >= 2) return true;
+  const ww = t.match(/hace\s+(\d+)\s+semanas?\b/);
+  if (ww && parseInt(ww[1], 10) >= 5) return true;
+  return false;
+}
+
 type AuthState = "disconnected" | "connected" | "needs_reauth";
 type ConnectPhase = "idle" | "awaiting_login" | "connected" | "timeout" | "error";
 
@@ -248,6 +264,8 @@ export default function WorkanaPage() {
   const [proposals, setProposals] = useState<ProposalRow[]>([]);
   const [replies, setReplies] = useState<ReplyRow[]>([]);
   const [checkingReplies, setCheckingReplies] = useState(false);
+  const [projectsPage, setProjectsPage] = useState(1);
+  const [showOldReplies, setShowOldReplies] = useState(false);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const loadAuth = async () => {
@@ -614,69 +632,98 @@ export default function WorkanaPage() {
           </div>
 
           {/* Replies + evaluated projects — full-width 2-up under the work/controls split */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 items-start">
-            {/* Client replies (actionable inbox) */}
-            <Card title={t("workana.repliesHeading")} meta={replies.length ? String(replies.length) : undefined}>
-              <p className="text-sm text-text-secondary leading-relaxed mb-4 max-w-prose">{t("workana.repliesDesc")}</p>
-              <Button size="sm" variant="secondary" onClick={checkReplies} disabled={checkingReplies}>
-                {checkingReplies ? t("workana.checkingReplies") : t("workana.checkReplies")}
-              </Button>
-              {replies.length === 0 ? (
-                <p className="mt-4 text-sm text-text-muted">{t("workana.noReplies")}</p>
-              ) : (
-                <div className="mt-4 space-y-3">
-                  {replies.map((r) => (
-                    <div
-                      key={r.id}
-                      className={`rounded-xl border border-border-visible bg-surface-raised p-4 ${r.status === "handled" ? "opacity-60" : ""}`}
-                    >
-                      <div className="flex items-start justify-between gap-3">
-                        <div className="min-w-0">
-                          <div className="flex items-center gap-2 flex-wrap">
-                            {isReplyIntent(r.intent) && <Badge color={intentBadgeColor(r.intent)}>{t(`intent.${r.intent}`)}</Badge>}
-                            <span className="text-sm font-medium text-text-display truncate">{r.fromName || r.projectTitle || "—"}</span>
+          {(() => {
+            const recentReplies = replies.filter((r) => !isReplyOld(r.body));
+            const oldCount = replies.length - recentReplies.length;
+            const visibleReplies = showOldReplies ? replies : recentReplies;
+            const totalProjPages = Math.max(1, Math.ceil(projects.length / PROJECTS_PER_PAGE));
+            const projPage = Math.min(projectsPage, totalProjPages);
+            const pagedProjects = projects.slice((projPage - 1) * PROJECTS_PER_PAGE, projPage * PROJECTS_PER_PAGE);
+            return (
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 items-start">
+                {/* Client replies (actionable inbox) — recent first, older folded away */}
+                <Card title={t("workana.repliesHeading")} meta={visibleReplies.length ? String(visibleReplies.length) : undefined}>
+                  <p className="text-sm text-text-secondary leading-relaxed mb-4 max-w-prose">{t("workana.repliesDesc")}</p>
+                  <Button size="sm" variant="secondary" onClick={checkReplies} disabled={checkingReplies}>
+                    {checkingReplies ? t("workana.checkingReplies") : t("workana.checkReplies")}
+                  </Button>
+                  {visibleReplies.length === 0 ? (
+                    <p className="mt-4 text-sm text-text-muted">{oldCount > 0 ? t("workana.noRecentReplies") : t("workana.noReplies")}</p>
+                  ) : (
+                    <div className="mt-4 space-y-3">
+                      {visibleReplies.map((r) => (
+                        <div
+                          key={r.id}
+                          className={`rounded-xl border border-border-visible bg-surface-raised p-4 ${r.status === "handled" ? "opacity-60" : ""}`}
+                        >
+                          <div className="flex items-start justify-between gap-3">
+                            <div className="min-w-0">
+                              <div className="flex items-center gap-2 flex-wrap">
+                                {isReplyIntent(r.intent) && <Badge color={intentBadgeColor(r.intent)}>{t(`intent.${r.intent}`)}</Badge>}
+                                <span className="text-sm font-medium text-text-display truncate">{r.fromName || r.projectTitle || "—"}</span>
+                              </div>
+                              {r.fromName && r.projectTitle && r.projectTitle !== r.fromName && (
+                                <p className="mt-1 text-xs text-text-muted truncate">{r.projectTitle}</p>
+                              )}
+                            </div>
+                            <Button size="sm" variant="ghost" onClick={() => handleReply(r.id, r.status === "handled" ? "unhandle" : "handle")}>
+                              {r.status === "handled" ? t("workana.reopen") : t("workana.markHandled")}
+                            </Button>
                           </div>
-                          {r.fromName && r.projectTitle && r.projectTitle !== r.fromName && (
-                            <p className="mt-1 text-xs text-text-muted truncate">{r.projectTitle}</p>
+                          {r.body && <p className="mt-3 text-sm text-text-primary leading-relaxed whitespace-pre-wrap line-clamp-4">{r.body}</p>}
+                          {r.suggestedReply && (
+                            <div className="mt-3 rounded-lg border border-border-visible border-l-2 border-l-accent bg-[var(--black)] p-3">
+                              <p className="nd-label mb-1.5 text-accent">{t("workana.suggestedReply")}</p>
+                              <p className="text-[13px] text-text-primary leading-relaxed whitespace-pre-wrap">{r.suggestedReply}</p>
+                            </div>
                           )}
                         </div>
-                        <Button size="sm" variant="ghost" onClick={() => handleReply(r.id, r.status === "handled" ? "unhandle" : "handle")}>
-                          {r.status === "handled" ? t("workana.reopen") : t("workana.markHandled")}
+                      ))}
+                    </div>
+                  )}
+                  {oldCount > 0 && (
+                    <button
+                      onClick={() => setShowOldReplies((v) => !v)}
+                      className="mt-4 text-xs text-accent hover:underline underline-offset-2 font-mono"
+                    >
+                      {showOldReplies ? t("workana.hideOlderReplies") : `${t("workana.olderReplies")} (${oldCount})`}
+                    </button>
+                  )}
+                </Card>
+
+                {/* Evaluated projects (recommended only, paginated) */}
+                {projects.length > 0 && (
+                  <Card title={t("workana.projectsHeading")} meta={String(projects.length)}>
+                    <div className="space-y-2">
+                      {pagedProjects.map((p) => (
+                        <div key={p.id} className="rounded-lg border border-border-visible bg-surface-raised px-3 py-2.5 flex items-start justify-between gap-3">
+                          <div className="min-w-0">
+                            <div className="flex items-center gap-2">
+                              <Badge color="success">{t("workana.recommended")}</Badge>
+                              <span className="text-sm text-text-display truncate">{p.title}</span>
+                            </div>
+                            {p.reason && <p className="mt-1 text-xs text-text-muted leading-relaxed line-clamp-2">{p.reason}</p>}
+                          </div>
+                          <span className="text-xs text-text-secondary font-mono shrink-0">fit {p.fitScore ?? "—"}</span>
+                        </div>
+                      ))}
+                    </div>
+                    {totalProjPages > 1 && (
+                      <div className="mt-4 flex items-center justify-between border-t border-border pt-3">
+                        <Button size="sm" variant="ghost" onClick={() => setProjectsPage(Math.max(1, projPage - 1))} disabled={projPage <= 1}>
+                          {t("workana.prev")}
+                        </Button>
+                        <span className="text-xs text-text-muted font-mono">{projPage} / {totalProjPages}</span>
+                        <Button size="sm" variant="ghost" onClick={() => setProjectsPage(Math.min(totalProjPages, projPage + 1))} disabled={projPage >= totalProjPages}>
+                          {t("workana.next")}
                         </Button>
                       </div>
-                      {r.body && <p className="mt-3 text-sm text-text-primary leading-relaxed whitespace-pre-wrap line-clamp-4">{r.body}</p>}
-                      {r.suggestedReply && (
-                        <div className="mt-3 rounded-lg border border-border-visible border-l-2 border-l-accent bg-[var(--black)] p-3">
-                          <p className="nd-label mb-1.5 text-accent">{t("workana.suggestedReply")}</p>
-                          <p className="text-[13px] text-text-primary leading-relaxed whitespace-pre-wrap">{r.suggestedReply}</p>
-                        </div>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              )}
-            </Card>
-
-            {/* Evaluated projects */}
-            {projects.length > 0 && (
-              <Card title={t("workana.projectsHeading")} meta={String(projects.length)}>
-                <div className="space-y-2">
-                  {projects.map((p) => (
-                    <div key={p.id} className="rounded-lg border border-border-visible bg-surface-raised px-3 py-2.5 flex items-start justify-between gap-3">
-                      <div className="min-w-0">
-                        <div className="flex items-center gap-2">
-                          <Badge color={p.shouldBid ? "success" : "default"}>{p.shouldBid ? t("workana.recommended") : t("workana.skipped")}</Badge>
-                          <span className="text-sm text-text-display truncate">{p.title}</span>
-                        </div>
-                        {p.reason && <p className="mt-1 text-xs text-text-muted leading-relaxed line-clamp-2">{p.reason}</p>}
-                      </div>
-                      <span className="text-xs text-text-secondary font-mono shrink-0">fit {p.fitScore ?? "—"}</span>
-                    </div>
-                  ))}
-                </div>
-              </Card>
-            )}
-          </div>
+                    )}
+                  </Card>
+                )}
+              </div>
+            );
+          })()}
         </div>
       )}
     </div>

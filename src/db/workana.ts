@@ -121,10 +121,13 @@ export function projectHasProposal(projectId: number): boolean {
   return !!row;
 }
 
-export function listProjects(limit = 50) {
+/** Recommended projects only (shouldBid), best-fit first. Discarded ones are hidden
+ *  from the UI; the scan summary still reports how many were evaluated/skipped. */
+export function listProjects(limit = 120) {
   return db
     .select()
     .from(workanaProjects)
+    .where(eq(workanaProjects.shouldBid, true))
     .orderBy(desc(workanaProjects.fitScore), desc(workanaProjects.scannedAt))
     .limit(limit)
     .all();

@@ -14,7 +14,7 @@ function enabled(): boolean {
 // List evaluated projects + drafted proposals.
 export async function GET() {
   if (!enabled()) return NextResponse.json({ error: "workana_disabled" }, { status: 403 });
-  return NextResponse.json({ projects: listProjects(60), proposals: listProposals(60) });
+  return NextResponse.json({ projects: listProjects(120), proposals: listProposals(60) });
 }
 
 // Trigger a scan now (manual). Optional body: { maxEval, maxDrafts }.
