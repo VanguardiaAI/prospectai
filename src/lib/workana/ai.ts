@@ -1,11 +1,19 @@
 import { generateStructured } from "@/lib/ai/provider";
 import { withRetry } from "@/lib/ai/retry";
 import { logger } from "@/lib/logger";
+import { getSetting } from "@/db";
 import { getAgencyContext, formatAgencyContextBlock } from "@/lib/ai/config";
 import { fenced } from "@/lib/ai/fence";
 import { ANTI_AI_RULES } from "@/lib/ai/examples";
 import { GEMINI_MAX_RETRIES, GEMINI_BASE_DELAY_MS } from "@/lib/constants";
+import { WORKANA_TARGETING_DEFAULT } from "./targeting";
 import type { ScrapedProject } from "./types";
+
+/** Effective targeting policy: the user's `workana_targeting` override, or the default. */
+function getWorkanaTargeting(): string {
+  const override = (getSetting("workana_targeting") || "").trim();
+  return override || WORKANA_TARGETING_DEFAULT;
+}
 
 // Drafting uses Opus 4.8 (subscription via the claude_cli provider). Overridable
 // for users whose CLI/plan exposes a different alias.
@@ -71,8 +79,10 @@ function projectBlock(p: ScrapedProject): string {
 const EVAL_SYSTEM =
   "Eres un freelancer experto evaluando proyectos en plataformas de trabajo. " +
   "Decides con criterio estricto si vale la pena postular: cada postulación cuesta un recurso escaso, " +
-  "así que solo recomiendas postular cuando el proyecto encaja de verdad con los servicios del perfil " +
-  "y hay una probabilidad razonable de ganarlo. Respondes únicamente con el objeto solicitado.";
+  "así que solo recomiendas postular cuando el proyecto encaja de verdad con los servicios del perfil, " +
+  "entra en el perfil de proyectos que se busca, y hay una probabilidad razonable de ganarlo. " +
+  "Priorizas productos de software a medida (SaaS, web, apps, dashboards, CRMs) y descartas no-code, " +
+  "automatizaciones sueltas, arreglos de bugs y stacks que no se manejan. Respondes únicamente con el objeto solicitado.";
 
 /**
  * Cheap first-stage filter: does this project fit the profile, and how well?
@@ -88,13 +98,16 @@ export async function evaluateProject(
     // Cheap first-stage filter: skip the portfolio projects, only fit matters here.
     formatAgencyContextBlock(ctx, { maxProjects: 0 }),
     "",
+    getWorkanaTargeting(),
+    "",
     fenced("PROYECTO PUBLICADO EN WORKANA", projectBlock(project)),
     "",
-    "Evalúa si conviene postular. Considera:",
+    "Evalúa si conviene postular. Considera, en este orden:",
+    "- Que el proyecto entre en el PERFIL DE PROYECTOS QUE BUSCAMOS de arriba (es el filtro más importante: si cae en 'NO ENCAJAN', shouldBid=false y fitScore 0-20).",
     "- Encaje real entre lo que pide el proyecto y los servicios del perfil (no fuerces encajes).",
     "- Competencia (muchas propuestas ya enviadas reduce las probabilidades).",
     "- Viabilidad económica para el perfil.",
-    "Devuelve: shouldBid (true solo si encaja de verdad), fitScore 0-100, reason (breve, en español neutro),",
+    "Devuelve: shouldBid (true solo si encaja de verdad Y entra en el perfil buscado), fitScore 0-100, reason (breve, en español neutro),",
     "y language: el idioma del proyecto (es, pt, en u other).",
   ].join("\n");
 
@@ -111,9 +124,12 @@ export async function evaluateProject(
 }
 
 const DRAFT_SYSTEM =
-  "Eres un freelancer real que sabe resolver el proyecto y se lo propone directo al cliente para ganarlo en Workana. " +
-  "Escribes como una persona concreta, no como una IA ni con plantillas. No es un anuncio: es alguien ofreciendo cómo " +
-  "resolver lo que el cliente pide. No inventas casos, datos ni resultados. " +
+  "Eres un freelancer real escribiendo una propuesta para postular a un proyecto en Workana. " +
+  "Escribes de forma ESTÁNDAR, clara y directa, como la mayoría de buenos freelancers: saludas, te presentas en una frase, " +
+  "dices que puedes hacerlo y por qué (experiencia real), y propones el siguiente paso. " +
+  "NO eres creativo ni ingenioso: nada de frases-gancho, metáforas, juegos de palabras ni aperturas llamativas. " +
+  "Esto NO es una landing, un anuncio ni un pitch de ventas; es un mensaje normal de persona a persona. " +
+  "Escribes como alguien real, no como una IA ni con plantillas. No inventas casos, datos ni resultados. " +
   "PROHIBIDO usar em-dash o guion largo (el carácter —): usa coma, punto, dos puntos o paréntesis. " +
   "Nunca incluyes contacto fuera de la plataforma (email, teléfono, WhatsApp). Respondes solo con el objeto solicitado.";
 
@@ -143,8 +159,8 @@ function examplesBlock(examples?: string[]): string {
   const picked = (examples || []).map((e) => (e || "").trim()).filter(Boolean);
   if (!picked.length) return "";
   return [
-    "PROPUESTAS TUYAS QUE YA APROBASTE Y ENVIASTE (referencia de TU estilo, ritmo y forma de proponer):",
-    "Imita el tono y la estructura, NUNCA copies frases ni el contenido. Cada propuesta es única para su proyecto.",
+    "PROPUESTAS TUYAS QUE YA APROBASTE Y ENVIASTE (esta es tu MEJOR referencia, IMÍTALAS):",
+    "Son tu estándar real de cómo escribes. Copia su tono, su nivel de formalidad, cómo saludas, cómo te presentas, cómo citas tu experiencia y cómo cierras. Si su estilo difiere de las pautas de más abajo, MANDA el estilo de estos ejemplos. NUNCA copies frases ni el contenido concreto: cada propuesta es única para su proyecto.",
     picked.map((e, i) => `--- Ejemplo ${i + 1} ---\n${e}`).join("\n\n"),
   ].join("\n");
 }
@@ -180,18 +196,22 @@ export async function draftProposal(
     ...(exBlock ? [exBlock, ""] : []),
     `Redacta la propuesta en ${langLabel} (el idioma del proyecto).`,
     "",
-    "CÓMO ESCRIBIR LA PROPUESTA (lo más importante):",
-    "Habla como alguien que de verdad puede resolver esto y se lo propone al cliente. No vendas, propón.",
-    "1. Abre conectando con SU problema o necesidad concreta (algo del brief que demuestre que lo entendiste). No empieces hablando de ti.",
-    "2. Di en una o dos frases CÓMO lo resolverías: tu enfoque concreto para este proyecto, no genérico.",
-    "3. Respalda con UN proyecto real parecido de tu portafolio (la sección 'Proyectos del portafolio' o 'Casos de éxito' del perfil): nómbralo, qué resolviste y el resultado concreto. Es tu mayor diferencial frente a otros candidatos. Menciónalo natural, sin presumir. Si ninguno encaja de verdad, no lo fuerces ni inventes.",
-    "4. Cierra con una pregunta concreta o un siguiente paso claro que invite a responder.",
+    "CÓMO ESCRIBIR LA PROPUESTA (estructura estándar de una postulación normal):",
+    ...(exBlock
+      ? ["Si arriba hay propuestas tuyas de ejemplo, sigue SU estilo y estructura por encima de esta guía; úsala solo como apoyo."]
+      : []),
+    "Es un mensaje directo para postular, no un texto creativo ni de marketing. Sigue este orden:",
+    "1. Saludo simple y preséntate en una frase: quién eres y tu agencia (ej: \"Hola, soy [nombre] y dirijo [agencia]\"). Natural, sin rebuscarlo.",
+    "2. Di que puedes hacerlo y respáldalo con experiencia real: que ya hiciste (o tienes en producción) algo parecido, citando UN proyecto real de tu portafolio (nómbralo, qué resolviste y el resultado). Es tu mayor diferencial. Si ninguno encaja de verdad, no lo fuerces ni inventes.",
+    "3. Explica en una o dos frases CÓMO lo abordarías para ESTE proyecto (enfoque concreto, no genérico), demostrando que leíste el brief.",
+    "4. Cierra con un siguiente paso o una pregunta concreta que invite a responder.",
     "",
-    "NATURALIDAD (que se lea humano, no rebuscado):",
-    "- Primera persona, cercano y directo. Frases de largo variado, alguna corta.",
+    "NATURALIDAD (que se lea como un mensaje normal, no rebuscado):",
+    "- Primera persona, cercano y directo, como hablarías de verdad. Frases de largo variado, alguna corta.",
+    "- Estándar y sencillo: NO empieces con una frase ingeniosa, una metáfora ni un gancho. Un saludo normal y al grano.",
     "- Sin guion largo (—). Sin listas ni viñetas dentro de la carta. Sin clichés de venta ni relleno.",
-    "- Evita el vocabulario que delata IA (potenciar, robusto, holístico, sinergias, optimizar en exceso). Pero no te retuerzas por evitar palabras: prioriza que suene natural por encima de cualquier prohibición.",
-    "- No suene a plantilla ni a folleto. Si una frase no aporta, bórrala.",
+    "- Evita el vocabulario que delata IA (potenciar, robusto, holístico, sinergias, optimizar en exceso). Pero prioriza que suene natural por encima de cualquier prohibición.",
+    "- No suene a plantilla, a folleto ni a anuncio. Si una frase no aporta, bórrala.",
     ...(directive ? ["", `AJUSTE PEDIDO POR EL USUARIO (respétalo sin perder naturalidad): ${directive}`] : []),
     "",
     "Instrucciones de salida:",

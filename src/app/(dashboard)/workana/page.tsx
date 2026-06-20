@@ -7,6 +7,7 @@ import type { BadgeColor } from "@/components/ui/Badge";
 import { Briefcase } from "lucide-react";
 import { useT } from "@/i18n/LocaleProvider";
 import { INTENT_TONE, isReplyIntent } from "@/lib/reply-intent";
+import { WORKANA_TARGETING_DEFAULT } from "@/lib/workana/targeting";
 
 interface ReplyRow {
   id: number;
@@ -225,8 +226,9 @@ export default function WorkanaPage() {
     scanIntervalHours: "6",
     maxEval: "60",
     maxDrafts: "12",
-    styleExamples: "3",
+    styleExamples: "5",
     feedPages: "4",
+    targeting: "",
     autosendEnabled: "false",
     minSendInterval: "20",
     maxSendsPerDay: "0",
@@ -300,8 +302,9 @@ export default function WorkanaPage() {
           scanIntervalHours: s?.workana_scan_interval_hours || "6",
           maxEval: s?.workana_max_eval_per_scan || "60",
           maxDrafts: s?.workana_max_drafts_per_scan || "12",
-          styleExamples: s?.workana_style_examples ?? "3",
+          styleExamples: s?.workana_style_examples ?? "5",
           feedPages: s?.workana_feed_pages || "4",
+          targeting: s?.workana_targeting || WORKANA_TARGETING_DEFAULT,
           autosendEnabled: s?.workana_autosend_enabled || "false",
           minSendInterval: s?.workana_min_send_interval_minutes || "20",
           maxSendsPerDay: s?.workana_max_sends_per_day || "0",
@@ -383,6 +386,7 @@ export default function WorkanaPage() {
         workana_max_drafts_per_scan: cfg.maxDrafts,
         workana_style_examples: cfg.styleExamples,
         workana_feed_pages: cfg.feedPages,
+        workana_targeting: cfg.targeting,
         workana_autosend_enabled: cfg.autosendEnabled,
         workana_min_send_interval_minutes: cfg.minSendInterval,
         workana_max_sends_per_day: cfg.maxSendsPerDay,
@@ -546,6 +550,16 @@ export default function WorkanaPage() {
                     <Input value={cfg.styleExamples} onChange={(e) => setCfg({ ...cfg, styleExamples: e.target.value })} inputMode="numeric" className="w-full" />
                     <p className="mt-1 text-xs text-text-muted leading-relaxed">{t("workana.styleExamplesHint")}</p>
                   </div>
+                </div>
+                <div className="mt-4">
+                  <label className="nd-label block mb-1">{t("workana.targetingLabel")}</label>
+                  <Textarea
+                    value={cfg.targeting}
+                    onChange={(e) => setCfg({ ...cfg, targeting: e.target.value })}
+                    rows={10}
+                    className="w-full text-xs leading-relaxed"
+                  />
+                  <p className="mt-1 text-xs text-text-muted leading-relaxed">{t("workana.targetingHint")}</p>
                 </div>
                 <div className="mt-4">
                   <label className="nd-label block mb-1">{t("workana.profileUrlLabel")}</label>
