@@ -306,6 +306,21 @@ export function getStyleExamples(opts: {
   return scored.slice(0, limit).map((s) => s.text);
 }
 
+/**
+ * Cover-letter texts of proposals we've sent or queued (submitted/approved/sending).
+ * Used to recognize our OWN outgoing messages in the inbox scrape so they are not
+ * mistaken for client replies (the inbox preview of a thread we bid on starts with
+ * our proposal text). See processWorkanaReplies.
+ */
+export function getOwnProposalCovers(): string[] {
+  const rows = db
+    .select({ coverLetter: workanaProposals.coverLetter })
+    .from(workanaProposals)
+    .where(inArray(workanaProposals.status, ["submitted", "approved", "sending"]))
+    .all();
+  return rows.map((r) => r.coverLetter).filter((c): c is string => !!c && c.trim().length > 0);
+}
+
 /** Count proposals submitted since the given ISO timestamp (weekly-budget accounting). */
 export function countSubmittedSince(isoTs: string): number {
   const rows = db

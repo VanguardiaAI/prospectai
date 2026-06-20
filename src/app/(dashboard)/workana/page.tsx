@@ -624,22 +624,30 @@ export default function WorkanaPage() {
               {replies.length === 0 ? (
                 <p className="mt-4 text-sm text-text-muted">{t("workana.noReplies")}</p>
               ) : (
-                <div className="divide-y divide-border mt-4">
+                <div className="mt-4 space-y-3">
                   {replies.map((r) => (
-                    <div key={r.id} className="py-3">
+                    <div
+                      key={r.id}
+                      className={`rounded-xl border border-border bg-surface-raised p-4 ${r.status === "handled" ? "opacity-60" : ""}`}
+                    >
                       <div className="flex items-start justify-between gap-3">
-                        <div className="min-w-0 flex items-center gap-2">
-                          {isReplyIntent(r.intent) && <Badge color={intentBadgeColor(r.intent)}>{t(`intent.${r.intent}`)}</Badge>}
-                          <span className="text-sm text-text-display truncate">{r.fromName || r.projectTitle || "—"}</span>
+                        <div className="min-w-0">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            {isReplyIntent(r.intent) && <Badge color={intentBadgeColor(r.intent)}>{t(`intent.${r.intent}`)}</Badge>}
+                            <span className="text-sm font-medium text-text-display truncate">{r.fromName || r.projectTitle || "—"}</span>
+                          </div>
+                          {r.fromName && r.projectTitle && r.projectTitle !== r.fromName && (
+                            <p className="mt-1 text-xs text-text-muted truncate">{r.projectTitle}</p>
+                          )}
                         </div>
                         <Button size="sm" variant="ghost" onClick={() => handleReply(r.id, r.status === "handled" ? "unhandle" : "handle")}>
                           {r.status === "handled" ? t("workana.reopen") : t("workana.markHandled")}
                         </Button>
                       </div>
-                      {r.body && <p className="mt-2 text-sm text-text-secondary leading-relaxed line-clamp-3 max-w-prose">{r.body}</p>}
+                      {r.body && <p className="mt-3 text-sm text-text-secondary leading-relaxed whitespace-pre-wrap line-clamp-4">{r.body}</p>}
                       {r.suggestedReply && (
-                        <div className="mt-2 rounded-lg border border-border bg-surface-raised p-3 max-w-prose">
-                          <p className="nd-label mb-1">{t("workana.suggestedReply")}</p>
+                        <div className="mt-3 rounded-lg border border-border border-l-2 border-l-accent bg-surface p-3">
+                          <p className="nd-label mb-1.5 text-accent">{t("workana.suggestedReply")}</p>
                           <p className="text-[13px] text-text-secondary leading-relaxed whitespace-pre-wrap">{r.suggestedReply}</p>
                         </div>
                       )}
@@ -652,15 +660,15 @@ export default function WorkanaPage() {
             {/* Evaluated projects */}
             {projects.length > 0 && (
               <Card title={t("workana.projectsHeading")} meta={String(projects.length)} dots>
-                <div className="divide-y divide-border">
+                <div className="space-y-2">
                   {projects.map((p) => (
-                    <div key={p.id} className="py-3 flex items-start justify-between gap-3">
+                    <div key={p.id} className="rounded-lg border border-border bg-surface-raised px-3 py-2.5 flex items-start justify-between gap-3">
                       <div className="min-w-0">
                         <div className="flex items-center gap-2">
                           <Badge color={p.shouldBid ? "success" : "default"}>{p.shouldBid ? t("workana.recommended") : t("workana.skipped")}</Badge>
                           <span className="text-sm text-text-display truncate">{p.title}</span>
                         </div>
-                        {p.reason && <p className="mt-1 text-xs text-text-muted leading-relaxed line-clamp-2 max-w-prose">{p.reason}</p>}
+                        {p.reason && <p className="mt-1 text-xs text-text-muted leading-relaxed line-clamp-2">{p.reason}</p>}
                       </div>
                       <span className="text-xs text-text-secondary font-mono shrink-0">fit {p.fitScore ?? "—"}</span>
                     </div>
