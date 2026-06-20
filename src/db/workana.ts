@@ -253,7 +253,7 @@ export function getProjectRowForProposal(proposalId: number) {
  * submitted, ranked by skill overlap with the target project (so the style matches
  * the kind of project) and recency. Returns just the cover-letter texts.
  *
- * Limit comes from `workana_style_examples` (default 3); set it to "0" to disable.
+ * Limit comes from `workana_style_examples` (default 5); set it to "0" to disable.
  */
 export function getStyleExamples(opts: {
   skills?: string[];
@@ -263,8 +263,8 @@ export function getStyleExamples(opts: {
   let limit = opts.limit;
   if (limit == null) {
     const raw = getSetting("workana_style_examples");
-    const n = raw == null || raw === "" ? 3 : Number(raw);
-    limit = Number.isFinite(n) ? n : 3;
+    const n = raw == null || raw === "" ? 5 : Number(raw);
+    limit = Number.isFinite(n) ? n : 5;
   }
   if (limit <= 0) return [];
 

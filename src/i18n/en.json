@@ -185,6 +185,8 @@
     "maxDrafts": "Max drafts per scan",
     "feedPages": "Feed pages to scan",
     "feedPagesHint": "How many feed pages (newest first) to walk per scan. More pages = more coverage, so no good opportunity slips through.",
+    "targetingLabel": "Project profile to target",
+    "targetingHint": "Tells the evaluator which projects to favor and which to skip (e.g. SaaS, web/mobile apps, dashboards yes; no-code, n8n, WordPress, bug-fixes no). Edit freely; clear it to restore the default.",
     "autosendLabel": "Auto-spaced sending",
     "autosendHint": "Sends only the proposals you approve, best-first, respecting the interval and weekly cap. Requires \"real sending\" on. You can pause it anytime.",
     "minSendInterval": "Minimum interval between sends (min)",

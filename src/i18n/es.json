@@ -185,6 +185,8 @@
     "maxDrafts": "Máx. borradores por escaneo",
     "feedPages": "Páginas del feed a escanear",
     "feedPagesHint": "Cuántas páginas del feed (más nuevas primero) recorrer por escaneo. Más páginas = más cobertura, sin dejar pasar oportunidades.",
+    "targetingLabel": "Perfil de proyectos a buscar",
+    "targetingHint": "Le dice al evaluador qué proyectos priorizar y cuáles descartar (ej: SaaS, apps web/móviles, dashboards sí; no-code, n8n, WordPress, arreglar bugs no). Edítalo libremente; vacíalo para volver al valor por defecto.",
     "autosendLabel": "Envío automático espaciado",
     "autosendHint": "Envía solo las propuestas que apruebes, mejor-primero, respetando el intervalo y el tope semanal. Requiere \"envío real\" activado. Puedes pausarlo cuando quieras.",
     "minSendInterval": "Intervalo mínimo entre envíos (min)",
