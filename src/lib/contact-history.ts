@@ -14,11 +14,16 @@ import { eq, ne, and, inArray, sql } from "drizzle-orm";
 // Scraped "emails" are often junk (logo-degradado@2x.png). Only treat well-formed
 // addresses whose TLD isn't a file extension as real contact emails.
 const FILE_EXT = /\.(png|jpe?g|gif|svg|webp|bmp|ico|css|js|json|pdf|mp4|webm|woff2?)$/i;
+// Directory/aggregator inboxes (Doctoralia/Docplanner) are shared across many
+// listings, so treating them as a contact identity creates false "same company"
+// matches. They are never a real per-business address.
+const DIRECTORY_DOMAINS = /(doctoralia|docplanner|doctoranytime)/i;
 
 export function isRealEmail(value?: string | null): boolean {
   if (!value) return false;
   const s = value.trim().toLowerCase();
   if (!/^[^@\s]+@[^@\s]+\.[a-z]{2,}$/.test(s)) return false;
+  if (DIRECTORY_DOMAINS.test(s)) return false;
   return !FILE_EXT.test(s);
 }
 

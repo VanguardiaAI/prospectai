@@ -42,7 +42,7 @@ export async function generateEmail(
   const writingRules = getLocaleWritingRules(effectiveCountry);
 
   const purpose: CopyPurpose = !sequenceStep || sequenceStep === 1 ? "initial" : "follow_up";
-  const maxWords = purpose === "initial" ? 110 : 75;
+  const maxWords = purpose === "initial" ? 90 : 60;
 
   // Build service-specific pitch based on analysis
   const recommendedServices = (analysis.recommendedServices || ["web_development"])
@@ -71,13 +71,10 @@ export async function generateEmail(
 
   const examplesBlock = formatEmailExamples(purpose, 3);
 
-  // Hint so the agency block surfaces the most relevant portfolio project to cite.
-  const relevanceHint = [businessCategory, city, (analysis.recommendedServices || []).join(" ")].filter(Boolean).join(" ");
-
   const prompt = `${PERSONA_BLOCK(fromName, ctx.name)}
 
-CONTEXTO DE LA AGENCIA QUE ESCRIBE (úsalo de forma natural, NO inventes datos que no estén aquí):
-${formatAgencyContextBlock(ctx, { relevanceHint })}
+CONTEXTO DE LA AGENCIA QUE ESCRIBE (identidad y servicios; NO inventes datos que no estén aquí):
+${formatAgencyContextBlock(ctx, { identityOnly: true })}
 
 DATOS DEL NEGOCIO AL QUE ESCRIBES:
 - Nombre: ${businessName}
@@ -98,21 +95,21 @@ TONO PEDIDO: ${tone}
 ${stepContext}
 ${extraInstructions}
 
-PRINCIPIO FUNDAMENTAL — ENFOQUE EN BENEFICIO:
-Al destinatario NO le importan los problemas técnicos. Le importa tener MÁS CLIENTES y MÁS VENTAS. Cada problema que menciones debe traducirse a impacto de negocio:
-- "Sin SSL" → "Los visitantes ven 'sitio no seguro' y se van a la competencia"
-- "No responsive" → "El 70% busca desde el móvil y no puede navegar bien la web"
-- "SEO bajo" → "Cuando alguien busca [su categoría] en [su ciudad], aparece la competencia y ellos no"
-- "Sin web" → "Todos los clientes que buscan en Google un negocio como el suyo no los encuentran"
-- "Contenido hackeado/spam" → "Google puede estar penalizando el sitio y los clientes ven contenido que daña la imagen del negocio"
+PRINCIPIO FUNDAMENTAL — EMAIL FRÍO, CORTO Y RELEVANTE:
+La persona no te conoce y le dedica 5 segundos. Cuanto más corto y específico, mejor. NO menciones proyectos, clientes ni casos concretos que el destinatario no conoce, y NO presentes tu agencia ni su tamaño, productos o trayectoria (nada de "somos un directorio con X doctores", "trabajamos con Y", "tenemos años de experiencia"): todo eso es relleno que al lector no le importa en un primer mensaje. Tu agencia aparece solo al firmar y, si hace falta, en "soy [nombre] de [agencia]". TODA la personalización sale de lo que OBSERVASTE en la auditoría de ESTE negocio, nada más.
 
-ESTRUCTURA DEL EMAIL (4 bloques cortos):
-1. APERTURA específica (1-2 frases): observación concreta sobre ESTE negocio que demuestra que lo miraste de verdad. NO cumplidos genéricos.
-2. PUENTE AL PROBLEMA (1-2 frases): conecta lo que viste con clientes/ventas que están perdiendo o podrían capturar. NUNCA listes problemas técnicos sueltos.
-3. VALOR / PRUEBA CONCRETA (1 frase): si en el contexto hay un proyecto del portafolio que encaje con ESTE negocio, menciónalo natural y breve (qué resolviste para alguien parecido y el resultado). Es lo que más te diferencia de otros. Si ninguno encaja de verdad, di cómo ayudas a negocios parecidos sin inventar ni exagerar resultados.
-4. CTA suave (1 frase): pregunta abierta o "interest check". NUNCA pidas reunión directa, calendario o llamada en cold #1.
+ENFOQUE EN BENEFICIO: al destinatario le importan MÁS CLIENTES y MÁS VENTAS, no los tecnicismos. Traduce SIEMPRE lo que observaste a impacto de negocio:
+- "Sin SSL" → "ven 'sitio no seguro' y se van a la competencia"
+- "No responsive" → "la mayoría entra desde el móvil y no puede navegar bien"
+- "SEO bajo" → "cuando alguien busca [su categoría] en [su ciudad], aparece la competencia y ellos no"
+- "Sin web" → "quien los busca en Google no los encuentra"
 
-LONGITUD: Cuerpo entre 75 y ${maxWords} palabras. Es un techo, no un objetivo. Si con 60 palabras dices todo, mejor.
+ESTRUCTURA (3 bloques cortos, sin relleno):
+1. APERTURA = la observación concreta de la auditoría (1 frase). Directo a algo VERDADERO y específico de ESTE negocio. PROHIBIDO abrir con cumplidos vagos o de relleno ("se nota que tienen recorrido", "se nota que llevan tiempo atendiendo", "tienen un gran servicio"): suenan huecos e insinceros. Si no tienes una observación específica y sincera, abre directo con el punto útil, sin halago.
+2. IMPACTO (1-2 frases): qué clientes o ventas pierden por eso y, en una frase, cómo lo resuelves. Una sola idea, sin listar tecnicismos.
+3. CTA suave (1 frase): pregunta abierta o interest-check. NUNCA pidas reunión, llamada ni calendario en el primer email.
+
+LONGITUD: cuerpo de 40 a ${maxWords} palabras, NUNCA más. Cuanto más corto, mejor (50-70 ideal). Si te pasas, recorta hasta cumplir. Máximo 3 párrafos cortos.
 
 ASUNTO: 4-7 palabras, en minúsculas (sentence case), que despierte curiosidad sobre el BENEFICIO o haga referencia específica al negocio. NO mayúsculas, NO signos de exclamación, NO palabras spam.
 
@@ -167,14 +164,13 @@ export async function regenerateEmail(
   const writingRules = getLocaleWritingRules(effectiveCountry);
 
   const examplesBlock = formatEmailExamples("initial", 3);
-  const relevanceHint = [businessCategory, city, (analysis.recommendedServices || []).join(" ")].filter(Boolean).join(" ");
 
   const prompt = `${PERSONA_BLOCK(fromName, ctx.name)}
 
 Necesitas REGENERAR un email de prospección que ya tenías escrito, aplicando un nuevo tono o instrucciones.
 
-CONTEXTO DE LA AGENCIA QUE ESCRIBE (úsalo de forma natural, NO inventes datos que no estén aquí):
-${formatAgencyContextBlock(ctx, { relevanceHint })}
+CONTEXTO DE LA AGENCIA QUE ESCRIBE (identidad y servicios; NO inventes datos que no estén aquí):
+${formatAgencyContextBlock(ctx, { identityOnly: true })}
 
 DATOS DEL NEGOCIO:
 - Nombre: ${businessName}

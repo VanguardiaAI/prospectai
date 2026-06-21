@@ -59,12 +59,11 @@ export async function generateWhatsApp(
   const extraInstructions = customInstructions ? `\nINSTRUCCIONES ADICIONALES DEL USUARIO: ${customInstructions}` : "";
 
   const examplesBlock = formatWhatsAppExamples(purpose, 3);
-  const relevanceHint = [businessCategory, city, analysis ? (analysis.recommendedServices || []).join(" ") : ""].filter(Boolean).join(" ");
 
   const prompt = `${PERSONA_BLOCK(fromName, ctx.name)}
 
-CONTEXTO DE LA AGENCIA QUE ESCRIBE (úsalo de forma natural, NO inventes datos que no estén aquí):
-${formatAgencyContextBlock(ctx, { relevanceHint, maxProjects: 2 })}
+CONTEXTO DE LA AGENCIA QUE ESCRIBE (identidad y servicios; NO inventes datos que no estén aquí):
+${formatAgencyContextBlock(ctx, { identityOnly: true })}
 
 DATOS DEL NEGOCIO AL QUE ESCRIBES:
 - Nombre: ${businessName}
@@ -82,8 +81,8 @@ El destinatario debe sentir que GANA algo respondiendo. NO le auditas ni le señ
 
 ESTRUCTURA DEL MENSAJE (en una sola burbuja, sin splits):
 1. SALUDO + IDENTIFICACIÓN (1 línea breve): "Hola [nombre], soy [tu nombre] de [agencia]".
-2. CONTEXTO/OBSERVACIÓN (1-2 líneas): algo concreto sobre su negocio conectado a una oportunidad de crecimiento. Traduce cualquier issue a clientes o ventas.
-3. PROPUESTA O PERMISSION ASK (1 línea): qué les ofreces o qué les pides poder enviarles. Algo concreto y de bajo compromiso. Si en el contexto hay un proyecto parecido, puedes aludir a él en pocas palabras como prueba (sin links ni URLs, sin inventar).
+2. OBSERVACIÓN CONCRETA (1-2 líneas): algo VERDADERO y específico de su negocio (de la auditoría) conectado a clientes o ventas. NADA de cumplidos vagos o de relleno ("se nota que llevan tiempo", "tienen un gran servicio"): suenan huecos e insinceros. Si no hay algo específico, ve directo al punto útil.
+3. PROPUESTA / PERMISSION ASK (1 línea): qué les ofreces o qué les pides poder enviarles, concreto y de bajo compromiso. NO menciones proyectos ni clientes que no conocen, NI presentes tu agencia o su tamaño/productos ("somos un directorio con X doctores"): en un primer mensaje suena a presumir y es relleno.
 4. PREGUNTA ABIERTA (al final del mismo bloque): "te interesa?", "te animas?", "tiene sentido?".
 
 REGLAS DE WHATSAPP B2B:
@@ -133,14 +132,13 @@ export async function regenerateWhatsApp(
   const writingRules = getLocaleWritingRules(effectiveCountry);
 
   const examplesBlock = formatWhatsAppExamples("initial", 3);
-  const relevanceHint = [businessCategory, city, analysis ? (analysis.recommendedServices || []).join(" ") : ""].filter(Boolean).join(" ");
 
   const prompt = `${PERSONA_BLOCK(fromName, ctx.name)}
 
 Necesitas REGENERAR un mensaje de WhatsApp de prospección que ya tenías escrito, aplicando un nuevo tono o instrucciones.
 
-CONTEXTO DE LA AGENCIA QUE ESCRIBE (úsalo de forma natural, NO inventes datos que no estén aquí):
-${formatAgencyContextBlock(ctx, { relevanceHint, maxProjects: 2 })}
+CONTEXTO DE LA AGENCIA QUE ESCRIBE (identidad y servicios; NO inventes datos que no estén aquí):
+${formatAgencyContextBlock(ctx, { identityOnly: true })}
 
 DATOS DEL NEGOCIO:
 - Nombre: ${businessName}

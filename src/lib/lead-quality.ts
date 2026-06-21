@@ -23,8 +23,11 @@ import { parsePhoneNumberFromString } from "libphonenumber-js/max";
 
 const EMAIL_REGEX = /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g;
 
-// Domains that are never real contact addresses (telemetry, placeholders, host SDKs).
-const IGNORED_DOMAINS = ["example.com", "sentry", "wixpress"];
+// Domains that are never real contact addresses: telemetry/placeholders/host SDKs,
+// plus medical DIRECTORIES (Doctoralia/Docplanner) whose listed "email" is the
+// directory's own support inbox — it never reaches the doctor or clinic, and it is
+// shared across many listings (which also creates false "same company" dedup hits).
+const IGNORED_DOMAINS = ["example.com", "sentry", "wixpress", "doctoralia", "docplanner", "doctoranytime"];
 
 // The TLD pattern in EMAIL_REGEX (\.[a-zA-Z]{2,}) also matches asset extensions,
 // so filenames like `bg-info@2x.png` or `logo@3x.svg` look like valid emails.

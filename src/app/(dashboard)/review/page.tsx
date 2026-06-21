@@ -417,7 +417,7 @@ function MessageCard({ item, fallbackDays, onChanged, onSendNow }: { item: Inbox
             <span className="text-[15px] text-text-display font-medium">{item.title}</span>
           </div>
           <div
-            className="rv-letter px-6 py-5 text-sm text-text-primary leading-relaxed"
+            className="rv-letter px-6 py-5 text-sm text-text-primary leading-relaxed break-words"
             dangerouslySetInnerHTML={{ __html: item.bodyHtml || `<p>${item.bodyText}</p>` }}
           />
         </>
@@ -525,7 +525,17 @@ function DupBanner({ items, onAck, busy }: { items: PriorContact[]; onAck: () =>
   const sent = items.filter((i) => i.status === "sent");
   const pending = items.filter((i) => i.status !== "sent");
   const isSent = sent.length > 0;
-  const show = (isSent ? sent : pending).slice(0, 4);
+  // Collapse identical rows (same channel + campaign + match reason) so a company
+  // matched across several sibling leads doesn't repeat the same line N times.
+  const seen = new Set<string>();
+  const show = (isSent ? sent : pending)
+    .filter((c) => {
+      const k = `${c.channel}|${c.campaignName ?? ""}|${c.matchedOn}`;
+      if (seen.has(k)) return false;
+      seen.add(k);
+      return true;
+    })
+    .slice(0, 4);
 
   const serviceLabel = (s: string | null) =>
     s === "seo_visibility" ? t("review.serviceSeo") : s === "web_design" ? t("review.serviceWeb") : null;
@@ -547,7 +557,9 @@ function DupBanner({ items, onAck, busy }: { items: PriorContact[]; onAck: () =>
                   <ChannelGlyph channel={c.channel} size={12} />
                   <span className="font-medium">{c.channel === "whatsapp" ? "WhatsApp" : "Email"}</span>
                   <span className="text-text-muted">{t("review.dupVia")}</span>
-                  <span>«{c.campaignName || "—"}»</span>
+                  {c.campaignName
+                    ? <span>«{c.campaignName}»</span>
+                    : <span className="text-text-muted italic">sin campaña</span>}
                   {svc && <span className="rounded-full border border-border px-1.5 py-0.5 text-[10px] text-text-secondary">{svc}</span>}
                   {c.sentAt && <span className="text-text-muted font-mono">· {c.sentAt.slice(0, 10)}</span>}
                   <span className="text-text-muted">· {matchLabel(c.matchedOn)}</span>
@@ -1001,7 +1013,7 @@ export default function ReviewPage() {
           ) : allItems.length === 0 ? (
             <EmptyState icon={<Inbox className="h-10 w-10" strokeWidth={1.4} />} title={t("review.noMessagesTitle")} description={t("review.noMessagesDesc")} />
           ) : (
-            <div className="grid grid-cols-1 lg:grid-cols-[minmax(300px,380px)_1fr] gap-4 items-start">
+            <div className="grid grid-cols-1 lg:grid-cols-[minmax(300px,380px)_minmax(0,1fr)] gap-4 items-start">
               {/* ── Company list pane ── */}
               <Card flush className="overflow-hidden lg:sticky lg:top-4">
                 <div className="lg:max-h-[calc(100vh-190px)] overflow-y-auto">

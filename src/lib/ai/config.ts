@@ -180,11 +180,37 @@ export interface AgencyContextFormatOptions {
   relevanceHint?: string | null;
   /** Max projects to include (keeps the prompt focused). Default 4. */
   maxProjects?: number;
+  /**
+   * Include the "proof" sections — portfolio projects, case studies, and answered
+   * Q&A. Default true (Workana proposals, replies). Set FALSE for COLD outreach
+   * (email/WhatsApp #1): name-dropping projects the recipient has never heard of
+   * reads as bragging and bloats the message. Identity + services stay either way.
+   */
+  includeProof?: boolean;
+  /**
+   * Strictest mode for COLD outreach: emit ONLY who is writing (name, signer, city)
+   * — no tagline/description/services/value-props/proof. The agency's own pitch
+   * ("we're a directory with 56k doctors", differentiators, projects) is exactly the
+   * filler the recipient doesn't care about in a first message. What to pitch comes
+   * from the per-lead audit (recommended services), not from bragging about us.
+   */
+  identityOnly?: boolean;
 }
 
 export function formatAgencyContextBlock(ctx: AgencyContext, opts: AgencyContextFormatOptions = {}): string {
   const lines: string[] = [];
   lines.push(`Nombre: ${ctx.name}`);
+
+  // Cold outreach: only who's writing (for the "soy X de Y" intro + signature).
+  if (opts.identityOnly) {
+    if (ctx.ownerName || ctx.ownerRole) {
+      const role = ctx.ownerRole ? ` (${ctx.ownerRole})` : "";
+      lines.push(`Responsable / firma: ${ctx.ownerName || "—"}${role}`);
+    }
+    if (ctx.city) lines.push(`Sede: ${ctx.city}`);
+    return lines.join("\n");
+  }
+
   if (ctx.tagline) lines.push(`Propuesta: ${ctx.tagline}`);
   if (ctx.description) lines.push(`Qué hace: ${ctx.description}`);
   if (ctx.url) lines.push(`URL: ${ctx.url}`);
@@ -208,27 +234,31 @@ export function formatAgencyContextBlock(ctx: AgencyContext, opts: AgencyContext
     lines.push(ctx.valueProps.map((v) => `- ${v}`).join("\n"));
   }
 
-  // Structured portfolio projects are the rich proof. Rank by relevance to the
-  // recipient and include only the top few so the prompt stays focused. Answered
-  // interview Q&A for a shown project is attached under that project.
-  const shown = rankProjectsByRelevance(ctx.projects, opts.relevanceHint, opts.maxProjects ?? 4);
-  if (shown.length) {
-    lines.push("Proyectos del portafolio (reales — cita el que MEJOR encaje con el destinatario, sin inventar ni exagerar):");
-    for (const p of shown) {
-      const k = ctx.knowledge.filter((x) => x.projectId === p.id).map((x) => ({ question: x.question, answer: x.answer }));
-      lines.push(formatProjectEntry(p, k));
+  // Proof sections (portfolio projects, case studies, agency Q&A). Omitted for
+  // cold outreach — see includeProof. Identity + services above always stay.
+  if (opts.includeProof !== false) {
+    // Structured portfolio projects are the rich proof. Rank by relevance to the
+    // recipient and include only the top few so the prompt stays focused. Answered
+    // interview Q&A for a shown project is attached under that project.
+    const shown = rankProjectsByRelevance(ctx.projects, opts.relevanceHint, opts.maxProjects ?? 4);
+    if (shown.length) {
+      lines.push("Proyectos del portafolio (reales — cita el que MEJOR encaje con el destinatario, sin inventar ni exagerar):");
+      for (const p of shown) {
+        const k = ctx.knowledge.filter((x) => x.projectId === p.id).map((x) => ({ question: x.question, answer: x.answer }));
+        lines.push(formatProjectEntry(p, k));
+      }
+    } else if (ctx.caseStudies.length) {
+      // Fallback to legacy case studies only when there are no structured projects.
+      lines.push("Casos de éxito (úsalos solo si el ángulo encaja, NO los inventes ni los exageres):");
+      lines.push(ctx.caseStudies.map((c) => `- ${c.client}: ${c.result}${c.snippet ? ` — "${c.snippet}"` : ""}`).join("\n"));
     }
-  } else if (ctx.caseStudies.length) {
-    // Fallback to legacy case studies only when there are no structured projects.
-    lines.push("Casos de éxito (úsalos solo si el ángulo encaja, NO los inventes ni los exageres):");
-    lines.push(ctx.caseStudies.map((c) => `- ${c.client}: ${c.result}${c.snippet ? ` — "${c.snippet}"` : ""}`).join("\n"));
-  }
 
-  // Agency-wide answered Q&A (not tied to a specific project).
-  const generalKnowledge = ctx.knowledge.filter((k) => k.projectId == null);
-  if (generalKnowledge.length) {
-    lines.push("Conocimiento adicional (datos reales que dio el usuario, úsalos con naturalidad):");
-    lines.push(generalKnowledge.map((k) => `- ${k.question} → ${k.answer}`).join("\n"));
+    // Agency-wide answered Q&A (not tied to a specific project).
+    const generalKnowledge = ctx.knowledge.filter((k) => k.projectId == null);
+    if (generalKnowledge.length) {
+      lines.push("Conocimiento adicional (datos reales que dio el usuario, úsalos con naturalidad):");
+      lines.push(generalKnowledge.map((k) => `- ${k.question} → ${k.answer}`).join("\n"));
+    }
   }
 
   return lines.join("\n");

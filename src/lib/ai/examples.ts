@@ -229,7 +229,7 @@ export const WHATSAPP_EXAMPLES_INITIAL: WhatsAppExample[] = [
   {
     style: "observacion",
     context: "Taller mecánico México, sin web",
-    message: `Hola [nombre], te escribe Pablo de VanguardIA. Vi AutoExpress y se nota que tienen buena reputación, pero busqué taller en Guadalajara en Google y no aparecen. Eso son clientes que se van a la competencia. Te puedo hacer un análisis de cuántos están perdiendo, te interesa?`,
+    message: `Hola [nombre], te escribe Pablo de VanguardIA. Busqué taller en Guadalajara en Google y AutoExpress no aparece, aun con tan buenas reseñas. Eso son clientes que se van a la competencia. Te puedo hacer un análisis de cuántos están perdiendo, te interesa?`,
   },
   {
     style: "directo",
@@ -244,7 +244,7 @@ export const WHATSAPP_EXAMPLES_INITIAL: WhatsAppExample[] = [
   {
     style: "observacion",
     context: "Centro médico Colombia, sin reserva online",
-    message: `Hola Andrea, te escribe Pablo de VanguardIA. Vi Centro Salud Total y se nota que es una clínica seria, pero la web no permite pedir cita en línea. Eso son pacientes que se cansan de llamar y van a otra. Te puedo armar un análisis de cuánta agenda están perdiendo, te interesa?`,
+    message: `Hola Andrea, te escribe Pablo de VanguardIA. Entré a la web de Centro Salud Total para ver cómo piden cita y no se puede en línea, solo por teléfono. Eso son pacientes que se cansan de llamar y van a otra. Te puedo armar un análisis de cuánta agenda están perdiendo, te interesa?`,
   },
 ];
 

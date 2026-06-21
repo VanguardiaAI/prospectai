@@ -6,6 +6,7 @@ import { useEffect, useState } from "react";
 import {
   Home,
   Inbox,
+  Users,
   Settings,
   LogOut,
   Menu,
@@ -27,6 +28,7 @@ export function Sidebar() {
 
   const nav = [
     { href: "/inicio", label: t("sidebar.home"), icon: Home },
+    { href: "/leads", label: t("sidebar.leads"), icon: Users },
     { href: "/review", label: t("sidebar.review"), icon: Inbox },
     ...(portfolioEnabled ? [{ href: "/profile", label: t("sidebar.profile"), icon: FolderKanban }] : []),
     ...(workanaEnabled ? [{ href: "/workana", label: t("sidebar.workana"), icon: Briefcase }] : []),
